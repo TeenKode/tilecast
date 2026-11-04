@@ -18,7 +18,7 @@
         android:banner="@drawable/tilecast_banner"
         android:hardwareAccelerated="true"
         android:icon="@drawable/tilecast_icon"
-        android:label="Tilecast Player"
+        android:label="Tilecast Player DEXP"
         android:supportsRtl="true"
         android:theme="@style/Theme.Tilecast"
         android:usesCleartextTraffic="true">

@@ -61,8 +61,12 @@ fun CommissioningScreen(
             when (state.step) {
                 CommissioningStep.RESULT -> SignalButton(onClick = finish) { Text("Finish commissioning") }
                 CommissioningStep.ADMIN_PIN -> Unit
-                CommissioningStep.ACCESSIBILITY -> SignalButton(onClick = advance, enabled = !state.accessibilitySupported || state.accessibilityEnabled) { Text("Continue") }
-                CommissioningStep.INSTALL_PERMISSION -> SignalButton(onClick = advance, enabled = state.installPermissionGranted) { Text("Continue") }
+                CommissioningStep.ACCESSIBILITY -> SignalButton(onClick = advance) {
+                    Text(if (!state.accessibilitySupported || state.accessibilityEnabled) "Continue" else "Continue without Accessibility Control")
+                }
+                CommissioningStep.INSTALL_PERMISSION -> SignalButton(onClick = advance) {
+                    Text(if (state.installPermissionGranted) "Continue" else "Continue without automatic updates")
+                }
                 CommissioningStep.BOOT_RECOVERY -> SignalButton(onClick = advance, enabled = state.bootLaunchVerified) { Text("Continue") }
                 CommissioningStep.PRESENTATION -> SignalButton(onClick = advance, enabled = state.immersiveVerified && state.keepAwakeVerified) { Text("Continue") }
                 CommissioningStep.SELF_TEST -> SignalButton(onClick = advance, enabled = state.selfTestResult != null) { Text("View result") }
@@ -129,6 +133,9 @@ private fun CommissioningStepBody(
                     openAccessibility,
                     refresh,
                 )
+                if (!state.accessibilityEnabled) {
+                    Text("Playback works without this permission. Automatic return to playback and Android lock actions remain unavailable. External wake tools can still launch Tilecast.", color = SignalWarning, fontSize = 17.sp)
+                }
             }
         }
         CommissioningStep.INSTALL_PERMISSION -> CapabilityStep(
@@ -174,7 +181,7 @@ private fun CapabilityStep(title: String, description: String, verified: Boolean
     Text(title, color = SignalText, fontSize = 30.sp)
     Text(description, color = SignalMuted, fontSize = 18.sp)
     StatusLine("Verification", verified)
-    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         SignalButton(onClick = open) { Text(action) }
         SignalOutlinedButton(onClick = refresh) { Text("Verify again") }
     }
