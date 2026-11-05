@@ -155,12 +155,14 @@ class RuntimeHostSession(
     private fun handleCall(call: HostChannel.PageMessage.Call): String {
         val outcome = RemoteWebCallHandler.handle(call, remoteWeb, rendererGeneration)
         if (call.call == "remoteWeb.create" || outcome is CallOutcome.Refused) {
-            Log.i("TilecastRenderer", "event=remote_web_call generation=$rendererGeneration call=${call.call.take(48)}" +
-                " result=" + when (outcome) {
-                    is CallOutcome.Created -> "created"
-                    is CallOutcome.Refused -> outcome.code
-                    is CallOutcome.Ack -> "ack"
-                })
+            runCatching {
+                Log.i("TilecastRenderer", "event=remote_web_call generation=$rendererGeneration call=${call.call.take(48)}" +
+                    " result=" + when (outcome) {
+                        is CallOutcome.Created -> "created"
+                        is CallOutcome.Refused -> outcome.code
+                        is CallOutcome.Ack -> "ack"
+                    })
+            }
         }
         if (outcome !is CallOutcome.Refused && call.call.startsWith("remoteWeb.") &&
             call.call != "remoteWeb.reportRecovered"
