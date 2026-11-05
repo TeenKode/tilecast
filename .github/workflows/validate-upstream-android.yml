@@ -1,0 +1,88 @@
+name: Validate Android upstream fixes (fork only)
+
+on:
+  push:
+    branches: [validation/android-upstream-fixes]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+      - uses: android-actions/setup-android@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run build --workspace @tilecast/player-runtime
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/cache@v4
+        with:
+          path: |
+            target
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: android-upstream-validation-${{ runner.os }}-${{ hashFiles('Cargo.lock', 'apps/player-android/native/**') }}
+          restore-keys: android-test-native-${{ runner.os }}-
+      - name: Install pinned native prerequisites
+        run: |
+          rustup target add aarch64-linux-android armv7-linux-androideabi x86_64-linux-android
+          cargo ndk --version 2>/dev/null | grep -qx 'cargo-ndk 4.1.2' || cargo install cargo-ndk --version 4.1.2 --locked
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager --install 'ndk;29.0.14206865'
+      - name: Rust Android host tests
+        run: bash scripts/ci/cargo-player-android.sh test
+      - name: JVM tests, lint and APK compilation
+        working-directory: apps/player-android
+        run: ./gradlew :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleDebugAndroidTest --no-daemon
+      - name: Check native alignment
+        run: python3 apps/player-android/ci/check-native-alignment.py apps/player-android/app/build/outputs/apk/debug/app-debug.apk
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Repeated-wake device regression
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 30
+          arch: x86_64
+          target: google_apis
+          disable-animations: true
+          script: cd apps/player-android && ./gradlew :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=org.tilecast.player.reliability.WakeRequestDeviceTest --no-daemon
+      - name: Upload validation reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-upstream-validation-reports
+          path: |
+            apps/player-android/app/build/reports
+            apps/player-android/app/build/test-results
+            apps/player-android/app/build/outputs/androidTest-results
+          if-no-files-found: ignore
+  documentation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npx prettier --check docs/android-development.md apps/docs/src/content/docs/players/active-hours-power.mdx apps/docs/src/content/docs/players/install-android.mdx
+      - run: bash scripts/check-docs-ste.sh
+      - run: node scripts/ci/check-docs-contracts.mjs
+      - run: python3 scripts/ci/check-player-architecture.py
+      - run: npm run docs:build
