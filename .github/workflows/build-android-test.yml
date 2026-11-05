@@ -1,0 +1,93 @@
+name: Build Android Player (side-by-side test)
+
+on:
+  push:
+    branches:
+      - test/android-player-main
+    paths:
+      - .github/workflows/build-android-test.yml
+      - apps/player-android/**
+      - packages/player-runtime/**
+      - Cargo.lock
+      - rust-toolchain.toml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  android-test-apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 65
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+
+      - name: Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install JS dependencies and build shared runtime
+        run: |
+          npm ci
+          npm run build --workspace @tilecast/player-runtime
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android,armv7-linux-androideabi,x86_64-linux-android
+
+      - name: Install cargo-ndk
+        run: |
+          cargo ndk --version 2>/dev/null | grep -qx 'cargo-ndk 4.1.2' || cargo install cargo-ndk --version 4.1.2 --locked
+
+      - name: Install pinned Android NDK
+        run: |
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager --install "ndk;29.0.14206865"
+
+      - name: Change debug package ID for safe parallel installation
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          gradle = Path("apps/player-android/app/build.gradle.kts")
+          source = gradle.read_text()
+          before = '    buildTypes {\n        release {'
+          after = ('    buildTypes {\n'
+                   '        getByName("debug") {\n'
+                   '            applicationIdSuffix = ".test"\n'
+                   '            versionNameSuffix = "-test"\n'
+                   '        }\n'
+                   '        release {')
+          assert source.count(before) == 1, "Unrecognized build.gradle.kts structure"
+          gradle.write_text(source.replace(before, after))
+          manifest = Path("apps/player-android/app/src/main/AndroidManifest.xml")
+          data = manifest.read_text()
+          before_label = 'android:label="Tilecast Player"'
+          assert data.count(before_label) == 1, "Unexpected AndroidManifest.xml"
+          manifest.write_text(data.replace(before_label, 'android:label="Tilecast Test"'))
+          PY
+
+      - name: Assemble test APK
+        working-directory: apps/player-android
+        run: ./gradlew :app:assembleDebug --no-daemon
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tilecast-android-main-side-by-side-test
+          path: apps/player-android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 7
