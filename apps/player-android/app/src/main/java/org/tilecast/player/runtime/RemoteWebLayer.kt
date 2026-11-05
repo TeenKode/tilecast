@@ -77,6 +77,15 @@ internal class RemoteWebBrowser(
     private var disposed = false
     private var pageFailed = false
     private var pageReady = false
+    private fun safeAddress(raw: String?): String {
+        val uri = runCatching { Uri.parse(raw.orEmpty()) }.getOrNull()
+        val scheme = uri?.scheme?.take(10) ?: "none"
+        val host = uri?.host?.take(80) ?: "none"
+        // Never put URL credentials, queries or fragments into logcat.
+        val path = uri?.encodedPath?.take(100) ?: "/"
+        return "scheme=$scheme host=$host path=$path"
+    }
+
     private fun trace(event: String, code: String? = null) {
         val message = "event=remote_web_$event generation=$generation surface=$surfaceId" +
             (code?.let { " code=${it.take(64)}" } ?: "")
@@ -105,6 +114,7 @@ internal class RemoteWebBrowser(
             override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
                 if (!request.isForMainFrame) return false
                 if (allowedNavigation(request.url.toString())) return false
+                trace("navigation_blocked", safeAddress(request.url.toString()))
                 fail("navigation_blocked")
                 return true
             }
@@ -112,13 +122,14 @@ internal class RemoteWebBrowser(
             @Suppress("DEPRECATION")
             override fun shouldOverrideUrlLoading(view: WebView, url: String): Boolean {
                 if (allowedNavigation(url)) return false
+                trace("navigation_blocked", safeAddress(url))
                 fail("navigation_blocked")
                 return true
             }
 
             override fun onPageStarted(view: WebView, url: String?, favicon: android.graphics.Bitmap?) {
                 if (!disposed) {
-                    trace("page_started")
+                    trace("page_started", safeAddress(url))
                     pageFailed = false
                     pageReady = false
                 }
@@ -127,11 +138,11 @@ internal class RemoteWebBrowser(
             override fun onPageFinished(view: WebView, url: String?) {
                 if (disposed || pageFailed || pageReady) return
                 if (!allowedNavigation(url.orEmpty())) {
-                    trace("page_finished_disallowed")
+                    trace("page_finished_disallowed", safeAddress(url))
                     fail("navigation_blocked")
                     return
                 }
-                trace("page_finished")
+                trace("page_finished", safeAddress(url))
                 pageReady = true
                 current?.page?.let { page ->
                     if (page.scrollX != 0 || page.scrollY != 0) view.scrollTo(page.scrollX, page.scrollY)
@@ -142,15 +153,27 @@ internal class RemoteWebBrowser(
             }
 
             override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
-                if (request.isForMainFrame) fail("net_" + error.errorCode)
+                if (request.isForMainFrame) {
+                    // The numeric Android ERROR_UNKNOWN (-1) by itself is not actionable.
+                    // Retain Chromium's description and destination with URL secrets removed.
+                    val detail = error.description?.toString()?.replace(Regex("[\\r\\n]"), " ")
+                        ?.take(120) ?: "unknown"
+                    trace("network_detail", "net_${error.errorCode} detail=$detail " +
+                        safeAddress(request.url.toString()))
+                    fail("net_" + error.errorCode)
+                }
             }
 
             override fun onReceivedHttpError(view: WebView, request: WebResourceRequest, response: WebResourceResponse) {
-                if (request.isForMainFrame && response.statusCode >= 400) fail("http_" + response.statusCode)
+                if (request.isForMainFrame && response.statusCode >= 400) {
+                    trace("http_error_detail", "status=${response.statusCode} " + safeAddress(request.url.toString()))
+                    fail("http_" + response.statusCode)
+                }
             }
 
             override fun onReceivedSslError(view: WebView, handler: SslErrorHandler, error: SslError) {
                 handler.cancel()
+                trace("ssl_error_detail", "primary=${error.primaryError} " + safeAddress(error.url))
                 fail("ssl_error")
             }
 
@@ -191,12 +214,12 @@ internal class RemoteWebBrowser(
             }
             pageFailed = false
             pageReady = false
-            trace("load_started")
+            trace("load_started", safeAddress(destination))
             webView.loadUrl(destination)
         } else if (previous != null && next.reloadCount != previous.reloadCount) {
             pageFailed = false
             pageReady = false
-            trace("reload_started")
+            trace("reload_started", safeAddress(webView.url))
             webView.reload()
         }
     }
