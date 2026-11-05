@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clipToBounds
@@ -54,7 +55,7 @@ fun RemoteWebLayer(
         .offset { IntOffset(viewport.x, viewport.y) }
         .size(width, height)
         .clipToBounds()
-        .alpha(if (surface.visible) 1f else 0f)
+        .alpha(if (surface.visible && browser.displayReady.value) 1f else 0f)
     AndroidView(
         factory = { browser.webView },
         update = { browser.update(surface) },
@@ -77,6 +78,8 @@ internal class RemoteWebBrowser(
     private var disposed = false
     private var pageFailed = false
     private var pageReady = false
+    /** Never paint a partially loaded or failed WebView over Runtime's fallback. */
+    val displayReady = mutableStateOf(false)
     private fun safeAddress(raw: String?): String {
         val uri = runCatching { Uri.parse(raw.orEmpty()) }.getOrNull()
         val scheme = uri?.scheme?.take(10) ?: "none"
@@ -144,6 +147,7 @@ internal class RemoteWebBrowser(
                 }
                 trace("page_finished", safeAddress(url))
                 pageReady = true
+                displayReady.value = true
                 current?.page?.let { page ->
                     if (page.scrollX != 0 || page.scrollY != 0) view.scrollTo(page.scrollX, page.scrollY)
                 }
@@ -192,6 +196,7 @@ internal class RemoteWebBrowser(
         current = next
         val changed = previous == null || previous.page != next.page || previous.youTube != next.youTube
         if (changed) {
+            displayReady.value = false
             with(webView.settings) {
                 javaScriptEnabled = next.page?.javascriptEnabled ?: true
                 domStorageEnabled = next.page?.domStorageEnabled ?: true
@@ -252,6 +257,7 @@ internal class RemoteWebBrowser(
     private fun fail(code: String) {
         if (disposed || pageFailed) return
         pageFailed = true
+        displayReady.value = false
         trace("page_failed", code)
         event("failed", code.take(64))
     }
