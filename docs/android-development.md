@@ -569,6 +569,8 @@ The shared Player Runtime is the only presentation implementation. Playlists, Wi
 
 The Android bridge collects device metadata for each Core request. It reports the current display width and height after an orientation change without restarting Core.
 
+Both trusted and remote WebViews use `MATCH_PARENT` layout parameters. A `WRAP_CONTENT` WebView can give percentage-height pages a zero-height document despite a nonzero Compose surface. Validate a page with `html, body { height: 100% }` and a full-height canvas on the device.
+
 Calendar Sources project inside the shared runtime from sanitized manifest data. The Player does not fetch ICS, receive feed URLs, or use WebView for calendar content. Manifest validation bounds event counts and text before activation. Cached manifest startup preserves last-known-good prepared events.
 
 RSS, Atom, JSON, and CSV Sources use manifest v8 and project inside the shared runtime. The Player validates provider, presentation, record count, and text/value bounds before activation. It never fetches feed/data URLs, executes expressions, or routes structured Sources through WebView. Prepared records live in the verified cached manifest, so offline startup uses the same last-known-good data.

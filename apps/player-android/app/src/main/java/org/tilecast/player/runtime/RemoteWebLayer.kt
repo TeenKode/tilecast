@@ -100,6 +100,12 @@ internal class RemoteWebBrowser(
     }
 
     init {
+        // As in TrustedRuntimeWebView: AndroidView otherwise supplies
+        // WRAP_CONTENT, giving percentage-height documents a zero-height
+        // containing block even when the visible surface fills the screen.
+        webView.layoutParams = ViewGroup.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT,
+        )
         webView.setBackgroundColor(Color.BLACK)
         with(webView.settings) {
             javaScriptEnabled = false
