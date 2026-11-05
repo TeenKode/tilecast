@@ -19,6 +19,8 @@ jobs:
   android-test-apk:
     runs-on: ubuntu-latest
     timeout-minutes: 65
+    env:
+      TILECAST_TEST_CERT_SHA256: '91549d13cdb06604cdcb8adfa6fc9e787366bd199e3c9047abfa114a03e0c17f'
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
@@ -53,8 +55,8 @@ jobs:
             -keystore "$HOME/.android/debug.keystore" \
             -alias androiddebugkey -storepass android \
             | awk '/SHA256:/{print $2; exit}')
-          expected='91:54:9D:13:CD:B0:66:04:CD:CB:8A:DF:A6:FC:9E:78:73:66:BD:19:9E:3C:90:47:AB:FA:11:4A:03:E0:C1:7F'
-          if [[ "$fingerprint" != "$expected" ]]; then
+          fingerprint="${fingerprint//:/}"
+          if [[ "${fingerprint,,}" != "$TILECAST_TEST_CERT_SHA256" ]]; then
             echo "::error::Test APK signing key fingerprint mismatch: refusing to change signing identity."
             exit 1
           fi
@@ -91,6 +93,17 @@ jobs:
         run: |
           cargo ndk --version 2>/dev/null | grep -qx 'cargo-ndk 4.1.2' || cargo install cargo-ndk --version 4.1.2 --locked
 
+      - name: Restore native build cache
+        id: native-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            target
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: android-test-native-${{ runner.os }}-${{ hashFiles('Cargo.toml', 'Cargo.lock', 'rust-toolchain.toml', '.cargo/config.toml', 'apps/player-android/app/build.gradle.kts', 'apps/player-android/native/**', 'crates/**', 'plugins/**/native/**', 'packages/plugin-native-registry/**') }}
+          restore-keys: android-test-native-${{ runner.os }}-
+
       - name: Install pinned Android NDK
         run: |
           yes | sdkmanager --licenses >/dev/null || true
@@ -125,6 +138,7 @@ jobs:
           PY
 
       - name: Assemble test APK
+        id: assemble
         working-directory: apps/player-android
         run: ./gradlew :app:assembleDebug --no-daemon
 
@@ -139,11 +153,10 @@ jobs:
             apps/player-android/app/build/outputs/apk/debug/app-debug.apk
           apksig_jar="$(dirname "$apksigner")/lib/apksigner.jar"
           test -f "$apksig_jar"
-          expected='91549d13cdb06604cdcba8dfa6fc9e787366bd199e3c9047abfa114a03e0c17f'
           mkdir -p "$RUNNER_TEMP/apk-signature-check"
           javac -cp "$apksig_jar" -d "$RUNNER_TEMP/apk-signature-check" apps/player-android/ci/VerifyApkSignature.java
           java -cp "$RUNNER_TEMP/apk-signature-check:$apksig_jar" VerifyApkSignature \
-            apps/player-android/app/build/outputs/apk/debug/app-debug.apk "$expected"
+            apps/player-android/app/build/outputs/apk/debug/app-debug.apk "$TILECAST_TEST_CERT_SHA256"
 
       - name: Test remote host lifecycle
         working-directory: apps/player-android
@@ -156,3 +169,13 @@ jobs:
           path: apps/player-android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 7
+
+      - name: Save completed native build cache
+        if: ${{ !cancelled() && steps.assemble.outcome == 'success' && steps.native-cache.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            target
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ steps.native-cache.outputs.cache-primary-key }}
