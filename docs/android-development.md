@@ -536,6 +536,51 @@ the current facts give. Accessibility Control and the install permission
 are optional. The maintenance menu opens their Android settings. See
 [Reliability and power](reliability-and-power.md#unattended-setup-and-readiness).
 
+### Physical TV verification record: November 2026 test branch
+
+These results apply to `test/android-player-main` at commit `0e5e7b5`.
+They do not qualify another APK or an official release.
+The device was a DEXP 43UCY1 with Android 11 and firmware
+`RP1A.200720.011 dev-keys`.
+
+The side-by-side package was `org.tilecast.player.test`.
+Its previous certificate differed from the permanent test certificate.
+The owner explicitly approved one reinstall that cleared only the test package.
+The owner then approved the new pairing in Studio.
+Later same-certificate updates used `adb install -r -t` and retained data.
+The final APK passed cryptographic signature verification against the CI pin.
+The private signing key stayed in the Actions secret.
+
+| Observed failure | Cause and correction | Device evidence |
+|---|---|---|
+| Repeated window recreation during playback | Configuration applied a wake request with `NEW_TASK` and `CLEAR_TOP`. The resulting new ViewModel repeated the request. `SINGLE_TOP` preserves the existing Activity. | A 22-second final observation found the same process, no new Player START events, and no remote-page errors. |
+| Local HTTP Website failed before loading | The TLS dependency supplied a network security configuration that denied cleartext. The application now owns this configuration. | The original installed policy rejected the host. The corrected APK reported loaded and stream-ready events. |
+| Page background and footer appeared without the table | The remote WebView inherited `WRAP_CONTENT`. Percentage-height HTML had zero computed height. Both WebViews now use `MATCH_PARENT`. | The final page had a 1920 px root height with no inline height override. Its canvas measured 1080 by 1882 px. The footer used the remaining 38 px. |
+| Dimensions could remain from the previous orientation | The Kotlin bridge retained a DeviceFacts snapshot. It now collects metadata for each Core request. | A unit test changes 1920 by 1080 to 1080 by 1920 without a Core restart. The Player window inherited 1080 by 1920 after launch from a native portrait Home. |
+
+The Website had its own working-hours rule that could paint a black canvas.
+A temporary diagnostic in the test page disabled this rule for a screenshot.
+The diagnostic restored the previous rule in `finally`.
+It did not change server files, saved Website settings, or the system clock.
+The final layout verification required no temporary CSS.
+The debug port forward was removed after the check.
+
+A fresh screenshot at 07:36 on 6 November showed the complete current-day table.
+Android identified Tilecast Test as the focused application.
+The display remained 1080 by 1920.
+Screenshots and local Website data were not committed.
+This observation does not prove uninterrupted overnight playback or a reboot.
+Server-side dimension fields were not independently read through the management API.
+The metadata unit test and device measurements are separate evidence.
+
+The final [CI run](https://github.com/TeenKode/tilecast/actions/runs/42038737793)
+passed APK assembly, pinned-signature verification, and the targeted lifecycle,
+remote-host, trusted-origin, URL-policy, Website-policy, and Core-host tests.
+This HTTP playback check does not establish compatibility with every private
+HTTPS certificate or revocation policy.
+TLS errors remain rejected.
+Remote Websites still have no trusted Runtime bridge.
+
 ### Emulator verification
 
 Use a Google TV or Android TV system image. The emulator reaches the host
