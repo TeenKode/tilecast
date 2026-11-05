@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Color
 import android.net.Uri
+import android.util.Log
 import android.net.http.SslError
 import android.view.ViewGroup
 import android.webkit.CookieManager
@@ -76,6 +77,15 @@ internal class RemoteWebBrowser(
     private var disposed = false
     private var pageFailed = false
     private var pageReady = false
+    private fun trace(event: String, code: String? = null) {
+        val message = "event=remote_web_$event generation=$generation surface=$surfaceId" +
+            (code?.let { " code=${it.take(64)}" } ?: "")
+        if (event.endsWith("_failed") || event == "navigation_blocked") {
+            Log.w("TilecastRenderer", message)
+        } else {
+            Log.i("TilecastRenderer", message)
+        }
+    }
 
     init {
         webView.setBackgroundColor(Color.BLACK)
@@ -108,13 +118,20 @@ internal class RemoteWebBrowser(
 
             override fun onPageStarted(view: WebView, url: String?, favicon: android.graphics.Bitmap?) {
                 if (!disposed) {
+                    trace("page_started")
                     pageFailed = false
                     pageReady = false
                 }
             }
 
             override fun onPageFinished(view: WebView, url: String?) {
-                if (disposed || pageFailed || pageReady || !allowedNavigation(url.orEmpty())) return
+                if (disposed || pageFailed || pageReady) return
+                if (!allowedNavigation(url.orEmpty())) {
+                    trace("page_finished_disallowed")
+                    fail("navigation_blocked")
+                    return
+                }
+                trace("page_finished")
                 pageReady = true
                 current?.page?.let { page ->
                     if (page.scrollX != 0 || page.scrollY != 0) view.scrollTo(page.scrollX, page.scrollY)
@@ -174,10 +191,12 @@ internal class RemoteWebBrowser(
             }
             pageFailed = false
             pageReady = false
+            trace("load_started")
             webView.loadUrl(destination)
         } else if (previous != null && next.reloadCount != previous.reloadCount) {
             pageFailed = false
             pageReady = false
+            trace("reload_started")
             webView.reload()
         }
     }
@@ -210,16 +229,21 @@ internal class RemoteWebBrowser(
     private fun fail(code: String) {
         if (disposed || pageFailed) return
         pageFailed = true
+        trace("page_failed", code)
         event("failed", code.take(64))
     }
 
     private fun event(kind: String, code: String?) {
-        if (!disposed) onEvent(surfaceId, generation, kind, code)
+        if (!disposed) {
+            trace("event_" + kind.replace('-', '_'), code)
+            onEvent(surfaceId, generation, kind, code)
+        }
     }
 
     fun dispose() {
         if (disposed) return
         disposed = true
+        trace("disposed")
         (webView.parent as? ViewGroup)?.removeView(webView)
         webView.stopLoading()
         webView.destroy()

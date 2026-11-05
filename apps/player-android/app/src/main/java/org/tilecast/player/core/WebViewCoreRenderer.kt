@@ -130,7 +130,11 @@ class WebViewCoreRenderer(
             if (generation != liveGeneration) return
             val current = session ?: return
             if (current.remoteWeb.snapshot().none { it.surfaceId == surfaceId }) return
-            current.postRemoteEvent(surfaceId, kind, code)
+            val sent = current.postRemoteEvent(surfaceId, kind, code)
+            log.event(
+                "remote_web_delivery",
+                mapOf("generation" to generation, "surface" to surfaceId, "kind" to kind, "code" to code, "delivered" to sent),
+            )
         }
     }
 
