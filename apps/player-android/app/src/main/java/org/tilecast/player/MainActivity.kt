@@ -70,6 +70,8 @@ import org.tilecast.player.core.RendererLifecycle
 import org.tilecast.player.core.RendererPhase
 import org.tilecast.player.core.RendererPresentation
 import org.tilecast.player.core.WebViewCoreRenderer
+import org.tilecast.player.runtime.RemoteWebHostManager
+import org.tilecast.player.runtime.RemoteWebLayer
 import org.tilecast.player.preview.PlayerWindowCapture
 import org.tilecast.player.preview.WindowCapture
 import org.tilecast.player.preview.encodeCaptureFrame
@@ -253,6 +255,9 @@ class MainActivity : ComponentActivity() {
     val rendererLifecycle by (renderer?.lifecycle ?: remember { MutableStateFlow(RendererLifecycle(RendererPhase.STOPPED)) })
         .collectAsStateWithLifecycle()
     val rendererView by (renderer?.viewFlow ?: remember { MutableStateFlow<WebView?>(null) }).collectAsStateWithLifecycle()
+    val remoteSurfacesFlow = renderer?.remoteWebSurfaces
+        ?: remember { MutableStateFlow<List<RemoteWebHostManager.Surface>>(emptyList()) }
+    val remoteSurfaces by remoteSurfacesFlow.collectAsStateWithLifecycle()
     val activity = LocalActivity.current as? MainActivity
     LaunchedEffect(config, activeHours) { config?.let { activity?.applyReliability(it, activeHours) } }
     if (adminPrompt && reliability != null) { AdministratorMaintenance(reliability, dismissAdmin); return }
@@ -273,6 +278,15 @@ class MainActivity : ComponentActivity() {
         // shows recovery instead of an unexplained black screen.
         Box(Modifier.fillMaxSize().background(SignalBackground)) {
             rendererView?.let { view -> key(view) { AndroidView(factory = { ProcessRenderer.releaseView(view); view }, modifier = Modifier.fillMaxSize()) } }
+            if (rendererLifecycle.runtimeOwnsScreen) {
+                for (surface in remoteSurfaces) {
+                    key(surface.surfaceId, surface.generation) {
+                        RemoteWebLayer(surface) { id, generation, kind, code ->
+                            renderer?.reportRemoteWebEvent(id, generation, kind, code)
+                        }
+                    }
+                }
+            }
             if (!rendererLifecycle.runtimeOwnsScreen) {
                 val scope = rememberCoroutineScope()
                 RendererStatusSurface(rendererLifecycle, restart = { scope.launch { renderer?.restart() } })

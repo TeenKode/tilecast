@@ -31,6 +31,7 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.longOrNull
 import kotlinx.serialization.json.put
+import org.tilecast.player.runtime.RemoteWebHostManager
 import org.tilecast.player.runtime.FrameAuthorization
 import org.tilecast.player.runtime.HostChannel
 import org.tilecast.player.runtime.MediaAuthorization
@@ -116,6 +117,22 @@ class WebViewCoreRenderer(
 
     /** The live WebView as a flow, so every host that shows it follows recreation. */
     val viewFlow: StateFlow<WebView?> = mutableView.asStateFlow()
+
+    private val mutableRemoteWebSurfaces =
+        MutableStateFlow<List<RemoteWebHostManager.Surface>>(emptyList())
+    /** Host-owned remote Website/YouTube layers, updated by runtime page calls. */
+    val remoteWebSurfaces: StateFlow<List<RemoteWebHostManager.Surface>> =
+        mutableRemoteWebSurfaces.asStateFlow()
+
+    /** Called by a host-owned WebView. Stale or removed surfaces cannot report events. */
+    fun reportRemoteWebEvent(surfaceId: String, generation: Long, kind: String, code: String? = null) {
+        synchronized(lock) {
+            if (generation != liveGeneration) return
+            val current = session ?: return
+            if (current.remoteWeb.snapshot().none { it.surfaceId == surfaceId }) return
+            current.postRemoteEvent(surfaceId, kind, code)
+        }
+    }
 
     private var owner: TrustedRuntimeWebView? = null
     private var webView: WebView? = null
@@ -231,6 +248,7 @@ class WebViewCoreRenderer(
                 webView = null
                 mutableView.value = null
                 session = null
+                mutableRemoteWebSurfaces.value = emptyList()
                 grants = null
                 started = false
             }
@@ -249,6 +267,7 @@ class WebViewCoreRenderer(
             onError = {},
             onProgress = {},
             crashPolicy = crashPolicy,
+            onRemoteWebChanged = { surfaces -> mutableRemoteWebSurfaces.value = surfaces },
         )
 
     override fun handle(envelope: String): Int {
@@ -558,6 +577,7 @@ class WebViewCoreRenderer(
                     webView = null
                     mutableView.value = null
                     session = null
+                    mutableRemoteWebSurfaces.value = emptyList()
                     grants = null
                     notifyRuntimeUnsupported()
                     return@withContext
@@ -566,6 +586,7 @@ class WebViewCoreRenderer(
                 mutableView.value = endpoint.webView
                 liveGeneration = endpoint.generation
                 session = newSession(endpoint.generation)
+                mutableRemoteWebSurfaces.value = emptyList()
                 swapped = endpoint.webView
                 endpoint.generation
             }

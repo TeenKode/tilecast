@@ -32,6 +32,7 @@ class RuntimeHostSession(
     widgetProviders: Map<String, String> = emptyMap(),
     websiteAssets: Set<String> = emptySet(),
     crashPolicy: RuntimeCrashPolicy = RuntimeCrashPolicy(),
+    private val onRemoteWebChanged: (List<RemoteWebHostManager.Surface>) -> Unit = {},
 ) {
     val host = AndroidRuntimeHost(hostVersion, engineVersion, crashPolicy = crashPolicy)
     val remoteWeb = RemoteWebHostManager.Tracker(rendererGeneration)
@@ -70,6 +71,7 @@ class RuntimeHostSession(
         if (message is HostMessage.Presentation && message.activationId != lastActivationId) {
             lastActivationId = message.activationId
             val removed = remoteWeb.reset(rendererGeneration)
+            if (removed.isNotEmpty()) onRemoteWebChanged(remoteWeb.snapshot())
             host.offer(message)
             stateGeneration++
             return OfferResult(stateGeneration, removed)
@@ -95,6 +97,7 @@ class RuntimeHostSession(
 
     /** Pushes a remote-web event to the armed page. False when nobody listens. */
     fun postRemoteEvent(surfaceId: String?, kind: String, code: String?): Boolean {
+        if (surfaceId != null && remoteWeb.snapshot().none { it.surfaceId == surfaceId }) return false
         val reply = eventsReply ?: return false
         return runCatching {
             reply.postMessage(HostChannel.remoteEvent(surfaceId, kind, code))
@@ -150,6 +153,11 @@ class RuntimeHostSession(
 
     private fun handleCall(call: HostChannel.PageMessage.Call): String {
         val outcome = RemoteWebCallHandler.handle(call, remoteWeb, rendererGeneration)
+        if (outcome !is CallOutcome.Refused && call.call.startsWith("remoteWeb.") &&
+            call.call != "remoteWeb.reportRecovered"
+        ) {
+            onRemoteWebChanged(remoteWeb.snapshot())
+        }
         return when (outcome) {
             is CallOutcome.Created -> HostChannel.callResult(
                 call.id, true,
