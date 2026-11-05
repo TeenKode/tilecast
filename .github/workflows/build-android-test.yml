@@ -33,6 +33,33 @@ jobs:
       - name: Android SDK
         uses: android-actions/setup-android@v4
 
+      # The signing key is stored only in the repository's Actions Secret.
+      # Never put a debug keystore in git: a leaked key could sign updates
+      # impersonating the test Player on enrolled devices.
+      - name: Restore permanent test APK signing key
+        env:
+          TILECAST_TEST_KEYSTORE_B64: ${{ secrets.TILECAST_TEST_KEYSTORE_B64 }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "${TILECAST_TEST_KEYSTORE_B64:-}" ]]; then
+            echo "::error::Add repository Actions secret TILECAST_TEST_KEYSTORE_B64 before building test APKs."
+            exit 1
+          fi
+          mkdir -p "$HOME/.android"
+          printf '%s' "$TILECAST_TEST_KEYSTORE_B64" | base64 --decode > "$HOME/.android/debug.keystore"
+          chmod 600 "$HOME/.android/debug.keystore"
+          fingerprint=$(keytool -list -v \
+            -keystore "$HOME/.android/debug.keystore" \
+            -alias androiddebugkey -storepass android \
+            | awk '/SHA256:/{print $2; exit}')
+          expected='91:54:9D:13:CD:B0:66:04:CD:CB:8A:DF:A6:FC:9E:78:73:66:BD:19:9E:3C:90:47:AB:FA:11:4A:03:E0:C1:7F'
+          if [[ "$fingerprint" != "$expected" ]]; then
+            echo "::error::Test APK signing key fingerprint mismatch: refusing to change signing identity."
+            exit 1
+          fi
+          echo "Pinned Tilecast test APK signing certificate verified."
+
       - name: Set up Node 22
         uses: actions/setup-node@v4
         with:
@@ -93,6 +120,20 @@ jobs:
       - name: Assemble test APK
         working-directory: apps/player-android
         run: ./gradlew :app:assembleDebug --no-daemon
+
+      - name: Verify packaged APK signature
+        shell: bash
+        run: |
+          set -euo pipefail
+          apksigner="$(find "$ANDROID_HOME/build-tools" -mindepth 2 -maxdepth 2 -name apksigner | sort -V | tail -n 1)"
+          test -x "$apksigner"
+          "$apksigner" verify --print-certs apps/player-android/app/build/outputs/apk/debug/app-debug.apk > "$RUNNER_TEMP/apk-signature.txt"
+          expected='91549d13cdb06604cdcba8dfa6fc9e787366bd199e3c9047abfa114a03e0c17f'
+          grep -Fqi "Signer #1 certificate SHA-256 digest: $expected" "$RUNNER_TEMP/apk-signature.txt" || {
+            echo "::error::APK is not signed with the pinned Tilecast test certificate."
+            exit 1
+          }
+          echo "APK signature matches pinned test certificate."
 
       - name: Test remote host lifecycle
         working-directory: apps/player-android
