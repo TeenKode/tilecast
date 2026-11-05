@@ -58,6 +58,7 @@ jobs:
             echo "::error::Test APK signing key fingerprint mismatch: refusing to change signing identity."
             exit 1
           fi
+          echo "TILECAST_TEST_KEYSTORE_PATH=$HOME/.android/debug.keystore" >> "$GITHUB_ENV"
           echo "Pinned Tilecast test APK signing certificate verified."
 
       - name: Set up Node 22
@@ -106,6 +107,12 @@ jobs:
                    '        getByName("debug") {\n'
                    '            applicationIdSuffix = ".test"\n'
                    '            versionNameSuffix = "-test"\n'
+                   '            signingConfig = signingConfigs.getByName("debug").apply {\n'
+                   '                storeFile = file(System.getenv("TILECAST_TEST_KEYSTORE_PATH"))\n'
+                   '                storePassword = "android"\n'
+                   '                keyAlias = "androiddebugkey"\n'
+                   '                keyPassword = "android"\n'
+                   '            }\n'
                    '        }\n'
                    '        release {')
           assert source.count(before) == 1, "Unrecognized build.gradle.kts structure"
@@ -129,6 +136,7 @@ jobs:
           test -x "$apksigner"
           "$apksigner" verify --print-certs apps/player-android/app/build/outputs/apk/debug/app-debug.apk > "$RUNNER_TEMP/apk-signature.txt"
           expected='91549d13cdb06604cdcba8dfa6fc9e787366bd199e3c9047abfa114a03e0c17f'
+          grep -E 'Signer #1 certificate SHA-256 digest:' "$RUNNER_TEMP/apk-signature.txt" || true
           grep -Fqi "Signer #1 certificate SHA-256 digest: $expected" "$RUNNER_TEMP/apk-signature.txt" || {
             echo "::error::APK is not signed with the pinned Tilecast test certificate."
             exit 1
