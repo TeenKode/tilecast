@@ -166,6 +166,7 @@ jobs:
           --tests 'org.tilecast.player.runtime.RemoteWebHostManagerTest'
           --tests 'org.tilecast.player.runtime.TrustedRuntimeOriginTest'
           --tests 'org.tilecast.player.core.ServerUrlPolicyTest'
+          --tests 'org.tilecast.player.core.PlayerCoreHostTest'
           --tests 'org.tilecast.player.content.WebsitePolicyTest'
           --no-daemon
 
