@@ -128,20 +128,22 @@ jobs:
         working-directory: apps/player-android
         run: ./gradlew :app:assembleDebug --no-daemon
 
-      - name: Verify packaged APK signature
+      - name: Sign and verify packaged test APK
         shell: bash
         run: |
           set -euo pipefail
           apksigner="$(find "$ANDROID_HOME/build-tools" -mindepth 2 -maxdepth 2 -name apksigner | sort -V | tail -n 1)"
           test -x "$apksigner"
-          "$apksigner" verify --print-certs apps/player-android/app/build/outputs/apk/debug/app-debug.apk > "$RUNNER_TEMP/apk-signature.txt"
+          "$apksigner" sign --ks "$TILECAST_TEST_KEYSTORE_PATH" \
+            --ks-key-alias androiddebugkey --ks-pass pass:android --key-pass pass:android \
+            apps/player-android/app/build/outputs/apk/debug/app-debug.apk
+          apksig_jar="$(dirname "$apksigner")/lib/apksigner.jar"
+          test -f "$apksig_jar"
           expected='91549d13cdb06604cdcba8dfa6fc9e787366bd199e3c9047abfa114a03e0c17f'
-          grep -E 'Signer #1 certificate SHA-256 digest:' "$RUNNER_TEMP/apk-signature.txt" || true
-          grep -Fqi "Signer #1 certificate SHA-256 digest: $expected" "$RUNNER_TEMP/apk-signature.txt" || {
-            echo "::error::APK is not signed with the pinned Tilecast test certificate."
-            exit 1
-          }
-          echo "APK signature matches pinned test certificate."
+          mkdir -p "$RUNNER_TEMP/apk-signature-check"
+          javac -cp "$apksig_jar" -d "$RUNNER_TEMP/apk-signature-check" apps/player-android/ci/VerifyApkSignature.java
+          java -cp "$RUNNER_TEMP/apk-signature-check:$apksig_jar" VerifyApkSignature \
+            apps/player-android/app/build/outputs/apk/debug/app-debug.apk "$expected"
 
       - name: Test remote host lifecycle
         working-directory: apps/player-android

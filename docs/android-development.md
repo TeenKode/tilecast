@@ -138,6 +138,16 @@ power effects, renderer hosting, frame capture, readiness reporting,
 and self-update installation. `PlayerViewModel` projects Core state onto the
 setup and status screens. It makes no content decisions.
 
+Power wake requests use `NEW_TASK`, `CLEAR_TOP`, and `SINGLE_TOP` together.
+An existing top `MainActivity` receives the request without a new instance.
+This preserves the ViewModel when configuration applies active-hours policy.
+An explicit Activity restart retains its separate restart behavior.
+
+The side-by-side test workflow signs its final APK with the permanent test key.
+The verification step checks the APK with the SDK `apksig` API.
+It requires one signer and the pinned certificate SHA-256.
+The check does not parse the human-readable `apksigner` output.
+
 The cutover deleted the legacy Kotlin brains: the player state machine,
 the pairing coordinator, the manifest and configuration managers, the
 schedule engine, the playback screens, the preview and live-stream
