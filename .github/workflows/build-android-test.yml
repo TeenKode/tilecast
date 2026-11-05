@@ -158,9 +158,16 @@ jobs:
           java -cp "$RUNNER_TEMP/apk-signature-check:$apksig_jar" VerifyApkSignature \
             apps/player-android/app/build/outputs/apk/debug/app-debug.apk "$TILECAST_TEST_CERT_SHA256"
 
-      - name: Test remote host lifecycle
+      - name: Test remote host lifecycle and URL policy
         working-directory: apps/player-android
-        run: ./gradlew :app:testDebugUnitTest --tests 'org.tilecast.player.runtime.RuntimeHostSessionTest' --no-daemon
+        run: >-
+          ./gradlew :app:testDebugUnitTest
+          --tests 'org.tilecast.player.runtime.RuntimeHostSessionTest'
+          --tests 'org.tilecast.player.runtime.RemoteWebHostManagerTest'
+          --tests 'org.tilecast.player.runtime.TrustedRuntimeOriginTest'
+          --tests 'org.tilecast.player.core.ServerUrlPolicyTest'
+          --tests 'org.tilecast.player.content.WebsitePolicyTest'
+          --no-daemon
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4

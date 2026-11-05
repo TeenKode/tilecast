@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- Core and Website policy admit local HTTP URLs. Keep the Android
+         transport consistent with that policy instead of inheriting a TLS
+         dependency's cleartext deny rule. Navigation and TLS checks remain
+         in the isolated remote WebView; no user-added trust anchors here. -->
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

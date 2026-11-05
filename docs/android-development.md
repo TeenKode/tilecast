@@ -586,7 +586,7 @@ adb devices
 ./gradlew connectedDebugAndroidTest
 ```
 
-Websites render through the trusted shared Player Runtime WebView and its host-owned navigation and isolation rules. Validate exact-host policy, TLS failure, D-pad focus, process termination, and installed WebView versions on supported devices. Player Core accepts effective configuration revisions independently from manifests; platform adapters apply OS effects.
+Websites render in isolated host-owned WebViews under shared Player Runtime control. The application explicitly owns its Android network security configuration. This configuration permits HTTP transport for local URLs admitted by Core and Website policy. It overrides the cleartext restriction from the TLS verifier dependency. HTTPS uses system trust anchors. The host cancels TLS errors and blocks mixed content. Remote Websites do not receive the trusted runtime bridge. Validate exact-host policy, private HTTP loading, TLS failure, D-pad focus, process termination, and installed WebView versions on supported devices. Player Core accepts effective configuration revisions independently from manifests; platform adapters apply OS effects.
 
 The effective configuration is authoritative for every setting the Android
 Player advertises. Cache limits, free-space reserve, download concurrency and
