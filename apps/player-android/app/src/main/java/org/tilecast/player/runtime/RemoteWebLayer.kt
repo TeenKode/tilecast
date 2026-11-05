@@ -175,7 +175,7 @@ internal class RemoteWebBrowser(
             pageFailed = false
             pageReady = false
             webView.loadUrl(destination)
-        } else if (next.reloadCount != previous.reloadCount) {
+        } else if (previous != null && next.reloadCount != previous.reloadCount) {
             pageFailed = false
             pageReady = false
             webView.reload()

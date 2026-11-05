@@ -23,12 +23,17 @@ class RuntimeHostSessionTest {
         var progress = 0
     }
 
-    private fun session(sink: Sink, rendererGeneration: Long = 1): RuntimeHostSession =
+    private fun session(
+        sink: Sink,
+        rendererGeneration: Long = 1,
+        onRemoteWebChanged: (List<RemoteWebHostManager.Surface>) -> Unit = {},
+    ): RuntimeHostSession =
         RuntimeHostSession(
             "0.25.0", "webview/1", rendererGeneration, items, "act1",
             onBoundary = { id, asset -> sink.boundaries.add(id to asset) },
             onError = { sink.errors.add(it) },
             onProgress = { sink.progress++ },
+            onRemoteWebChanged = onRemoteWebChanged,
         )
 
     private fun presentationMessage(activation: String = "act1", generation: Long = 1) =
@@ -132,6 +137,37 @@ class RuntimeHostSessionTest {
         val rotated = session.offer(presentationMessage("act2", 2))
         assertEquals(listOf("s1"), rotated.removedSurfaces)
         assertTrue(session.remoteWeb.snapshot().isEmpty())
+    }
+
+    @Test fun remoteHostCallsPublishCreateReloadVisibilityAndDestroy() {
+        val changes = mutableListOf<List<RemoteWebHostManager.Surface>>()
+        val session = session(Sink(), onRemoteWebChanged = { changes.add(it) })
+        session.offer(presentationMessage())
+        val create = """{"type":"host-call","id":"c1","call":"remoteWeb.create","payload":{
+            "surfaceId":"site",
+            "content":{"kind":"page","url":"http://172.17.37.60/","allowedHosts":["172.17.37.60"],"javascriptEnabled":true,"domStorageEnabled":true,"cookiePolicy":"disabled","userAgent":"","zoomPercent":100,"scrollX":0,"scrollY":0,"backgroundColor":"#000000"},
+            "viewport":{"x":12,"y":15,"width":400,"height":200,"deviceScale":2},
+            "muted":true,"visible":false}}""".trimIndent().replace("\n", "")
+        val reply = session.handlePageMessage(create, 1, null)!!
+        assertEquals("true", Json.parseToJsonElement(reply).jsonObject["ok"]!!.jsonPrimitive.content)
+        assertEquals("site", changes.last().single().surfaceId)
+        assertEquals(800, changes.last().single().viewportPx.width)
+        assertFalse(changes.last().single().visible)
+        session.handlePageMessage(
+            """{"type":"host-call","id":"c2","call":"remoteWeb.setVisible","payload":{"surfaceId":"site","visible":true}}""",
+            1, null,
+        )
+        assertTrue(changes.last().single().visible)
+        session.handlePageMessage(
+            """{"type":"host-call","id":"c3","call":"remoteWeb.reload","payload":{"surfaceId":"site"}}""",
+            1, null,
+        )
+        assertEquals(1, changes.last().single().reloadCount)
+        session.handlePageMessage(
+            """{"type":"host-call","id":"c4","call":"remoteWeb.destroy","payload":{"surfaceId":"site"}}""",
+            1, null,
+        )
+        assertTrue(changes.last().isEmpty())
     }
 
     @Test fun replacementRebindsEvidenceToNewActivationAndItems() {
