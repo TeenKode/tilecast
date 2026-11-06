@@ -287,6 +287,8 @@ impl Default for ReliabilityAndroid {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PowerAndroid {
+    pub sleep_method: String,
+    pub wake_method: String,
     pub keep_screen_on: bool,
     pub sleep_outside_active_hours: bool,
     pub startup_grace_seconds: u64,
@@ -296,6 +298,8 @@ pub struct PowerAndroid {
 impl Default for PowerAndroid {
     fn default() -> Self {
         Self {
+            sleep_method: "auto".to_owned(),
+            wake_method: "auto".to_owned(),
             keep_screen_on: true,
             sleep_outside_active_hours: false,
             startup_grace_seconds: 30,
@@ -511,6 +515,10 @@ impl AndroidPlayerConfig {
 
         let power_defaults = PowerAndroid::default();
         let power = PowerAndroid {
+            sleep_method: token(power_values, "androidSleepMethod", &["auto", "device_policy", "accessibility", "black_screen", "cvte"])
+                .unwrap_or(power_defaults.sleep_method),
+            wake_method: token(power_values, "androidWakeMethod", &["auto", "activity", "wake_lock", "cvte"])
+                .unwrap_or(power_defaults.wake_method),
             keep_screen_on: flag_on(power_values, "keepScreenOn"),
             sleep_outside_active_hours: flag_off(power_values, "sleepOutsideActiveHours"),
             startup_grace_seconds: count(
