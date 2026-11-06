@@ -781,7 +781,7 @@ mod tests {
     fn android_platform_reads_with_legacy_defaults() {
         let config = AndroidPlayerConfig::parse(&document(json!({
             "reliability": {"mode": "managed_kiosk", "launchAfterBoot": false, "webviewStallSeconds": 120},
-            "power": {"keepScreenOn": false, "sleepOutsideActiveHours": true, "startupGraceSeconds": 5},
+            "power": {"keepScreenOn": false, "sleepOutsideActiveHours": true, "startupGraceSeconds": 5, "androidSleepMethod": "cvte", "androidWakeMethod": "cvte"},
             "managedKiosk": {"lockTaskEnabled": true, "blockOverlays": false, "adminSessionMinutes": 30},
             "accessibility": {"returnDelaySeconds": 20, "allowedPackages": ["com.example.a", " com.example.b "],
                 "reportForegroundPackage": true, "maximumReturns": 9},
@@ -794,6 +794,8 @@ mod tests {
         assert!(!platform.reliability.launch_after_boot);
         assert!(platform.reliability.immersive_mode);
         assert_eq!(platform.reliability.webview_stall_seconds, 120);
+        assert_eq!(platform.power.sleep_method, "cvte");
+        assert_eq!(platform.power.wake_method, "cvte");
         assert!(!platform.power.keep_screen_on);
         assert!(platform.power.sleep_outside_active_hours);
         assert_eq!(platform.power.startup_grace_seconds, 5);

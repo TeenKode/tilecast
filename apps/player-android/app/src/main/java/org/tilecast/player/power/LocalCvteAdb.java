@@ -32,16 +32,7 @@ final class LocalCvteAdb {
     /** No blind toggle. The firmware is the authority for fake standby. */
     static boolean setAwake(boolean awake) throws IOException {
         String expected = awake ? "0" : "1";
-        String command =
-            "mode=$(/system/bin/settings get global fake_standby_switch); " +
-            "state=$(/system/bin/settings get global IS_FAKE_STANDBY_STATUS); " +
-            "if [ \"$mode\" != true ]; then echo POWER:UNAVAILABLE; " +
-            "elif [ \"$state\" = " + expected + " ]; then echo POWER:OK; " +
-            "elif [ \"$state\" = 0 ] || [ \"$state\" = 1 ]; then " +
-            "/system/bin/input keyevent 26; sleep 1; " +
-            "state=$(/system/bin/settings get global IS_FAKE_STANDBY_STATUS); " +
-            "if [ \"$state\" = " + expected + " ]; then echo POWER:OK; else echo POWER:FAILED; fi; " +
-            "else echo POWER:UNAVAILABLE; fi";
+        String command = fixedCommand(awake);
         try (Socket socket = new Socket()) {
             socket.connect(new InetSocketAddress("127.0.0.1", 5555), 1200);
             socket.setSoTimeout(7000);
@@ -65,11 +56,29 @@ final class LocalCvteAdb {
                 } else if (packet.command == CLSE) {
                     if (packet.arg1 != 1) throw new IOException("Unexpected ADB close");
                     send(out, CLSE, 1, packet.arg0, new byte[0]);
-                    return result.toString(StandardCharsets.UTF_8.name()).trim().equals("POWER:OK");
+                    return acknowledged(result.toString(StandardCharsets.UTF_8.name()));
                 } else throw new IOException("Unexpected ADB response");
             }
             throw new IOException("Local ADB power response timed out");
         }
+    }
+
+    static String fixedCommand(boolean awake) {
+        String expected = awake ? "0" : "1";
+        return
+            "mode=$(/system/bin/settings get global fake_standby_switch); " +
+            "state=$(/system/bin/settings get global IS_FAKE_STANDBY_STATUS); " +
+            "if [ \"$mode\" != true ]; then echo POWER:UNAVAILABLE; " +
+            "elif [ \"$state\" = " + expected + " ]; then echo POWER:OK; " +
+            "elif [ \"$state\" = 0 ] || [ \"$state\" = 1 ]; then " +
+            "/system/bin/input keyevent 26; sleep 1; " +
+            "state=$(/system/bin/settings get global IS_FAKE_STANDBY_STATUS); " +
+            "if [ \"$state\" = " + expected + " ]; then echo POWER:OK; else echo POWER:FAILED; fi; " +
+            "else echo POWER:UNAVAILABLE; fi";
+    }
+
+    static boolean acknowledged(String result) {
+        return result != null && result.trim().equals("POWER:OK");
     }
 
     private static void send(OutputStream output, int command, int arg0, int arg1, byte[] data) throws IOException {
