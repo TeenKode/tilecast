@@ -4,6 +4,13 @@ import type { SettingsSectionId } from "./settingsNavigation";
 
 export const enumLabels: Record<string, string> = {
   managed_kiosk: "Managed Kiosk",
+  auto: "Automatic (existing Android behavior)",
+  device_policy: "Device Policy (device owner)",
+  accessibility: "Accessibility lock screen",
+  black_screen: "Black screen (panel remains on)",
+  activity: "Launch Tilecast Activity",
+  wake_lock: "Wake lock (firmware dependent)",
+  cvte: "CVTE vendor standby (requires supported transport)",
   standard: "Standard reliability",
   first_party: "First-party cookies",
   first_and_third_party: "First- and third-party cookies",
