@@ -449,10 +449,12 @@ class PlayerViewModel internal constructor(
     private suspend fun refreshPlatformConfig(revision: Long?) {
         val config = runCatching { host.effectiveConfig() }.getOrNull() ?: CorePlayerConfig(null)
         appliedConfigRevision = revision
+        val previousPower = mutablePlatform.value?.power
         mutablePlatform.value = config.platform
         applyPlatformPolicy(config)
-        // Initial config may arrive after the first off-hours status; replay
-        // the edge once with the correct power method and wake alarm.
+        // Apply newly selected methods without waiting for the next scheduled edge,
+        // but do not repeat power commands for unrelated config revisions.
+        if (previousPower != config.platform.power) lastPowerActive = null
         applyPowerEffects()
         reportPlatformObservations()
     }
