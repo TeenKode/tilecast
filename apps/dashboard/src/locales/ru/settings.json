@@ -572,6 +572,13 @@
     }
   },
   "enumValues": {
+    "auto": "Автоматически (штатный способ Android)",
+    "device_policy": "Device Policy (администратор устройства)",
+    "accessibility": "Специальные возможности (блокировка экрана)",
+    "black_screen": "Чёрный экран (подсветка остаётся включённой)",
+    "activity": "Запустить окно Tilecast",
+    "wake_lock": "Wake Lock (зависит от прошивки)",
+    "cvte": "CVTE fake standby (локальный ADB)",
     "managed_kiosk": "Управляемый киоск",
     "standard": "Стандартная надёжность",
     "first_party": "Только свои cookie",
