@@ -572,6 +572,13 @@
     }
   },
   "enumValues": {
+    "auto": "Automático (comportamiento estándar de Android)",
+    "device_policy": "Política del dispositivo (administrador)",
+    "accessibility": "Accesibilidad (bloqueo de pantalla)",
+    "black_screen": "Pantalla negra (panel encendido)",
+    "activity": "Abrir Tilecast",
+    "wake_lock": "Wake Lock (según el firmware)",
+    "cvte": "CVTE fake standby (ADB local)",
     "managed_kiosk": "Quiosco gestionado",
     "standard": "Fiabilidad estándar",
     "first_party": "Cookies propias",
