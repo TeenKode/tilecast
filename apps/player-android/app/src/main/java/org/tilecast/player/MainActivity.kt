@@ -281,6 +281,8 @@ class MainActivity : ComponentActivity() {
     var pin by remember { mutableStateOf("") }
     var unlocked by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
+    var useShizuku by remember { mutableStateOf(reliability.shizukuPowerEnabled()) }
+    var shizukuStatus by remember { mutableStateOf(reliability.shizukuPowerStatus()) }
     val activity = LocalActivity.current as? MainActivity ?: return
     val model: PlayerViewModel = viewModel()
     Box(Modifier.fillMaxSize().background(SignalBackground).padding(horizontal = SignalDimensions.ScreenHorizontal, vertical = SignalDimensions.ScreenVertical), contentAlignment = Alignment.Center) {
@@ -318,6 +320,21 @@ class MainActivity : ComponentActivity() {
                 SignalOutlinedButton(onClick = { activity.openSystemSettings(Settings.ACTION_ACCESSIBILITY_SETTINGS) }) { Text("Accessibility Settings") }
                 SignalOutlinedButton(onClick = { activity.openSystemSettings(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES) }) { Text("Install permission") }
                 SignalOutlinedButton(onClick = { activity.openSystemSettings(Settings.ACTION_SETTINGS) }) { Text("Android Settings") }
+            }
+            Text("Optional Android power backend (DEXP / YaOS)", color = SignalText, style = MaterialTheme.typography.bodyLarge)
+            Text("Shizuku: " + shizukuStatus + ". Last: " + reliability.lastShizukuPowerResult(), color = SignalMuted, style = MaterialTheme.typography.bodyMedium)
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                SignalOutlinedButton(onClick = {
+                    useShizuku = !useShizuku
+                    reliability.setShizukuPowerEnabled(useShizuku)
+                }) { Text(if (useShizuku) "Disable Shizuku power" else "Enable Shizuku power") }
+                SignalOutlinedButton(onClick = {
+                    reliability.connectShizuku(activity)
+                    shizukuStatus = reliability.shizukuPowerStatus()
+                }) { Text("Connect Shizuku") }
+                SignalOutlinedButton(onClick = {
+                    shizukuStatus = reliability.shizukuPowerStatus()
+                }) { Text("Refresh status") }
             }
             SignalOutlinedButton(onClick = { model.resetServer(); dismiss() }) { Text("Forget server and pair again") }
         }
