@@ -1,0 +1,34 @@
+name: Shizuku Android dependency verification
+on:
+  push:
+    branches:
+      - feat/android-shizuku-power-assist
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verification:
+    name: Generate reviewable Gradle SHA-256 metadata
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+      - uses: android-actions/setup-android@v4
+      - name: Resolve Android runtime dependencies and generate checksums
+        working-directory: apps/player-android
+        run: ./gradlew --write-verification-metadata sha256 :app:dependencies --configuration debugRuntimeClasspath
+      - name: Export verification changes for review
+        uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: shizuku-verification-metadata
+          path: apps/player-android/gradle/verification-metadata.xml
+          if-no-files-found: error
