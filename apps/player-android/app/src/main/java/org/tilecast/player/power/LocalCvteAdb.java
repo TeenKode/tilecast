@@ -31,7 +31,6 @@ final class LocalCvteAdb {
 
     /** No blind toggle. The firmware is the authority for fake standby. */
     static boolean setAwake(boolean awake) throws IOException {
-        String expected = awake ? "0" : "1";
         String command = fixedCommand(awake);
         try (Socket socket = new Socket()) {
             socket.connect(new InetSocketAddress("127.0.0.1", 5555), 1200);

@@ -154,6 +154,31 @@ func TestDefinitionJSONUsesPublicContractFieldNames(t *testing.T) {
 	}
 }
 
+func TestAndroidPowerMethodsHaveSafeDefaultsAndAllowListedValues(t *testing.T) {
+    defaults := Defaults(ScopePolicy)
+    if defaults["power.android_sleep_method"] != "auto" || defaults["power.android_wake_method"] != "auto" {
+        t.Fatalf("unexpected Android power method defaults: sleep=%v wake=%v",
+            defaults["power.android_sleep_method"], defaults["power.android_wake_method"])
+    }
+    for _, sleep := range []string{"auto", "device_policy", "accessibility", "black_screen", "cvte"} {
+        if _, err := Validate(map[string]any{"power.android_sleep_method": sleep}, ScopePolicy); err != nil {
+            t.Errorf("sleep provider %q rejected: %v", sleep, err)
+        }
+    }
+    for _, wake := range []string{"auto", "activity", "wake_lock", "cvte"} {
+        if _, err := Validate(map[string]any{"power.android_wake_method": wake}, ScopePolicy); err != nil {
+            t.Errorf("wake provider %q rejected: %v", wake, err)
+        }
+    }
+    for _, key := range []string{"power.android_sleep_method", "power.android_wake_method"} {
+        for _, value := range []string{"adb shell", "root", "keyevent 26", "shizuku", ""} {
+            if _, err := Validate(map[string]any{key: value}, ScopePolicy); err == nil {
+                t.Errorf("unsafe power method %q accepted for %s", value, key)
+            }
+        }
+    }
+}
+
 func TestReliabilityPoliciesAreTypedAndBounded(t *testing.T) {
 	valid := map[string]any{
 		"reliability.mode":                   "managed_kiosk",
