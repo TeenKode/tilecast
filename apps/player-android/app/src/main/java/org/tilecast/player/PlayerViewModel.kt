@@ -451,12 +451,16 @@ class PlayerViewModel internal constructor(
         appliedConfigRevision = revision
         mutablePlatform.value = config.platform
         applyPlatformPolicy(config)
+        // Initial config may arrive after the first off-hours status; replay
+        // the edge once with the correct power method and wake alarm.
+        applyPowerEffects()
         reportPlatformObservations()
     }
 
     /** Writes the policy prefs the OS integration reads: boot, kiosk return, and foreground reporting. */
     private fun applyPlatformPolicy(config: CorePlayerConfig) {
         val platform = config.platform
+        reliability.configurePowerMethods(platform.power.sleepMethod, platform.power.wakeMethod)
         prefs.edit()
             .putBoolean("launch-after-boot", platform.reliability.launchAfterBoot)
             .putBoolean("accessibility-enabled-by-policy", platform.accessibility.controlAssistEnabled)
@@ -478,10 +482,10 @@ class PlayerViewModel internal constructor(
     private var lastPowerActive: Boolean? = null
 
     private fun applyPowerEffects() {
+        val platform = mutablePlatform.value ?: return
         val active = mutableActiveHours.value
         if (active == lastPowerActive) return
         lastPowerActive = active
-        val platform = mutablePlatform.value ?: return
         if (active) {
             reliability.requestWake()
             return

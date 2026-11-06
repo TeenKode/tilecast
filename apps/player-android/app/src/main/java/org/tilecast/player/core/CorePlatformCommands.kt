@@ -79,14 +79,8 @@ class CorePlatformCommands(
             ?: return PlatformCommandExecutor.result(false, "command_unsupported", "Command has no type.")
         val payload = runCatching { root["payload"]?.jsonObject }.getOrNull() ?: buildJsonObject {}
         return when (type) {
-            "power_assist_sleep" -> {
-                val result = effects.powerSleep()
-                PlatformCommandExecutor.result(true, result, "Power Assist sleep request was sent to Android")
-            }
-            "power_assist_wake" -> {
-                val result = effects.powerWake()
-                PlatformCommandExecutor.result(true, result, "Power Assist wake request was sent to Android")
-            }
+            "power_assist_sleep" -> powerResult(effects.powerSleep(), sleep = true)
+            "power_assist_wake" -> powerResult(effects.powerWake(), sleep = false)
             "restart_activity" -> {
                 effects.restartActivity()
                 PlatformCommandExecutor.result(
@@ -110,6 +104,22 @@ class CorePlatformCommands(
             "install_player_update" -> installUpdate(root, payload)
             else -> PlatformCommandExecutor.result(false, "command_unsupported", "Command is not supported.")
         }
+    }
+
+    private fun powerResult(code: String, sleep: Boolean): String {
+        val accepted = if (sleep) {
+            code in setOf("device_policy_requested", "accessibility_lock_requested",
+                "accessibility_lock_deferred", "cvte_sleep_queued", "black_screen_selected")
+        } else {
+            code in setOf("device_wake_requested", "wake_lock_requested", "cvte_wake_queued")
+        }
+        val message = when {
+            code.startsWith("cvte_") -> "CVTE fake standby request queued; physical state is not yet confirmed."
+            code == "black_screen_selected" -> "Black screen selected; the display remains powered."
+            accepted -> "Android accepted the power operation."
+            else -> "Power method unavailable or blocked on this device."
+        }
+        return PlatformCommandExecutor.result(accepted, code, message)
     }
 
     private fun installUpdate(

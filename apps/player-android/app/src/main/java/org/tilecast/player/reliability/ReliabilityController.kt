@@ -8,10 +8,13 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.os.Process
+import android.os.PowerManager
+import android.util.Log
 import android.provider.Settings
 import android.util.Base64
 import android.view.WindowManager
 import org.tilecast.player.MainActivity
+import org.tilecast.player.power.CvtePower
 import org.tilecast.player.core.CorePlatformConfig
 import java.time.Instant
 
@@ -135,36 +138,103 @@ class ReliabilityController(private val context: Context) {
         )
     }
 
-    fun requestSleep(): String {
-        if (fireTvDevice()) return recordSleepResult("fire_tv_sleep_blocked")
-        if (maintenanceUntil() != null) return recordSleepResult("maintenance_session_deferred")
-        if (store.getBoolean("update-active", false)) return recordSleepResult("player_update_deferred")
-        val result = runCatching {
-            if (dpm.isDeviceOwnerApp(context.packageName)) {
-                dpm.lockNow()
-                "device_policy_requested"
-            } else if (accessibilityEnabled()) {
-                if (TilecastAccessibilityService.requestLock()) {
-                    "accessibility_lock_requested"
-                } else {
-                    store.edit().putBoolean("request-lock", true).apply()
-                    "accessibility_lock_deferred"
-                }
-            } else {
-                "black_screen_only"
-            }
-        }.getOrElse { "sleep_unsupported" }
-        return recordSleepResult(result)
+    /**
+     * Effective per-screen methods are delivered through the normal Tilecast
+     * player-policy projection and persisted for ActiveHoursReceiver.
+     */
+    fun configurePowerMethods(sleep: String, wake: String) {
+        val acceptedSleep = setOf("auto", "device_policy", "accessibility", "black_screen", "cvte")
+        val acceptedWake = setOf("auto", "activity", "wake_lock", "cvte")
+        store.edit()
+            .putString("android-sleep-method", sleep.takeIf { it in acceptedSleep } ?: "auto")
+            .putString("android-wake-method", wake.takeIf { it in acceptedWake } ?: "auto")
+            .apply()
     }
 
-    fun requestWake(): String {
-        val intent = Intent(context, MainActivity::class.java)
-            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
-        return runCatching {
-            context.startActivity(intent)
-            "device_wake_requested"
-        }.getOrElse { "wake_launch_blocked" }
-            .also { store.edit().putString("last-wake-result", it).apply() }
+    private fun sleepMethod(): String = store.getString("android-sleep-method", "auto") ?: "auto"
+    private fun wakeMethod(): String = store.getString("android-wake-method", "auto") ?: "auto"
+    fun lastCvteResult(): String = store.getString("last-cvte-result", "not_tested") ?: "not_tested"
+
+    private fun requestCvte(awake: Boolean, finished: (() -> Unit)? = null): String {
+        CvtePower.request(awake) { confirmed ->
+            val result = (if (awake) "wake" else "sleep") + (if (confirmed) "_confirmed" else "_failed")
+            store.edit().putString("last-cvte-result", result).apply()
+            // Waking the display alone is not sufficient: resume presentation
+            // using the existing Activity flags, never create another task.
+            if (awake && confirmed) launchPlayerForWake()
+            Log.i("TilecastCvtePower", "result=" + result)
+            finished?.invoke()
+        }
+        return if (awake) "cvte_wake_queued" else "cvte_sleep_queued"
+    }
+
+    private fun launchPlayerForWake(): Boolean = runCatching {
+        context.startActivity(
+            Intent(context, MainActivity::class.java)
+                .addFlags(
+                    Intent.FLAG_ACTIVITY_NEW_TASK or
+                        Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                        Intent.FLAG_ACTIVITY_SINGLE_TOP,
+                ),
+        )
+        true
+    }.getOrDefault(false)
+
+    @Suppress("DEPRECATION")
+    private fun wakeWithLock(): String = runCatching {
+        val pm = context.getSystemService(PowerManager::class.java)
+        val lock = pm.newWakeLock(
+            PowerManager.SCREEN_BRIGHT_WAKE_LOCK or PowerManager.ACQUIRE_CAUSES_WAKEUP,
+            "tilecast:power-wake",
+        )
+        lock.acquire(3000)
+        if (launchPlayerForWake()) "wake_lock_requested" else "wake_launch_blocked"
+    }.getOrElse { "wake_lock_unsupported" }
+
+    private fun sleepByDevicePolicy(): String = runCatching {
+        if (dpm.isDeviceOwnerApp(context.packageName)) {
+            dpm.lockNow()
+            "device_policy_requested"
+        } else "device_policy_unavailable"
+    }.getOrElse { "sleep_unsupported" }
+
+    private fun sleepByAccessibility(): String = runCatching {
+        if (!accessibilityEnabled()) return@runCatching "accessibility_unavailable"
+        if (TilecastAccessibilityService.requestLock()) {
+            "accessibility_lock_requested"
+        } else {
+            store.edit().putBoolean("request-lock", true).apply()
+            "accessibility_lock_deferred"
+        }
+    }.getOrElse { "sleep_unsupported" }
+
+    fun requestSleep(): String {
+        if (maintenanceUntil() != null) return recordSleepResult("maintenance_session_deferred")
+        if (store.getBoolean("update-active", false)) return recordSleepResult("player_update_deferred")
+        val outcome = when (sleepMethod()) {
+            "cvte" -> requestCvte(awake = false)
+            "black_screen" -> "black_screen_selected"
+            "device_policy" -> sleepByDevicePolicy()
+            "accessibility" -> sleepByAccessibility()
+            else -> when {
+                fireTvDevice() -> "fire_tv_sleep_blocked"
+                dpm.isDeviceOwnerApp(context.packageName) -> sleepByDevicePolicy()
+                accessibilityEnabled() -> sleepByAccessibility()
+                else -> "black_screen_only"
+            }
+        }
+        return recordSleepResult(outcome)
+    }
+
+    fun requestWake(finished: (() -> Unit)? = null): String {
+        val result = when (wakeMethod()) {
+            "cvte" -> requestCvte(awake = true, finished = finished)
+            "wake_lock" -> wakeWithLock().also { finished?.invoke() }
+            else -> (if (launchPlayerForWake()) "device_wake_requested" else "wake_launch_blocked")
+                .also { finished?.invoke() }
+        }
+        store.edit().putString("last-wake-result", result).apply()
+        return result
     }
 
     fun restartActivity() {
@@ -292,7 +362,10 @@ class ReliabilityController(private val context: Context) {
 
 class ActiveHoursReceiver : android.content.BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
-        ReliabilityController(context).requestWake()
+        // CVTE is async; hold the alarm while its bounded loopback ADB request runs.
+        val pending = goAsync()
+        runCatching { ReliabilityController(context).requestWake { pending.finish() } }
+            .onFailure { pending.finish() }
     }
 }
 
