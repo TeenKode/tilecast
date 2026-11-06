@@ -12,6 +12,8 @@
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
     <uses-feature android:name="android.hardware.wifi" android:required="false" />
 
+    <queries><package android:name="moe.shizuku.privileged.api" /></queries>
+
     <application
         android:name=".TilecastApplication"
         android:allowBackup="false"
@@ -22,6 +24,12 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.Tilecast"
         android:usesCleartextTraffic="true">
+        <provider android:name="rikka.shizuku.ShizukuProvider"
+            android:authorities="${applicationId}.shizuku"
+            android:multiprocess="false" android:enabled="true"
+            android:exported="true"
+            android:permission="android.permission.INTERACT_ACROSS_USERS_FULL" />
+        <meta-data android:name="moe.shizuku.client.V3_SUPPORT" android:value="true" />
         <activity
             android:name=".MainActivity"
             android:configChanges="keyboard|keyboardHidden|navigation|orientation|screenSize|screenLayout|smallestScreenSize|uiMode"

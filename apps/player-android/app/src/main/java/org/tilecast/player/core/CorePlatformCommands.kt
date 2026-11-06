@@ -79,14 +79,8 @@ class CorePlatformCommands(
             ?: return PlatformCommandExecutor.result(false, "command_unsupported", "Command has no type.")
         val payload = runCatching { root["payload"]?.jsonObject }.getOrNull() ?: buildJsonObject {}
         return when (type) {
-            "power_assist_sleep" -> {
-                val result = effects.powerSleep()
-                PlatformCommandExecutor.result(true, result, "Power Assist sleep request was sent to Android")
-            }
-            "power_assist_wake" -> {
-                val result = effects.powerWake()
-                PlatformCommandExecutor.result(true, result, "Power Assist wake request was sent to Android")
-            }
+            "power_assist_sleep" -> powerResult(effects.powerSleep(), true)
+            "power_assist_wake" -> powerResult(effects.powerWake(), false)
             "restart_activity" -> {
                 effects.restartActivity()
                 PlatformCommandExecutor.result(
@@ -110,6 +104,21 @@ class CorePlatformCommands(
             "install_player_update" -> installUpdate(root, payload)
             else -> PlatformCommandExecutor.result(false, "command_unsupported", "Command is not supported.")
         }
+    }
+
+    private fun powerResult(code: String, sleep: Boolean): String {
+        val accepted = code in if (sleep) setOf(
+            "device_policy_requested", "accessibility_lock_requested",
+            "accessibility_lock_deferred", "shizuku_sleep_queued",
+        ) else setOf("device_wake_requested", "shizuku_wake_queued")
+        val description = if (code.startsWith("shizuku_")) {
+            "Shizuku power command queued; actual TV power is not confirmed."
+        } else if (accepted) {
+            "Android accepted the power request."
+        } else {
+            "Android could not perform the requested power operation."
+        }
+        return PlatformCommandExecutor.result(accepted, code, description)
     }
 
     private fun installUpdate(

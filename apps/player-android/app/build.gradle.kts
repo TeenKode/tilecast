@@ -68,7 +68,7 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-    buildFeatures { compose = true; buildConfig = true }
+    buildFeatures { compose = true; buildConfig = true; aidl = true }
     packaging.resources.excludes += "/META-INF/{AL2.0,LGPL2.1}"
     testOptions.unitTests.isIncludeAndroidResources = true
 }
@@ -105,6 +105,8 @@ dependencies {
     // runtime; an unsupported WebView fails closed, never silently downgrades.
     implementation("androidx.webkit:webkit:1.15.0")
     implementation("com.squareup.okhttp3:okhttp:5.5.0")
+    implementation("dev.rikka.shizuku:api:13.1.5")
+    implementation("dev.rikka.shizuku:provider:13.1.5")
     // Kotlin component of rustls-platform-verifier. The version stays
     // unpinned here: the resolution strategy below pins it to the
     // rustls-platform-verifier-android version in the root Cargo.lock, which

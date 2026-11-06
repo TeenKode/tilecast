@@ -12,3 +12,6 @@
 # rustls-platform-verifier reaches its Kotlin component over JNI, which R8
 # cannot see; keep it from looking like dead code.
 -keep, includedescriptorclasses class org.rustls.platformverifier.** { *; }
+
+# Instantiated reflectively by Shizuku in the ADB-shell process.
+-keep class org.tilecast.player.power.PowerUserService { public <init>(); }

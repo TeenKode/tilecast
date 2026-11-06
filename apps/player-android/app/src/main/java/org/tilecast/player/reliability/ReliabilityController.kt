@@ -12,6 +12,8 @@ import android.provider.Settings
 import android.util.Base64
 import android.view.WindowManager
 import org.tilecast.player.MainActivity
+import org.tilecast.player.power.ShizukuPower
+import android.util.Log
 import org.tilecast.player.core.CorePlatformConfig
 import java.time.Instant
 
@@ -135,10 +137,53 @@ class ReliabilityController(private val context: Context) {
         )
     }
 
+    fun shizukuPowerEnabled(): Boolean = store.getBoolean("shizuku-power-enabled", false)
+    fun setShizukuPowerEnabled(enabled: Boolean) {
+        store.edit().putBoolean("shizuku-power-enabled", enabled).apply()
+    }
+    fun shizukuPowerStatus(): String = ShizukuPower.status()
+    fun connectShizuku(activity: Activity) = ShizukuPower.connect(activity)
+    fun lastShizukuPowerResult(): String =
+        store.getString("shizuku-power-last-result", "not_tested") ?: "not_tested"
+
+    /** Dispatch is asynchronous: active-hours edges also run on the UI thread. */
+    private fun shizukuRequest(wake: Boolean, completion: (() -> Unit)? = null): String? {
+        if (!shizukuPowerEnabled()) return null
+        if (!ShizukuPower.ready()) {
+            store.edit().putString("shizuku-power-last-result", "fallback_not_ready").apply()
+            Log.w("TilecastShizukuPower", "Shizuku is not ready; using stock Android")
+            return null
+        }
+        val submitted = ShizukuPower.setAwake(context, wake) { sent ->
+            store.edit().putString(
+                "shizuku-power-last-result",
+                (if (wake) "wake_" else "sleep_") + (if (sent) "sent" else "failed"),
+            ).apply()
+            if (wake && sent) launchPlayerForWake()
+            completion?.invoke()
+        }
+        return if (submitted) {
+            if (wake) "shizuku_wake_queued" else "shizuku_sleep_queued"
+        } else null
+    }
+
+    private fun launchPlayerForWake(): Boolean = runCatching {
+        context.startActivity(
+            Intent(context, MainActivity::class.java)
+                .addFlags(
+                    Intent.FLAG_ACTIVITY_NEW_TASK or
+                        Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                        Intent.FLAG_ACTIVITY_SINGLE_TOP,
+                ),
+        )
+        true
+    }.getOrDefault(false)
+
     fun requestSleep(): String {
         if (fireTvDevice()) return recordSleepResult("fire_tv_sleep_blocked")
         if (maintenanceUntil() != null) return recordSleepResult("maintenance_session_deferred")
         if (store.getBoolean("update-active", false)) return recordSleepResult("player_update_deferred")
+        shizukuRequest(wake = false)?.let { return recordSleepResult(it) }
         val result = runCatching {
             if (dpm.isDeviceOwnerApp(context.packageName)) {
                 dpm.lockNow()
@@ -157,14 +202,15 @@ class ReliabilityController(private val context: Context) {
         return recordSleepResult(result)
     }
 
-    fun requestWake(): String {
-        val intent = Intent(context, MainActivity::class.java)
-            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
-        return runCatching {
-            context.startActivity(intent)
-            "device_wake_requested"
-        }.getOrElse { "wake_launch_blocked" }
-            .also { store.edit().putString("last-wake-result", it).apply() }
+    fun requestWake(completion: (() -> Unit)? = null): String {
+        shizukuRequest(wake = true, completion = completion)?.let {
+            store.edit().putString("last-wake-result", it).apply()
+            return it
+        }
+        val result = if (launchPlayerForWake()) "device_wake_requested" else "wake_launch_blocked"
+        store.edit().putString("last-wake-result", result).apply()
+        completion?.invoke()
+        return result
     }
 
     fun restartActivity() {
@@ -292,7 +338,10 @@ class ReliabilityController(private val context: Context) {
 
 class ActiveHoursReceiver : android.content.BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
-        ReliabilityController(context).requestWake()
+        // Keep this wake broadcast alive through the bounded Shizuku call.
+        val pending = goAsync()
+        runCatching { ReliabilityController(context).requestWake { pending.finish() } }
+            .onFailure { pending.finish() }
     }
 }
 
