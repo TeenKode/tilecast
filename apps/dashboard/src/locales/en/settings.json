@@ -572,6 +572,13 @@
     }
   },
   "enumValues": {
+    "auto": "Automatic (stock Android behavior)",
+    "device_policy": "Device Policy (device owner)",
+    "accessibility": "Accessibility lock screen",
+    "black_screen": "Black screen (panel stays powered)",
+    "activity": "Launch Tilecast Activity",
+    "wake_lock": "Wake Lock (firmware dependent)",
+    "cvte": "CVTE fake standby (local ADB)",
     "managed_kiosk": "Managed Kiosk",
     "standard": "Standard reliability",
     "first_party": "First-party cookies",
