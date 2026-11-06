@@ -211,9 +211,15 @@ class ReliabilityController(private val context: Context) {
     fun requestSleep(): String {
         if (maintenanceUntil() != null) return recordSleepResult("maintenance_session_deferred")
         if (store.getBoolean("update-active", false)) return recordSleepResult("player_update_deferred")
+        if (sleepMethod() != "black_screen") {
+            store.edit().putBoolean("software-screen-blanked", false).apply()
+        }
         val outcome = when (sleepMethod()) {
             "cvte" -> requestCvte(awake = false)
-            "black_screen" -> "black_screen_selected"
+            "black_screen" -> {
+                store.edit().putBoolean("software-screen-blanked", true).apply()
+                "black_screen_selected"
+            }
             "device_policy" -> sleepByDevicePolicy()
             "accessibility" -> sleepByAccessibility()
             else -> when {
@@ -227,6 +233,8 @@ class ReliabilityController(private val context: Context) {
     }
 
     fun requestWake(finished: (() -> Unit)? = null): String {
+        // A software-blanked screen must never remain hidden after wake.
+        store.edit().putBoolean("software-screen-blanked", false).apply()
         val result = when (wakeMethod()) {
             "cvte" -> requestCvte(awake = true, finished = finished)
             "wake_lock" -> wakeWithLock().also { finished?.invoke() }

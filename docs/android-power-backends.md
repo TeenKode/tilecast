@@ -22,7 +22,8 @@ leaving active hours. For a CVTE TV, select `cvte` for **both** sleep and wake.
 
 **Auto** preserves stock Android behavior. Unsupported explicit methods
 return a failure instead of silently using another method. Choosing
-`black_screen` intentionally leaves the panel powered on.
+`black_screen` masks the Player with an actual black overlay, while the
+panel remains powered on. Wake removes this overlay for every wake method.
 
 ## CVTE fake standby
 
