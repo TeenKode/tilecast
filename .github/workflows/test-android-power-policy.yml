@@ -1,0 +1,40 @@
+name: Validate configurable Android power policy
+on:
+  push:
+    branches:
+      - feat/configurable-android-power
+    paths:
+      - .github/workflows/test-android-power-policy.yml
+      - apps/server/internal/settings/**
+      - apps/dashboard/src/settings/**
+      - apps/player-android/**
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  policy-registry:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: apps/server/go.mod
+          cache-dependency-path: apps/server/go.sum
+      - name: Verify allowlisted sleep and wake options
+        working-directory: apps/server
+        run: go test ./internal/settings -run 'TestAndroidPowerMethodsHaveSafeDefaultsAndAllowListedValues|TestReliabilityPoliciesAreTypedAndBounded' -count=1
+  studio:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Type-check and build Studio
+        run: npm run build --workspace @tilecast/dashboard
