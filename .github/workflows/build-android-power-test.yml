@@ -1,0 +1,192 @@
+name: Build Android Player (universal power test)
+
+on:
+  push:
+    branches:
+      - feat/configurable-android-power
+    paths:
+      - .github/workflows/build-android-power-test.yml
+      - apps/player-android/**
+      - packages/player-runtime/**
+      - Cargo.lock
+      - rust-toolchain.toml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  android-test-apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 65
+    env:
+      TILECAST_TEST_CERT_SHA256: '91549d13cdb06604cdcb8adfa6fc9e787366bd199e3c9047abfa114a03e0c17f'
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+
+      - name: Android SDK
+        uses: android-actions/setup-android@v4
+
+      # The signing key is stored only in the repository's Actions Secret.
+      # Never put a debug keystore in git: a leaked key could sign updates
+      # impersonating the test Player on enrolled devices.
+      - name: Restore permanent test APK signing key
+        env:
+          TILECAST_TEST_KEYSTORE_B64: ${{ secrets.TILECAST_TEST_KEYSTORE_B64 }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "${TILECAST_TEST_KEYSTORE_B64:-}" ]]; then
+            echo "::error::Add repository Actions secret TILECAST_TEST_KEYSTORE_B64 before building test APKs."
+            exit 1
+          fi
+          mkdir -p "$HOME/.android"
+          printf '%s' "$TILECAST_TEST_KEYSTORE_B64" | base64 --decode > "$HOME/.android/debug.keystore"
+          chmod 600 "$HOME/.android/debug.keystore"
+          fingerprint=$(keytool -list -v \
+            -keystore "$HOME/.android/debug.keystore" \
+            -alias androiddebugkey -storepass android \
+            | awk '/SHA256:/{print $2; exit}')
+          fingerprint="${fingerprint//:/}"
+          if [[ "${fingerprint,,}" != "$TILECAST_TEST_CERT_SHA256" ]]; then
+            echo "::error::Test APK signing key fingerprint mismatch: refusing to change signing identity."
+            exit 1
+          fi
+          echo "TILECAST_TEST_KEYSTORE_PATH=$HOME/.android/debug.keystore" >> "$GITHUB_ENV"
+          echo "Pinned Tilecast test APK signing certificate verified."
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install JS dependencies and build shared runtime
+        run: |
+          npm ci
+          npm run build --workspace @tilecast/player-runtime
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android,armv7-linux-androideabi,x86_64-linux-android
+
+      - name: Install Android Rust targets for pinned project toolchain
+        run: |
+          rustup show active-toolchain
+          rustup target add aarch64-linux-android armv7-linux-androideabi x86_64-linux-android
+          rustup target list --installed
+          cd apps/player-android
+          rustup show active-toolchain
+          rustup target list --installed
+          rustc --version
+
+      - name: Install cargo-ndk
+        run: |
+          cargo ndk --version 2>/dev/null | grep -qx 'cargo-ndk 4.1.2' || cargo install cargo-ndk --version 4.1.2 --locked
+
+      - name: Restore native build cache
+        id: native-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            target
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: android-test-native-${{ runner.os }}-${{ hashFiles('Cargo.toml', 'Cargo.lock', 'rust-toolchain.toml', '.cargo/config.toml', 'apps/player-android/app/build.gradle.kts', 'apps/player-android/native/**', 'crates/**', 'plugins/**/native/**', 'packages/plugin-native-registry/**') }}
+          restore-keys: android-test-native-${{ runner.os }}-
+
+      - name: Install pinned Android NDK
+        run: |
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager --install "ndk;29.0.14206865"
+
+      - name: Change debug package ID for safe parallel installation
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          gradle = Path("apps/player-android/app/build.gradle.kts")
+          source = gradle.read_text()
+          before = '    buildTypes {\n        release {'
+          after = ('    buildTypes {\n'
+                   '        getByName("debug") {\n'
+                   '            applicationIdSuffix = ".test"\n'
+                   '            versionNameSuffix = "-test"\n'
+                   '            signingConfig = signingConfigs.getByName("debug").apply {\n'
+                   '                storeFile = file(System.getenv("TILECAST_TEST_KEYSTORE_PATH"))\n'
+                   '                storePassword = "android"\n'
+                   '                keyAlias = "androiddebugkey"\n'
+                   '                keyPassword = "android"\n'
+                   '            }\n'
+                   '        }\n'
+                   '        release {')
+          assert source.count(before) == 1, "Unrecognized build.gradle.kts structure"
+          gradle.write_text(source.replace(before, after))
+          manifest = Path("apps/player-android/app/src/main/AndroidManifest.xml")
+          data = manifest.read_text()
+          before_label = 'android:label="Tilecast Player"'
+          assert data.count(before_label) == 1, "Unexpected AndroidManifest.xml"
+          manifest.write_text(data.replace(before_label, 'android:label="Tilecast Test"'))
+          PY
+
+      - name: Assemble test APK
+        id: assemble
+        working-directory: apps/player-android
+        run: ./gradlew :app:assembleDebug --no-daemon
+
+      - name: Sign and verify packaged test APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          apksigner="$(find "$ANDROID_HOME/build-tools" -mindepth 2 -maxdepth 2 -name apksigner | sort -V | tail -n 1)"
+          test -x "$apksigner"
+          "$apksigner" sign --ks "$TILECAST_TEST_KEYSTORE_PATH" \
+            --ks-key-alias androiddebugkey --ks-pass pass:android --key-pass pass:android \
+            apps/player-android/app/build/outputs/apk/debug/app-debug.apk
+          apksig_jar="$(dirname "$apksigner")/lib/apksigner.jar"
+          test -f "$apksig_jar"
+          mkdir -p "$RUNNER_TEMP/apk-signature-check"
+          javac -cp "$apksig_jar" -d "$RUNNER_TEMP/apk-signature-check" apps/player-android/ci/VerifyApkSignature.java
+          java -cp "$RUNNER_TEMP/apk-signature-check:$apksig_jar" VerifyApkSignature \
+            apps/player-android/app/build/outputs/apk/debug/app-debug.apk "$TILECAST_TEST_CERT_SHA256"
+
+      - name: Test power methods and existing player runtime
+        working-directory: apps/player-android
+        run: >-
+          ./gradlew :app:testDebugUnitTest
+          --tests 'org.tilecast.player.power.LocalCvteAdbTest'
+          --tests 'org.tilecast.player.core.CorePlayerConfigTest'
+          --tests 'org.tilecast.player.core.CorePlatformCommandsTest'
+          --tests 'org.tilecast.player.runtime.RuntimeHostSessionTest'
+          --tests 'org.tilecast.player.runtime.RemoteWebHostManagerTest'
+          --tests 'org.tilecast.player.runtime.TrustedRuntimeOriginTest'
+          --tests 'org.tilecast.player.core.ServerUrlPolicyTest'
+          --tests 'org.tilecast.player.core.PlayerCoreHostTest'
+          --tests 'org.tilecast.player.content.WebsitePolicyTest'
+          --no-daemon
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tilecast-android-universal-power-test
+          path: apps/player-android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Save completed native build cache
+        if: ${{ !cancelled() && steps.assemble.outcome == 'success' && steps.native-cache.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            target
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ steps.native-cache.outputs.cache-primary-key }}
