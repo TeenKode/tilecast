@@ -197,6 +197,8 @@ type FieldDefinition struct {
 	// it. Nested repeating-group controls may point at a root source.
 	DataSourceKey string                 `json:"dataSourceKey,omitempty"`
 	MediaTypes    []string               `json:"mediaTypes,omitempty"`
+	// Schemes narrows URL input validation. Without it, HTTP/HTTPS only.
+	Schemes       []string               `json:"schemes,omitempty"`
 	MaximumItems  int                    `json:"maximumItems,omitempty"`
 	ItemFields    []FieldDefinition      `json:"itemFields,omitempty"`
 	UI            map[string]interface{} `json:"ui,omitempty"`
