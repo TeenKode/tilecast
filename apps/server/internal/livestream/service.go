@@ -11,14 +11,16 @@ import (
 	"github.com/google/uuid"
 )
 
+// Watch Live uses independent width and height bounds so both landscape
+// and portrait screen captures retain their full aspect ratio.
 const (
 	LeaseDuration     = 15 * time.Second
 	FrameInterval     = 125 * time.Millisecond
 	MaxFrameBytes     = 100 * 1024
 	MaxWidth          = 640
-	MaxHeight         = 360
+	MaxHeight         = 640
 	EdgeMaxWidth      = 960
-	EdgeMaxHeight     = 540
+	EdgeMaxHeight     = 960
 	EdgeFrameInterval = 100 * time.Millisecond
 	frameHeader       = 33
 
