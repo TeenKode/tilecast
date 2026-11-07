@@ -8,7 +8,6 @@ ALTER TABLE player_releases ADD CONSTRAINT player_releases_family_shape_check CH
     (player_family = 'android'
         AND platform = 'android'
         AND architecture = ''
-        AND application_id IS NOT NULL
         AND (application_id = 'org.tilecast.player'
             OR (application_id = 'org.tilecast.player.test'
                 AND channel = 'beta'
