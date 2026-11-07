@@ -2135,6 +2135,8 @@ export type ContentDefinitionField = {
     typeFallback?: boolean;
   };
   mediaTypes?: string[];
+  /** Explicit allowed schemes for URL controls (otherwise http/https). */
+  schemes?: string[];
   maximumItems?: number;
   itemFields?: ContentDefinitionField[];
 };
