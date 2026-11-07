@@ -21,6 +21,7 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import sharp from "sharp";
+import { testBadge, testPath } from "../../../scripts/fork-branding.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const res = join(here, "../app/src/main/res");
@@ -289,6 +290,8 @@ function foregroundVector(mark, place) {
     android:viewportWidth="${LAYER}"
     android:viewportHeight="${LAYER}">
 ${paths}
+    <path android:fillColor="#FBBF24" android:pathData="M39,67L69,67L69,80L39,80Z" />
+    <path android:fillColor="#111827" android:pathData="${testPath(42, 70, 1)}" />
 </vector>
 `;
 }
@@ -297,7 +300,7 @@ ${paths}
 // `window` rectangle (in dp) and rendered at `size` px square.
 function markSvg(mark, place, background, size, window) {
   const paths = mark.shapes.map((s) => rasterPath(s, place)).join("");
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="${window.join(" ")}"><rect x="0" y="0" width="${LAYER}" height="${LAYER}" fill="${background}"/><g fill="${MARK_COLOR}">${paths}</g></svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="${window.join(" ")}"><rect x="0" y="0" width="${LAYER}" height="${LAYER}" fill="${background}"/><g fill="${MARK_COLOR}">${paths}</g>${testBadge(39, 67, 30)}</svg>`;
 }
 function bannerSvg(wordmark, background, scaleFactor) {
   const m = measure(wordmark.shapes);
@@ -309,7 +312,7 @@ function bannerSvg(wordmark, background, scaleFactor) {
   const w = Math.round(BANNER.width * scaleFactor);
   const h = Math.round(BANNER.height * scaleFactor);
   return {
-    svg: `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${BANNER.width} ${BANNER.height}"><rect width="${BANNER.width}" height="${BANNER.height}" fill="${background}"/><g fill="${MARK_COLOR}">${paths}</g></svg>`,
+    svg: `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${BANNER.width} ${BANNER.height}"><rect width="${BANNER.width}" height="${BANNER.height}" fill="${background}"/><g fill="${MARK_COLOR}">${paths}</g>${testBadge(116, 128, 88)}</svg>`,
     ink: { width: m.width * scale, height: m.height * scale },
   };
 }

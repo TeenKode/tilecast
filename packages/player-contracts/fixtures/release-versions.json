@@ -5,6 +5,8 @@
   "cutoverCoreCode": 26000,
   "maximumCode": 2100000000,
   "codes": [
+    { "name": "0.27.1-dev.1", "code": 2700101 },
+    { "name": "0.27.1-dev.98", "code": 2700198 },
     {
       "name": "0.0.0-dev",
       "code": 0
@@ -120,6 +122,7 @@
     "20.999.999"
   ],
   "channels": [
+    { "name": "0.27.1-dev.1", "channel": "beta" },
     {
       "name": "0.26.0",
       "channel": "stable"
@@ -138,6 +141,7 @@
     }
   ],
   "msix": [
+    { "name": "0.27.1-dev.1", "channel": "beta", "package": "0.27.1.1" },
     {
       "name": "0.26.0-beta.1",
       "channel": "beta",

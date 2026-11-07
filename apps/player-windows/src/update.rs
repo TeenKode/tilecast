@@ -71,7 +71,7 @@ fn parse_version(version_name: &str) -> Option<ParsedVersion> {
     let (slot, channel) = match suffix {
         None => (99_u16, "stable"),
         Some(suffix) => {
-            let number = suffix.strip_prefix("beta.")?;
+            let number = suffix.strip_prefix("beta.").or_else(|| suffix.strip_prefix("dev."))?;
             // 1 to 98 with no sign and no leading zero.
             if number.is_empty()
                 || number.len() > 2

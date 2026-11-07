@@ -36,6 +36,7 @@ env:
 
 jobs:
   build:
+    if: github.repository == 'gbyo/tilecast'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7

@@ -12,6 +12,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.AndroidView
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.intOrNull
@@ -54,9 +55,9 @@ internal object NativeStreamEnvelope {
         return config.takeIf { it.valid() }
     }
 
-    private fun JsonObject.string(key: String) = get(key)?.jsonPrimitive?.contentOrNull
-    private fun JsonObject.number(key: String) = get(key)?.jsonPrimitive?.intOrNull
-    private fun JsonObject.flag(key: String) = get(key)?.jsonPrimitive?.booleanOrNull
+    private fun JsonObject.string(key: String) = (get(key) as? JsonPrimitive)?.contentOrNull
+    private fun JsonObject.number(key: String) = (get(key) as? JsonPrimitive)?.intOrNull
+    private fun JsonObject.flag(key: String) = (get(key) as? JsonPrimitive)?.booleanOrNull
 }
 
 @Composable

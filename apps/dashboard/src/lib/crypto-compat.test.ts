@@ -23,7 +23,7 @@ describe("HTTP-compatible randomUUID", () => {
   it("does not use insecure entropy when getRandomValues is unavailable", () => {
     const cryptoAPI = {} as Crypto;
     expect(installRandomUUIDCompatibility(cryptoAPI)).toBe(false);
-    expect(cryptoAPI.randomUUID).toBeUndefined();
+    expect("randomUUID" in cryptoAPI).toBe(false);
   });
 
   it("does not throw in a non-extensible crypto host", () => {

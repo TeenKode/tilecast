@@ -1,0 +1,3 @@
+services:
+  server:
+    image: ${TILECAST_FORK_IMAGE:?Set TILECAST_FORK_IMAGE to a verified fork build}

@@ -1,0 +1,145 @@
+name: Fork Dev build
+
+on:
+  push:
+    branches: [main, integration/fork-dev]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fork-dev-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  server:
+    if: github.repository == 'TeenKode/tilecast'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: apps/server/go.mod
+      - name: Server regression tests
+        run: |
+          python3 -m unittest discover -s scripts/release -p 'test_*.py'
+          python3 scripts/ci/check-android-stream-adapter.py
+          cd apps/server
+          go test ./internal/updates ./internal/media ./internal/contentdefs ./internal/livestream
+      - id: version
+        run: |
+          version="$(cat deploy/fork/VERSION)"
+          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+-dev\.[1-9][0-9]?$ ]]
+          python3 scripts/release/release_version.py tag "v$version"
+          echo "number=$version" >> "$GITHUB_OUTPUT"
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: deploy/docker/Dockerfile
+          push: true
+          tags: ghcr.io/teenkode/tilecast-server:dev-${{ github.sha }}
+          build-args: |
+            VERSION_NUMBER=${{ steps.version.outputs.number }}
+            VERSION_CHANNEL=development
+            VERSION_COMMIT=${{ github.sha }}
+          cache-from: type=gha,scope=fork-server
+          cache-to: type=gha,mode=max,scope=fork-server
+
+  android:
+    if: github.repository == 'TeenKode/tilecast'
+    runs-on: ubuntu-latest
+    timeout-minutes: 65
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+      - uses: android-actions/setup-android@v4
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - name: Build shared runtime
+        run: |
+          npm ci
+          npm run build --workspace @tilecast/player-runtime
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android,armv7-linux-androideabi,x86_64-linux-android
+      - uses: actions/cache@v6
+        with:
+          path: |
+            target
+            ~/.cargo/registry
+            ~/.cargo/git
+            ~/.cargo/bin/cargo-ndk*
+          key: fork-android-${{ runner.os }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}
+          restore-keys: android-test-native-${{ runner.os }}-
+      - name: Native toolchain
+        run: |
+          rustup target add aarch64-linux-android armv7-linux-androideabi x86_64-linux-android
+          cargo ndk --version 2>/dev/null | grep -qx 'cargo-ndk 4.1.2' || cargo install cargo-ndk --version 4.1.2 --locked
+          sdkmanager --install 'ndk;29.0.14206865'
+      - name: Restore permanent test certificate and manifest signing key
+        env:
+          KEYSTORE: ${{ secrets.TILECAST_TEST_KEYSTORE_B64 }}
+          MANIFEST_KEY: ${{ secrets.TILECAST_FORK_UPDATE_PRIVATE_KEY_PEM }}
+        run: |
+          test -n "$KEYSTORE" && test -n "$MANIFEST_KEY"
+          install -d -m 700 "$HOME/.android" "$RUNNER_TEMP/fork-signing"
+          printf '%s' "$KEYSTORE" | base64 -d > "$HOME/.android/debug.keystore"
+          printf '%s' "$MANIFEST_KEY" > "$RUNNER_TEMP/fork-signing/private.pem"
+          chmod 600 "$HOME/.android/debug.keystore" "$RUNNER_TEMP/fork-signing/private.pem"
+          fingerprint="$(keytool -list -v -keystore "$HOME/.android/debug.keystore" -alias androiddebugkey -storepass android | awk '/SHA256:/{print $2; exit}')"
+          fingerprint="${fingerprint//:/}"
+          test "${fingerprint,,}" = '91549d13cdb06604cdcb8adfa6fc9e787366bd199e3c9047abfa114a03e0c17f'
+      - name: Stamp fork version
+        run: |
+          python3 scripts/release/stamp_version.py --version "$(cat deploy/fork/VERSION)"
+          python3 scripts/release/prepare_fork_android.py
+      - name: Test and assemble
+        working-directory: apps/player-android
+        run: ./gradlew :app:testDebugUnitTest :app:lintDebug :app:assembleDebug --no-daemon
+      - name: Package signed update
+        env:
+          TILECAST_FORK_MANIFEST_KEY: ${{ runner.temp }}/fork-signing/private.pem
+        run: bash scripts/release/package-fork-player.sh
+      - uses: actions/upload-artifact@v7
+        with:
+          name: fork-player-release
+          path: release-output/*
+          if-no-files-found: error
+      - name: Remove signing files
+        if: always()
+        run: rm -f "$HOME/.android/debug.keystore" "$RUNNER_TEMP/fork-signing/private.pem"
+
+  publish:
+    if: github.ref == 'refs/heads/main'
+    needs: [server, android]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          name: fork-player-release
+          path: release-output
+      - name: Publish fork prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="$(cat deploy/fork/VERSION)"
+          gh release create "v$version" release-output/* --target "$GITHUB_SHA" --prerelease --title "Tilecast TEST $version" --notes "Test fork: Android .test APK and Server image ghcr.io/teenkode/tilecast-server:dev-$GITHUB_SHA. Edge and Windows are not included."

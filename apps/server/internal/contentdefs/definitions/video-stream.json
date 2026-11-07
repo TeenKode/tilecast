@@ -9,13 +9,7 @@
       "icon": "video",
       "kind": "app",
       "featured": true,
-      "keywords": [
-        "rtsp",
-        "rtmp",
-        "camera",
-        "live",
-        "iptv"
-      ],
+      "keywords": ["rtsp", "rtmp", "camera", "live", "iptv"],
       "runtime": "web",
       "configurationSchema": {
         "fields": [
@@ -30,10 +24,7 @@
               "section": "content",
               "order": 1
             },
-            "schemes": [
-              "rtsp",
-              "rtmp"
-            ]
+            "schemes": ["rtsp", "rtmp"]
           },
           {
             "key": "username",
@@ -181,9 +172,7 @@
       "emptyStateBehavior": "placeholder",
       "webIntegration": {
         "urlField": "sourceUrl",
-        "allowedHosts": [
-          "tilecast-native-stream.invalid"
-        ],
+        "allowedHosts": ["tilecast-native-stream.invalid"],
         "transform": "native_stream",
         "loadTimeoutSeconds": 90,
         "lifecycle": "destroy_on_hide",

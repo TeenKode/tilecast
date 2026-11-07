@@ -35,8 +35,8 @@ BETA_SLOT_MAXIMUM = 98
 STABLE_SLOT = 99
 
 VERSION_NAME = re.compile(r"[0-9]{1,9}\.[0-9]{1,9}\.[0-9]{1,9}(?:-[0-9A-Za-z.]+)?")
-BETA_SUFFIX = re.compile(r"beta\.([1-9][0-9]?)")
-TAG = re.compile(r"v(?P<version>[0-9]+\.[0-9]+\.[0-9]+(?:-beta\.[1-9][0-9]?)?)")
+BETA_SUFFIX = re.compile(r"(?:beta|dev)\.([1-9][0-9]?)")
+TAG = re.compile(r"v(?P<version>[0-9]+\.[0-9]+\.[0-9]+(?:-(?:beta|dev)\.[1-9][0-9]?)?)")
 
 
 class Version:

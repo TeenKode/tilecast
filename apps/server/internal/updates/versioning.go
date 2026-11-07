@@ -19,7 +19,7 @@ const (
 	stableSlot      = 99
 )
 
-var betaSuffixPattern = regexp.MustCompile(`^beta\.([1-9][0-9]?)$`)
+var betaSuffixPattern = regexp.MustCompile(`^(?:beta|dev)\.([1-9][0-9]?)$`)
 
 // VersionCode is the update version code of a release version name. It is the
 // one ordering the server, Tilecast Edge, the Windows Player, the Android

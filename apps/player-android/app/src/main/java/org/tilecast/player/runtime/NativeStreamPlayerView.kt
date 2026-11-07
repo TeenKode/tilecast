@@ -178,8 +178,4 @@ class NativeStreamPlayerView @JvmOverloads constructor(
         config = null
     }
 
-    override fun onDetachedFromWindow() {
-        super.onDetachedFromWindow()
-        release()
-    }
 }

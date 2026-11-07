@@ -24,6 +24,24 @@ existing releases stay available and importable. See
 
 ## Channels
 
+### TeenKode test fork
+
+The fork uses `X.Y.Z-dev.N`, where N is 1 to 98. These releases use the
+existing `beta` update channel and the same numeric slot as `beta.N`.
+Increase N for each build. Increase the patch version when N reaches 98.
+Do not mix upstream Beta and fork Dev releases with the same core version
+and slot. A version code must increase before Android accepts an update.
+`deploy/fork/VERSION` selects the fork build version.
+
+The fork keeps the installed test Android package `org.tilecast.player.test`
+and its permanent test certificate. The server accepts this package only
+for signed Dev manifests on the Beta channel. Each Player verifies the
+package and certificate against its own installed application.
+
+Fork Dev releases contain the test Android APK and the server image.
+They do not claim to contain Edge or Windows builds. Existing Edge Players
+need a bridge before they can accept Dev version names.
+
 | Channel     | Version form    | GitHub Release | Server image tags                                                     |
 | ----------- | --------------- | -------------- | --------------------------------------------------------------------- |
 | Stable      | `vX.Y.Z`        | Release        | `X.Y.Z`, `stable`, `latest`, and `beta` when it is the newest release |

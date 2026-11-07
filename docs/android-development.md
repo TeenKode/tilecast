@@ -4,6 +4,17 @@ Tilecast Player uses JDK 17 and the checked-in Gradle wrapper. Install the SDK, 
 
 ## Native Player Core host
 
+### Fork native stream adapter
+
+The test fork permits Media3 only in `NativeStreamPlayerView.kt`.
+The shared Runtime still owns layout, timing, visibility, and activation.
+The Android host decodes RTSP and RTMP in the surface that Runtime selects.
+The server validates the stream configuration and puts it in a reserved
+`tilecast-native-stream.invalid` address. The host never fetches that address.
+The encoded payload can contain credentials. Do not log it.
+Other Players do not support this experimental surface.
+Run `python3 scripts/ci/check-android-stream-adapter.py` to check the boundary.
+
 The APK embeds a Rust host for shared Player Core. The host crate is
 `tilecast-player-android-native` below `apps/player-android/native`.
 It owns one process-level host, a narrow JNI bridge, Android storage

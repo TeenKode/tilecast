@@ -329,7 +329,13 @@ function StandardControl({
       return (
         <Input
           {...common}
-          type={field.ui?.secret ? "password" : field.control === "url" ? "url" : "text"}
+          type={
+            field.ui?.secret
+              ? "password"
+              : field.control === "url"
+                ? "url"
+                : "text"
+          }
           inputMode={field.control === "url" ? "url" : undefined}
           value={fieldText(value)}
           maxLength={field.maxLength}

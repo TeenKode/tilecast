@@ -38,8 +38,17 @@ export function resolveWebsiteUrl(
   } catch {
     return null;
   }
-  if (!["http:", "https:"].includes(url.protocol) || url.username || url.password) return null;
-  if (/[{}]/.test(decodeURIComponent(url.pathname)) || /[{}]/.test(decodeURIComponent(url.hash))) return null;
+  if (
+    !["http:", "https:"].includes(url.protocol) ||
+    url.username ||
+    url.password
+  )
+    return null;
+  if (
+    /[{}]/.test(decodeURIComponent(url.pathname)) ||
+    /[{}]/.test(decodeURIComponent(url.hash))
+  )
+    return null;
 
   const { date, time, datetime } = dateParts(context.at);
   const source = context.dataSourceId
@@ -48,22 +57,31 @@ export function resolveWebsiteUrl(
   const data = source ? normalizeSource(source, context.at) : null;
   const values: Record<string, string> = {
     "screen.id": context.screenId,
-    date, time, datetime,
+    date,
+    time,
+    datetime,
   };
 
   const select = (key: string): string | undefined => {
     if (Object.prototype.hasOwnProperty.call(values, key)) return values[key];
-    if (!key.startsWith("data.") || !data || data.unavailable || data.hidden) return undefined;
+    if (!key.startsWith("data.") || !data || data.unavailable || data.hidden)
+      return undefined;
     const path = key.slice(5);
     if (path === "json") {
-      return JSON.stringify(data.records.length
-        ? data.records.map((record) => record.rawFields)
-        : data.rawObjectValues);
+      return JSON.stringify(
+        data.records.length
+          ? data.records.map((record) => record.rawFields)
+          : data.rawObjectValues,
+      );
     }
     if (path === "values") {
-      const firstField = data.records[0] ? Object.keys(data.records[0].rawFields)[0] : undefined;
+      const firstField = data.records[0]
+        ? Object.keys(data.records[0].rawFields)[0]
+        : undefined;
       return firstField
-        ? JSON.stringify(data.records.map((record) => record.rawFields[firstField] ?? ""))
+        ? JSON.stringify(
+            data.records.map((record) => record.rawFields[firstField] ?? ""),
+          )
         : undefined;
     }
     const match = /^([a-zA-Z_][\w-]*)(?::(\d{1,3}))?$/.exec(path);
@@ -73,7 +91,9 @@ export function resolveWebsiteUrl(
     const index = match[2] ? Number(match[2]) : 0;
     return data.records.length
       ? data.records[index]?.rawFields[fieldName]
-      : (index === 0 ? data.rawObjectValues[fieldName] : undefined);
+      : index === 0
+        ? data.rawObjectValues[fieldName]
+        : undefined;
   };
 
   try {
@@ -100,7 +120,8 @@ export function resolveWebsiteUrl(
     }
     url.search = params.toString();
     const result = url.toString();
-    if (result.length > 2048 || result.includes("{") || result.includes("}")) return null;
+    if (result.length > 2048 || result.includes("{") || result.includes("}"))
+      return null;
     return result;
   } catch {
     return null;

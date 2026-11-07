@@ -23,7 +23,9 @@ func WebPresentationURL(definition WidgetDefinition, configuration map[string]an
 	raw, _ := configuration[spec.URLField].(string)
 	if spec.Transform == "native_stream" {
 		streamURL, streamErr := NativeStreamPlaybackURL(configuration)
-		if streamErr != nil { return "", nil, streamErr }
+		if streamErr != nil {
+			return "", nil, streamErr
+		}
 		return streamURL, []string{nativeStreamHost}, nil
 	}
 	if spec.Transform == "canva_embed" {

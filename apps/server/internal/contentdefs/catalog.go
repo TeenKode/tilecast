@@ -195,13 +195,13 @@ type FieldDefinition struct {
 	// supplies the field list for a data_source_field control. An explicit
 	// key wins; a definition with exactly one data_source control may omit
 	// it. Nested repeating-group controls may point at a root source.
-	DataSourceKey string                 `json:"dataSourceKey,omitempty"`
-	MediaTypes    []string               `json:"mediaTypes,omitempty"`
+	DataSourceKey string   `json:"dataSourceKey,omitempty"`
+	MediaTypes    []string `json:"mediaTypes,omitempty"`
 	// Schemes narrows URL input validation. Without it, HTTP/HTTPS only.
-	Schemes       []string               `json:"schemes,omitempty"`
-	MaximumItems  int                    `json:"maximumItems,omitempty"`
-	ItemFields    []FieldDefinition      `json:"itemFields,omitempty"`
-	UI            map[string]interface{} `json:"ui,omitempty"`
+	Schemes      []string               `json:"schemes,omitempty"`
+	MaximumItems int                    `json:"maximumItems,omitempty"`
+	ItemFields   []FieldDefinition      `json:"itemFields,omitempty"`
+	UI           map[string]interface{} `json:"ui,omitempty"`
 }
 
 type SelectOption struct {
@@ -1036,16 +1036,16 @@ func validateSchemaFields(fields []FieldDefinition) error {
 		if !supportedControls[field.Control] {
 			return fmt.Errorf("configuration schema uses unsupported form control %q", field.Control)
 		}
-		if len(field.Schemes)>0 {
-			if field.Control != "url" || len(field.Schemes)>5 {
+		if len(field.Schemes) > 0 {
+			if field.Control != "url" || len(field.Schemes) > 5 {
 				return fmt.Errorf("URL schemes on field %q require a URL control", field.Key)
 			}
-			seenScheme:=map[string]bool{}
-			for _,scheme:=range field.Schemes {
-				if seenScheme[scheme] || (scheme!="http" && scheme!="https" && scheme!="rtsp" && scheme!="rtmp") {
-					return fmt.Errorf("field %q declares an invalid URL scheme %q",field.Key,scheme)
+			seenScheme := map[string]bool{}
+			for _, scheme := range field.Schemes {
+				if seenScheme[scheme] || (scheme != "http" && scheme != "https" && scheme != "rtsp" && scheme != "rtmp") {
+					return fmt.Errorf("field %q declares an invalid URL scheme %q", field.Key, scheme)
 				}
-				seenScheme[scheme]=true
+				seenScheme[scheme] = true
 			}
 		}
 		if err := validateFieldBounds(field); err != nil {
