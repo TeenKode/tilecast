@@ -19,27 +19,18 @@
             "control": "url",
             "required": true,
             "maxLength": 2048,
-            "ui": {
-              "section": "content",
-              "order": 1
-            }
+            "ui": { "section": "content", "order": 1 }
           },
           {
             "key": "dataSourceId",
             "label": "Data Source",
             "labelKey": "definitions:website.fields.dataSourceId.label",
-            "description": "Optional. Use {data.FIELD} in URL query parameter values to insert the first record field or {data.json} to pass the whole list as JSON.",
+            "description": "Optional source for query parameters using {data.FIELD} or {data.json}.",
             "descriptionKey": "definitions:website.fields.dataSourceId.description",
             "control": "data_source",
-            "acceptedDataSourceKinds": [
-              "records",
-              "object"
-            ],
+            "acceptedDataSourceKinds": ["records", "object"],
             "default": "",
-            "ui": {
-              "section": "content",
-              "order": 2
-            }
+            "ui": { "section": "content", "order": 2 }
           },
           {
             "key": "backgroundColor",
@@ -49,10 +40,7 @@
             "descriptionKey": "definitions:website.fields.backgroundColor.description",
             "control": "color",
             "default": "#0E141B",
-            "ui": {
-              "section": "appearance",
-              "order": 1
-            }
+            "ui": { "section": "appearance", "order": 1 }
           },
           {
             "key": "zoomPercent",
@@ -62,11 +50,7 @@
             "default": 100,
             "minimum": 50,
             "maximum": 200,
-            "ui": {
-              "section": "appearance",
-              "order": 2,
-              "slider": true
-            }
+            "ui": { "section": "appearance", "order": 2, "slider": true }
           },
           {
             "key": "scrollX",
@@ -76,10 +60,7 @@
             "default": 0,
             "minimum": 0,
             "maximum": 100000,
-            "ui": {
-              "section": "appearance",
-              "order": 3
-            }
+            "ui": { "section": "appearance", "order": 3 }
           },
           {
             "key": "scrollY",
@@ -89,10 +70,7 @@
             "default": 0,
             "minimum": 0,
             "maximum": 100000,
-            "ui": {
-              "section": "appearance",
-              "order": 4
-            }
+            "ui": { "section": "appearance", "order": 4 }
           },
           {
             "key": "reloadPolicy",
@@ -117,10 +95,7 @@
                 "labelKey": "definitions:website.fields.reloadPolicy.options.interval"
               }
             ],
-            "ui": {
-              "section": "behavior",
-              "order": 1
-            }
+            "ui": { "section": "behavior", "order": 1 }
           },
           {
             "key": "refreshIntervalSeconds",
@@ -133,10 +108,7 @@
             "ui": {
               "section": "behavior",
               "order": 2,
-              "visibleWhen": {
-                "key": "reloadPolicy",
-                "equals": "interval"
-              }
+              "visibleWhen": { "key": "reloadPolicy", "equals": "interval" }
             }
           },
           {
@@ -167,19 +139,14 @@
                 "labelKey": "definitions:website.fields.failureBehavior.options.skip"
               }
             ],
-            "ui": {
-              "section": "behavior",
-              "order": 3
-            }
+            "ui": { "section": "behavior", "order": 3 }
           },
           {
             "key": "fallbackImageAssetId",
             "label": "Fallback image",
             "labelKey": "definitions:website.fields.fallbackImageAssetId.label",
             "control": "media_asset",
-            "mediaTypes": [
-              "image"
-            ],
+            "mediaTypes": ["image"],
             "ui": {
               "section": "behavior",
               "order": 4,
@@ -197,11 +164,7 @@
             "default": 20,
             "minimum": 1,
             "maximum": 600,
-            "ui": {
-              "section": "behavior",
-              "order": 5,
-              "advanced": true
-            }
+            "ui": { "section": "behavior", "order": 5, "advanced": true }
           },
           {
             "key": "allowedHosts",
@@ -213,11 +176,7 @@
             "default": [],
             "maxLength": 253,
             "maximumItems": 100,
-            "ui": {
-              "section": "behavior",
-              "order": 6,
-              "advanced": true
-            }
+            "ui": { "section": "behavior", "order": 6, "advanced": true }
           },
           {
             "key": "javascriptEnabled",
@@ -225,11 +184,7 @@
             "labelKey": "definitions:website.fields.javascriptEnabled.label",
             "control": "boolean",
             "default": true,
-            "ui": {
-              "section": "behavior",
-              "order": 7,
-              "advanced": true
-            }
+            "ui": { "section": "behavior", "order": 7, "advanced": true }
           },
           {
             "key": "domStorageEnabled",
@@ -237,11 +192,7 @@
             "labelKey": "definitions:website.fields.domStorageEnabled.label",
             "control": "boolean",
             "default": true,
-            "ui": {
-              "section": "behavior",
-              "order": 8,
-              "advanced": true
-            }
+            "ui": { "section": "behavior", "order": 8, "advanced": true }
           },
           {
             "key": "cookiePolicy",
@@ -266,11 +217,7 @@
                 "labelKey": "definitions:website.fields.cookiePolicy.options.first_and_third_party"
               }
             ],
-            "ui": {
-              "section": "behavior",
-              "order": 9,
-              "advanced": true
-            }
+            "ui": { "section": "behavior", "order": 9, "advanced": true }
           },
           {
             "key": "customUserAgent",
@@ -281,15 +228,12 @@
             "control": "text",
             "default": "",
             "maxLength": 512,
-            "ui": {
-              "section": "behavior",
-              "order": 10,
-              "advanced": true
-            }
+            "ui": { "section": "behavior", "order": 10, "advanced": true }
           }
         ]
       },
       "defaultConfiguration": {
+        "dataSourceId": "",
         "backgroundColor": "#0E141B",
         "zoomPercent": 100,
         "scrollX": 0,
@@ -302,13 +246,10 @@
         "javascriptEnabled": true,
         "domStorageEnabled": true,
         "cookiePolicy": "first_party",
-        "customUserAgent": "",
-        "dataSourceId": ""
+        "customUserAgent": ""
       },
       "presentationSchemaVersion": 1,
-      "requiredCapabilities": {
-        "web.remote": 1
-      },
+      "requiredCapabilities": { "web.remote": 1 },
       "emptyStateBehavior": "placeholder",
       "legacyEditor": true,
       "deprecation": {}
@@ -322,12 +263,7 @@
       "icon": "youtube",
       "kind": "app",
       "featured": true,
-      "keywords": [
-        "video",
-        "playlist",
-        "live",
-        "stream"
-      ],
+      "keywords": ["video", "playlist", "live", "stream"],
       "runtime": "web",
       "configurationSchema": {
         "fields": [
@@ -340,10 +276,7 @@
             "control": "url",
             "required": true,
             "maxLength": 2048,
-            "ui": {
-              "section": "content",
-              "order": 1
-            }
+            "ui": { "section": "content", "order": 1 }
           },
           {
             "key": "startSeconds",
@@ -353,10 +286,7 @@
             "default": 0,
             "minimum": 0,
             "maximum": 86400,
-            "ui": {
-              "section": "content",
-              "order": 2
-            }
+            "ui": { "section": "content", "order": 2 }
           },
           {
             "key": "endSeconds",
@@ -367,10 +297,7 @@
             "control": "integer",
             "minimum": 1,
             "maximum": 86400,
-            "ui": {
-              "section": "content",
-              "order": 3
-            }
+            "ui": { "section": "content", "order": 3 }
           },
           {
             "key": "captions",
@@ -378,10 +305,7 @@
             "labelKey": "definitions:youtube.fields.captions.label",
             "control": "boolean",
             "default": false,
-            "ui": {
-              "section": "content",
-              "order": 4
-            }
+            "ui": { "section": "content", "order": 4 }
           },
           {
             "key": "captionLanguage",
@@ -395,10 +319,7 @@
             "ui": {
               "section": "content",
               "order": 5,
-              "visibleWhen": {
-                "key": "captions",
-                "equals": true
-              }
+              "visibleWhen": { "key": "captions", "equals": true }
             }
           },
           {
@@ -407,10 +328,7 @@
             "labelKey": "definitions:youtube.fields.muted.label",
             "control": "boolean",
             "default": false,
-            "ui": {
-              "section": "behavior",
-              "order": 1
-            }
+            "ui": { "section": "behavior", "order": 1 }
           },
           {
             "key": "volume",
@@ -424,10 +342,7 @@
               "section": "behavior",
               "order": 2,
               "slider": true,
-              "visibleWhen": {
-                "key": "muted",
-                "equals": false
-              }
+              "visibleWhen": { "key": "muted", "equals": false }
             }
           },
           {
@@ -436,10 +351,7 @@
             "labelKey": "definitions:youtube.fields.loop.label",
             "control": "boolean",
             "default": false,
-            "ui": {
-              "section": "behavior",
-              "order": 3
-            }
+            "ui": { "section": "behavior", "order": 3 }
           },
           {
             "key": "controls",
@@ -447,10 +359,7 @@
             "labelKey": "definitions:youtube.fields.controls.label",
             "control": "boolean",
             "default": false,
-            "ui": {
-              "section": "behavior",
-              "order": 4
-            }
+            "ui": { "section": "behavior", "order": 4 }
           },
           {
             "key": "playlistPlaybackMode",
@@ -470,10 +379,7 @@
                 "labelKey": "definitions:youtube.fields.playlistPlaybackMode.options.fixed_duration"
               }
             ],
-            "ui": {
-              "section": "behavior",
-              "order": 5
-            }
+            "ui": { "section": "behavior", "order": 5 }
           },
           {
             "key": "fixedDurationSeconds",
@@ -515,19 +421,14 @@
                 "labelKey": "definitions:youtube.fields.failureBehavior.options.skip"
               }
             ],
-            "ui": {
-              "section": "behavior",
-              "order": 7
-            }
+            "ui": { "section": "behavior", "order": 7 }
           },
           {
             "key": "fallbackImageAssetId",
             "label": "Fallback image",
             "labelKey": "definitions:youtube.fields.fallbackImageAssetId.label",
             "control": "media_asset",
-            "mediaTypes": [
-              "image"
-            ],
+            "mediaTypes": ["image"],
             "ui": {
               "section": "behavior",
               "order": 8,
@@ -552,9 +453,7 @@
         "failureBehavior": "placeholder"
       },
       "presentationSchemaVersion": 1,
-      "requiredCapabilities": {
-        "web.remote": 1
-      },
+      "requiredCapabilities": { "web.remote": 1 },
       "emptyStateBehavior": "placeholder",
       "legacyEditor": true,
       "deprecation": {}
@@ -576,10 +475,7 @@
             "description": "Leave blank to use the organization timezone.",
             "control": "timezone",
             "default": "",
-            "ui": {
-              "section": "content",
-              "order": 1
-            }
+            "ui": { "section": "content", "order": 1 }
           },
           {
             "key": "format",
@@ -587,51 +483,27 @@
             "control": "select",
             "default": "locale",
             "options": [
-              {
-                "value": "locale",
-                "label": "Weekday and date"
-              },
-              {
-                "value": "full",
-                "label": "Weekday and date"
-              },
-              {
-                "value": "long",
-                "label": "Date"
-              },
-              {
-                "value": "medium",
-                "label": "Short date"
-              },
-              {
-                "value": "short",
-                "label": "Numeric date"
-              }
+              { "value": "locale", "label": "Weekday and date" },
+              { "value": "full", "label": "Weekday and date" },
+              { "value": "long", "label": "Date" },
+              { "value": "medium", "label": "Short date" },
+              { "value": "short", "label": "Numeric date" }
             ],
-            "ui": {
-              "section": "content",
-              "order": 2
-            }
+            "ui": { "section": "content", "order": 2 }
           },
           {
             "key": "backgroundColor",
             "label": "Background color",
             "control": "color",
             "default": "#0E141B",
-            "ui": {
-              "section": "appearance",
-              "order": 1
-            }
+            "ui": { "section": "appearance", "order": 1 }
           },
           {
             "key": "foregroundColor",
             "label": "Text and accent color",
             "control": "color",
             "default": "#F5F7FA",
-            "ui": {
-              "section": "appearance",
-              "order": 2
-            }
+            "ui": { "section": "appearance", "order": 2 }
           },
           {
             "key": "textScale",
@@ -639,9 +511,7 @@
             "control": "integer",
             "minimum": 25,
             "maximum": 500,
-            "ui": {
-              "hidden": true
-            }
+            "ui": { "hidden": true }
           },
           {
             "key": "contentPadding",
@@ -649,9 +519,7 @@
             "control": "integer",
             "minimum": 0,
             "maximum": 40,
-            "ui": {
-              "hidden": true
-            }
+            "ui": { "hidden": true }
           }
         ]
       },
@@ -669,11 +537,7 @@
       },
       "emptyStateBehavior": "text",
       "legacyEditor": true,
-      "authoring": {
-        "preview": {
-          "time": true
-        }
-      },
+      "authoring": { "preview": { "time": true } },
       "deprecation": {
         "deprecated": true,
         "replacement": "clock",
@@ -686,33 +550,19 @@
         "entrypoint": "./runtime/index.ts",
         "configTemplate": {
           "mode": "date",
-          "timeZone": {
-            "$config": "timezone",
-            "default": ""
-          },
+          "timeZone": { "$config": "timezone", "default": "" },
           "format": "locale",
           "showSeconds": false,
           "style": "standard",
           "showDate": false,
-          "dateFormat": {
-            "$config": "format",
-            "default": "locale"
-          },
+          "dateFormat": { "$config": "format", "default": "locale" },
           "zones": [],
-          "background": {
-            "$config": "backgroundColor",
-            "default": ""
-          },
-          "foreground": {
-            "$config": "foregroundColor",
-            "default": ""
-          }
+          "background": { "$config": "backgroundColor", "default": "" },
+          "foreground": { "$config": "foregroundColor", "default": "" }
         },
         "empty": "render"
       },
-      "compatibility": {
-        "fallback": "legacy"
-      }
+      "compatibility": { "fallback": "legacy" }
     },
     {
       "id": "qrcode",
@@ -732,10 +582,7 @@
             "control": "text",
             "maxLength": 2048,
             "default": "",
-            "ui": {
-              "section": "content",
-              "order": 1
-            }
+            "ui": { "section": "content", "order": 1 }
           },
           {
             "key": "heading",
@@ -747,10 +594,7 @@
             "ui": {
               "section": "content",
               "order": 2,
-              "visibleWhen": {
-                "key": "style",
-                "notEquals": "code"
-              }
+              "visibleWhen": { "key": "style", "notEquals": "code" }
             }
           },
           {
@@ -762,10 +606,7 @@
             "ui": {
               "section": "content",
               "order": 3,
-              "visibleWhen": {
-                "key": "style",
-                "equals": "standard"
-              }
+              "visibleWhen": { "key": "style", "equals": "standard" }
             }
           },
           {
@@ -778,10 +619,7 @@
             "ui": {
               "section": "content",
               "order": 4,
-              "visibleWhen": {
-                "key": "style",
-                "equals": "standard"
-              }
+              "visibleWhen": { "key": "style", "equals": "standard" }
             }
           },
           {
@@ -790,21 +628,11 @@
             "description": "Standard pairs the code with its text. Code only shows the code alone for small zones.",
             "control": "select",
             "options": [
-              {
-                "value": "standard",
-                "label": "Standard"
-              },
-              {
-                "value": "code",
-                "label": "Code only"
-              }
+              { "value": "standard", "label": "Standard" },
+              { "value": "code", "label": "Code only" }
             ],
             "default": "standard",
-            "ui": {
-              "section": "appearance",
-              "order": 1,
-              "styleCard": true
-            }
+            "ui": { "section": "appearance", "order": 1, "styleCard": true }
           },
           {
             "key": "backgroundColor",
@@ -812,10 +640,7 @@
             "description": "Keep it light so the code scans reliably.",
             "control": "color",
             "default": "#FFFFFF",
-            "ui": {
-              "section": "appearance",
-              "order": 2
-            }
+            "ui": { "section": "appearance", "order": 2 }
           },
           {
             "key": "foregroundColor",
@@ -823,36 +648,19 @@
             "description": "Keep it dark so the code scans reliably.",
             "control": "color",
             "default": "#101418",
-            "ui": {
-              "section": "appearance",
-              "order": 3
-            }
+            "ui": { "section": "appearance", "order": 3 }
           },
           {
             "key": "errorCorrection",
             "label": "Error correction",
             "control": "select",
             "options": [
-              {
-                "value": "low",
-                "label": "Low"
-              },
-              {
-                "value": "medium",
-                "label": "Medium"
-              },
-              {
-                "value": "quartile",
-                "label": "Quartile"
-              },
-              {
-                "value": "high",
-                "label": "High"
-              }
+              { "value": "low", "label": "Low" },
+              { "value": "medium", "label": "Medium" },
+              { "value": "quartile", "label": "Quartile" },
+              { "value": "high", "label": "High" }
             ],
-            "ui": {
-              "hidden": true
-            }
+            "ui": { "hidden": true }
           },
           {
             "key": "textScale",
@@ -860,9 +668,7 @@
             "control": "integer",
             "minimum": 25,
             "maximum": 500,
-            "ui": {
-              "hidden": true
-            }
+            "ui": { "hidden": true }
           },
           {
             "key": "contentPadding",
@@ -870,9 +676,7 @@
             "control": "integer",
             "minimum": 0,
             "maximum": 40,
-            "ui": {
-              "hidden": true
-            }
+            "ui": { "hidden": true }
           }
         ]
       },
@@ -898,9 +702,7 @@
         "replacement": "qr-code",
         "message": "Create a QR Code instead. Saved QR Code content keeps working."
       },
-      "compatibility": {
-        "fallback": "legacy"
-      },
+      "compatibility": { "fallback": "legacy" },
       "component": {
         "type": "tilecast.qr-code",
         "version": 1,
@@ -909,38 +711,17 @@
         "configTemplate": {
           "payload": {
             "$config": "payload",
-            "default": {
-              "$config": "value",
-              "default": ""
-            }
+            "default": { "$config": "value", "default": "" }
           },
-          "heading": {
-            "$config": "heading",
-            "default": ""
-          },
-          "instruction": {
-            "$config": "instruction",
-            "default": ""
-          },
+          "heading": { "$config": "heading", "default": "" },
+          "instruction": { "$config": "instruction", "default": "" },
           "shortLabel": {
             "$config": "shortLabel",
-            "default": {
-              "$config": "label",
-              "default": ""
-            }
+            "default": { "$config": "label", "default": "" }
           },
-          "style": {
-            "$config": "style",
-            "default": "standard"
-          },
-          "background": {
-            "$config": "backgroundColor",
-            "default": "#FFFFFF"
-          },
-          "foreground": {
-            "$config": "foregroundColor",
-            "default": "#101418"
-          }
+          "style": { "$config": "style", "default": "standard" },
+          "background": { "$config": "backgroundColor", "default": "#FFFFFF" },
+          "foreground": { "$config": "foregroundColor", "default": "#101418" }
         },
         "empty": "render"
       }
@@ -978,10 +759,7 @@
               }
             ],
             "default": [],
-            "ui": {
-              "section": "content",
-              "order": 1
-            }
+            "ui": { "section": "content", "order": 1 }
           },
           {
             "key": "format",
@@ -989,43 +767,25 @@
             "control": "select",
             "default": "locale",
             "options": [
-              {
-                "value": "locale",
-                "label": "Use organization setting"
-              },
-              {
-                "value": "12",
-                "label": "12-hour"
-              },
-              {
-                "value": "24",
-                "label": "24-hour"
-              }
+              { "value": "locale", "label": "Use organization setting" },
+              { "value": "12", "label": "12-hour" },
+              { "value": "24", "label": "24-hour" }
             ],
-            "ui": {
-              "section": "content",
-              "order": 2
-            }
+            "ui": { "section": "content", "order": 2 }
           },
           {
             "key": "showSeconds",
             "label": "Show seconds",
             "control": "boolean",
             "default": false,
-            "ui": {
-              "section": "content",
-              "order": 3
-            }
+            "ui": { "section": "content", "order": 3 }
           },
           {
             "key": "showDate",
             "label": "Show date",
             "control": "boolean",
             "default": true,
-            "ui": {
-              "section": "content",
-              "order": 4
-            }
+            "ui": { "section": "content", "order": 4 }
           },
           {
             "key": "columns",
@@ -1033,38 +793,28 @@
             "control": "integer",
             "minimum": 1,
             "maximum": 4,
-            "ui": {
-              "hidden": true
-            }
+            "ui": { "hidden": true }
           },
           {
             "key": "emptyState",
             "label": "Empty state",
             "control": "multiline_text",
             "maxLength": 240,
-            "ui": {
-              "hidden": true
-            }
+            "ui": { "hidden": true }
           },
           {
             "key": "backgroundColor",
             "label": "Background color",
             "control": "color",
             "default": "#0E141B",
-            "ui": {
-              "section": "appearance",
-              "order": 1
-            }
+            "ui": { "section": "appearance", "order": 1 }
           },
           {
             "key": "foregroundColor",
             "label": "Text and accent color",
             "control": "color",
             "default": "#F5F7FA",
-            "ui": {
-              "section": "appearance",
-              "order": 2
-            }
+            "ui": { "section": "appearance", "order": 2 }
           },
           {
             "key": "textScale",
@@ -1072,9 +822,7 @@
             "control": "integer",
             "minimum": 25,
             "maximum": 500,
-            "ui": {
-              "hidden": true
-            }
+            "ui": { "hidden": true }
           },
           {
             "key": "contentPadding",
@@ -1082,9 +830,7 @@
             "control": "integer",
             "minimum": 0,
             "maximum": 40,
-            "ui": {
-              "hidden": true
-            }
+            "ui": { "hidden": true }
           }
         ]
       },
@@ -1107,11 +853,7 @@
       "emptyStateBehavior": "text",
       "legacyEditor": true,
       "requiresManifestV13": true,
-      "authoring": {
-        "preview": {
-          "time": true
-        }
-      },
+      "authoring": { "preview": { "time": true } },
       "deprecation": {
         "deprecated": true,
         "replacement": "clock",
@@ -1125,38 +867,18 @@
         "configTemplate": {
           "mode": "world",
           "timeZone": "",
-          "format": {
-            "$config": "format",
-            "default": "locale"
-          },
-          "showSeconds": {
-            "$config": "showSeconds",
-            "default": false
-          },
+          "format": { "$config": "format", "default": "locale" },
+          "showSeconds": { "$config": "showSeconds", "default": false },
           "style": "standard",
-          "showDate": {
-            "$config": "showDate",
-            "default": false
-          },
+          "showDate": { "$config": "showDate", "default": false },
           "dateFormat": "locale",
-          "zones": {
-            "$config": "zones",
-            "default": []
-          },
-          "background": {
-            "$config": "backgroundColor",
-            "default": ""
-          },
-          "foreground": {
-            "$config": "foregroundColor",
-            "default": ""
-          }
+          "zones": { "$config": "zones", "default": [] },
+          "background": { "$config": "backgroundColor", "default": "" },
+          "foreground": { "$config": "foregroundColor", "default": "" }
         },
         "empty": "render"
       },
-      "compatibility": {
-        "fallback": "legacy"
-      }
+      "compatibility": { "fallback": "legacy" }
     },
     {
       "id": "stat_grid",
@@ -1175,15 +897,9 @@
             "label": "Data Source",
             "description": "The records or single-object source these metrics read.",
             "control": "data_source",
-            "acceptedDataSourceKinds": [
-              "records",
-              "object"
-            ],
+            "acceptedDataSourceKinds": ["records", "object"],
             "default": "",
-            "ui": {
-              "section": "data",
-              "order": 1
-            }
+            "ui": { "section": "data", "order": 1 }
           },
           {
             "key": "metrics",
@@ -1253,22 +969,10 @@
                 "control": "select",
                 "default": "number",
                 "options": [
-                  {
-                    "value": "number",
-                    "label": "Number"
-                  },
-                  {
-                    "value": "integer",
-                    "label": "Whole number"
-                  },
-                  {
-                    "value": "percent",
-                    "label": "Percent"
-                  },
-                  {
-                    "value": "currency",
-                    "label": "Currency"
-                  }
+                  { "value": "number", "label": "Number" },
+                  { "value": "integer", "label": "Whole number" },
+                  { "value": "percent", "label": "Percent" },
+                  { "value": "currency", "label": "Currency" }
                 ]
               },
               {
@@ -1294,10 +998,7 @@
                 "default": ""
               }
             ],
-            "ui": {
-              "section": "data",
-              "order": 2
-            }
+            "ui": { "section": "data", "order": 2 }
           },
           {
             "key": "columns",
@@ -1307,9 +1008,7 @@
             "minimum": 1,
             "maximum": 4,
             "default": 2,
-            "ui": {
-              "hidden": true
-            }
+            "ui": { "hidden": true }
           },
           {
             "key": "emptyText",
@@ -1317,30 +1016,21 @@
             "control": "text",
             "maxLength": 200,
             "default": "",
-            "ui": {
-              "section": "content",
-              "order": 1
-            }
+            "ui": { "section": "content", "order": 1 }
           },
           {
             "key": "backgroundColor",
             "label": "Background color",
             "control": "color",
             "default": "",
-            "ui": {
-              "section": "appearance",
-              "order": 1
-            }
+            "ui": { "section": "appearance", "order": 1 }
           },
           {
             "key": "foregroundColor",
             "label": "Text color",
             "control": "color",
             "default": "",
-            "ui": {
-              "section": "appearance",
-              "order": 2
-            }
+            "ui": { "section": "appearance", "order": 2 }
           },
           {
             "key": "textScale",
@@ -1348,9 +1038,7 @@
             "control": "integer",
             "minimum": 25,
             "maximum": 500,
-            "ui": {
-              "hidden": true
-            }
+            "ui": { "hidden": true }
           },
           {
             "key": "contentPadding",
@@ -1358,9 +1046,7 @@
             "control": "integer",
             "minimum": 0,
             "maximum": 40,
-            "ui": {
-              "hidden": true
-            }
+            "ui": { "hidden": true }
           }
         ]
       },
@@ -1393,38 +1079,19 @@
         "tagName": "tc-widget-metrics",
         "entrypoint": "./runtime/index.ts",
         "configTemplate": {
-          "dataSourceId": {
-            "$config": "dataSourceId",
-            "default": ""
-          },
-          "metrics": {
-            "$config": "metrics",
-            "default": []
-          },
+          "dataSourceId": { "$config": "dataSourceId", "default": "" },
+          "metrics": { "$config": "metrics", "default": [] },
           "emptyText": {
             "$config": "emptyText",
-            "default": {
-              "$config": "emptyState",
-              "default": ""
-            }
+            "default": { "$config": "emptyState", "default": "" }
           },
-          "background": {
-            "$config": "backgroundColor",
-            "default": ""
-          },
-          "foreground": {
-            "$config": "foregroundColor",
-            "default": ""
-          }
+          "background": { "$config": "backgroundColor", "default": "" },
+          "foreground": { "$config": "foregroundColor", "default": "" }
         },
-        "dataSourceFields": [
-          "dataSourceId"
-        ],
+        "dataSourceFields": ["dataSourceId"],
         "empty": "skip-eligible"
       },
-      "compatibility": {
-        "fallback": "legacy"
-      }
+      "compatibility": { "fallback": "legacy" }
     },
     {
       "id": "school-status-banner",
@@ -1442,9 +1109,7 @@
             "label": "Data Source",
             "control": "data_source",
             "required": true,
-            "acceptedDataSourceKinds": [
-              "object"
-            ],
+            "acceptedDataSourceKinds": ["object"],
             "requiredFields": {
               "status": "text",
               "message": "text",
@@ -1466,9 +1131,7 @@
             "label": "Status field",
             "control": "data_source_field",
             "required": true,
-            "dataSourceFieldTypes": [
-              "text"
-            ],
+            "dataSourceFieldTypes": ["text"],
             "default": "status"
           },
           {
@@ -1476,9 +1139,7 @@
             "label": "Message field",
             "control": "data_source_field",
             "required": true,
-            "dataSourceFieldTypes": [
-              "text"
-            ],
+            "dataSourceFieldTypes": ["text"],
             "default": "message"
           },
           {
@@ -1486,9 +1147,7 @@
             "label": "Severity field",
             "control": "data_source_field",
             "required": true,
-            "dataSourceFieldTypes": [
-              "text"
-            ],
+            "dataSourceFieldTypes": ["text"],
             "default": "severity"
           },
           {
@@ -1532,9 +1191,7 @@
         "backgroundColor": "#17324d",
         "emptyState": "Status is unavailable"
       },
-      "acceptedDataSourceKinds": [
-        "object"
-      ],
+      "acceptedDataSourceKinds": ["object"],
       "requiredFieldTypes": {
         "status": "text",
         "message": "text",
@@ -1545,9 +1202,7 @@
       "presentationTemplate": {
         "type": "surface",
         "props": {
-          "backgroundColor": {
-            "$config": "backgroundColor"
-          },
+          "backgroundColor": { "$config": "backgroundColor" },
           "padding": 12
         },
         "children": [
@@ -1557,81 +1212,48 @@
               {
                 "type": "text",
                 "props": {
-                  "color": {
-                    "$config": "foregroundColor"
-                  },
+                  "color": { "$config": "foregroundColor" },
                   "role": "title"
                 },
                 "binding": {
                   "source": "literal",
-                  "value": {
-                    "$config": "heading"
-                  }
+                  "value": { "$config": "heading" }
                 }
               },
               {
                 "type": "badge",
-                "props": {
-                  "color": {
-                    "$config": "foregroundColor"
-                  }
-                },
+                "props": { "color": { "$config": "foregroundColor" } },
                 "binding": {
                   "source": "dataset",
-                  "dataset": {
-                    "$config": "dataSourceId",
-                    "suffix": ":object"
-                  },
-                  "path": {
-                    "$config": "severityField"
-                  },
-                  "fallback": {
-                    "$config": "emptyState"
-                  }
+                  "dataset": { "$config": "dataSourceId", "suffix": ":object" },
+                  "path": { "$config": "severityField" },
+                  "fallback": { "$config": "emptyState" }
                 }
               },
               {
                 "type": "text",
                 "props": {
-                  "color": {
-                    "$config": "foregroundColor"
-                  },
+                  "color": { "$config": "foregroundColor" },
                   "role": "metric"
                 },
                 "binding": {
                   "source": "dataset",
-                  "dataset": {
-                    "$config": "dataSourceId",
-                    "suffix": ":object"
-                  },
-                  "path": {
-                    "$config": "statusField"
-                  },
-                  "fallback": {
-                    "$config": "emptyState"
-                  }
+                  "dataset": { "$config": "dataSourceId", "suffix": ":object" },
+                  "path": { "$config": "statusField" },
+                  "fallback": { "$config": "emptyState" }
                 }
               },
               {
                 "type": "text",
                 "props": {
-                  "color": {
-                    "$config": "foregroundColor"
-                  },
+                  "color": { "$config": "foregroundColor" },
                   "role": "body"
                 },
                 "binding": {
                   "source": "dataset",
-                  "dataset": {
-                    "$config": "dataSourceId",
-                    "suffix": ":object"
-                  },
-                  "path": {
-                    "$config": "messageField"
-                  },
-                  "fallback": {
-                    "$config": "emptyState"
-                  }
+                  "dataset": { "$config": "dataSourceId", "suffix": ":object" },
+                  "path": { "$config": "messageField" },
+                  "fallback": { "$config": "emptyState" }
                 }
               },
               {
@@ -1652,9 +1274,7 @@
                   {
                     "type": "text",
                     "props": {
-                      "color": {
-                        "$config": "foregroundColor"
-                      },
+                      "color": { "$config": "foregroundColor" },
                       "role": "label"
                     },
                     "binding": {
@@ -1692,23 +1312,11 @@
         "tagName": "tc-widget-status",
         "entrypoint": "./runtime/index.ts",
         "configTemplate": {
-          "dataSourceId": {
-            "$config": "dataSourceId",
-            "default": ""
-          },
+          "dataSourceId": { "$config": "dataSourceId", "default": "" },
           "style": "panel",
-          "heading": {
-            "$config": "heading",
-            "default": "School Status"
-          },
-          "statusField": {
-            "$config": "statusField",
-            "default": "status"
-          },
-          "messageField": {
-            "$config": "messageField",
-            "default": "message"
-          },
+          "heading": { "$config": "heading", "default": "School Status" },
+          "statusField": { "$config": "statusField", "default": "status" },
+          "messageField": { "$config": "messageField", "default": "message" },
           "severityField": {
             "$config": "severityField",
             "default": "severity"
@@ -1717,38 +1325,21 @@
           "effectiveAtField": "effectiveAt",
           "expiresAtField": "expiresAt",
           "showSeverity": true,
-          "showUpdatedTime": {
-            "$config": "showUpdatedTime",
-            "default": true
-          },
+          "showUpdatedTime": { "$config": "showUpdatedTime", "default": true },
           "speed": "normal",
           "emptyText": {
             "$config": "emptyState",
             "default": "Status is unavailable"
           },
-          "background": {
-            "$config": "backgroundColor",
-            "default": "#17324d"
-          },
-          "foreground": {
-            "$config": "foregroundColor",
-            "default": "#ffffff"
-          },
+          "background": { "$config": "backgroundColor", "default": "#17324d" },
+          "foreground": { "$config": "foregroundColor", "default": "#ffffff" },
           "accent": ""
         },
-        "dataSourceFields": [
-          "dataSourceId"
-        ],
+        "dataSourceFields": ["dataSourceId"],
         "empty": "render"
       },
-      "compatibility": {
-        "fallback": "template"
-      },
-      "authoring": {
-        "preview": {
-          "time": true
-        }
-      },
+      "compatibility": { "fallback": "template" },
+      "authoring": { "preview": { "time": true } },
       "deprecation": {
         "deprecated": true,
         "replacement": "status",
@@ -1764,14 +1355,9 @@
       "description": "Project public calendar events into typed records.",
       "category": "Feeds",
       "icon": "calendar",
-      "configurationSchema": {
-        "fields": []
-      },
+      "configurationSchema": { "fields": [] },
       "defaultConfiguration": {},
-      "outputSchema": {
-        "kind": "records",
-        "fields": []
-      },
+      "outputSchema": { "kind": "records", "fields": [] },
       "adapterId": "calendar",
       "refreshBehavior": "interval",
       "legacyEditor": true,
@@ -1784,14 +1370,9 @@
       "description": "Project a public RSS or Atom feed into typed records. The Server detects the feed form and normalizes it to one records contract.",
       "category": "Feeds",
       "icon": "rss",
-      "configurationSchema": {
-        "fields": []
-      },
+      "configurationSchema": { "fields": [] },
       "defaultConfiguration": {},
-      "outputSchema": {
-        "kind": "records",
-        "fields": []
-      },
+      "outputSchema": { "kind": "records", "fields": [] },
       "adapterId": "structured",
       "refreshBehavior": "interval",
       "legacyEditor": true,
@@ -1808,14 +1389,9 @@
       "description": "Project a public RSS feed into typed records.",
       "category": "Feeds",
       "icon": "rss",
-      "configurationSchema": {
-        "fields": []
-      },
+      "configurationSchema": { "fields": [] },
       "defaultConfiguration": {},
-      "outputSchema": {
-        "kind": "records",
-        "fields": []
-      },
+      "outputSchema": { "kind": "records", "fields": [] },
       "adapterId": "structured",
       "refreshBehavior": "interval",
       "legacyEditor": true,
@@ -1832,14 +1408,9 @@
       "description": "Project a public Atom feed into typed records.",
       "category": "Feeds",
       "icon": "rss",
-      "configurationSchema": {
-        "fields": []
-      },
+      "configurationSchema": { "fields": [] },
       "defaultConfiguration": {},
-      "outputSchema": {
-        "kind": "records",
-        "fields": []
-      },
+      "outputSchema": { "kind": "records", "fields": [] },
       "adapterId": "structured",
       "refreshBehavior": "interval",
       "legacyEditor": true,
@@ -1856,14 +1427,9 @@
       "description": "Map public JSON into typed records.",
       "category": "Structured",
       "icon": "braces",
-      "configurationSchema": {
-        "fields": []
-      },
+      "configurationSchema": { "fields": [] },
       "defaultConfiguration": {},
-      "outputSchema": {
-        "kind": "records",
-        "fields": []
-      },
+      "outputSchema": { "kind": "records", "fields": [] },
       "adapterId": "structured",
       "refreshBehavior": "interval",
       "legacyEditor": true,
@@ -1876,14 +1442,9 @@
       "description": "Map uploaded or public CSV into typed records.",
       "category": "Structured",
       "icon": "spreadsheet",
-      "configurationSchema": {
-        "fields": []
-      },
+      "configurationSchema": { "fields": [] },
       "defaultConfiguration": {},
-      "outputSchema": {
-        "kind": "records",
-        "fields": []
-      },
+      "outputSchema": { "kind": "records", "fields": [] },
       "adapterId": "structured",
       "refreshBehavior": "interval",
       "legacyEditor": true,
@@ -1896,14 +1457,9 @@
       "description": "Maintain a bounded typed table in Studio.",
       "category": "Structured",
       "icon": "table",
-      "configurationSchema": {
-        "fields": []
-      },
+      "configurationSchema": { "fields": [] },
       "defaultConfiguration": {},
-      "outputSchema": {
-        "kind": "records",
-        "fields": []
-      },
+      "outputSchema": { "kind": "records", "fields": [] },
       "adapterId": "manual_table",
       "refreshBehavior": "manual",
       "legacyEditor": true,
@@ -1916,14 +1472,9 @@
       "description": "Fetch and normalize public forecasts.",
       "category": "External",
       "icon": "cloud_sun",
-      "configurationSchema": {
-        "fields": []
-      },
+      "configurationSchema": { "fields": [] },
       "defaultConfiguration": {},
-      "outputSchema": {
-        "kind": "records",
-        "fields": []
-      },
+      "outputSchema": { "kind": "records", "fields": [] },
       "adapterId": "weather",
       "refreshBehavior": "interval",
       "attribution": "Data from MET Norway",
@@ -1937,14 +1488,9 @@
       "description": "Normalize public GTFS departures and alerts.",
       "category": "Live Information",
       "icon": "transit",
-      "configurationSchema": {
-        "fields": []
-      },
+      "configurationSchema": { "fields": [] },
       "defaultConfiguration": {},
-      "outputSchema": {
-        "kind": "records",
-        "fields": []
-      },
+      "outputSchema": { "kind": "records", "fields": [] },
       "adapterId": "transit",
       "refreshBehavior": "interval",
       "legacyEditor": true,
@@ -1958,14 +1504,9 @@
       "description": "Display active public CAP warnings.",
       "category": "Live Information",
       "icon": "alert",
-      "configurationSchema": {
-        "fields": []
-      },
+      "configurationSchema": { "fields": [] },
       "defaultConfiguration": {},
-      "outputSchema": {
-        "kind": "records",
-        "fields": []
-      },
+      "outputSchema": { "kind": "records", "fields": [] },
       "adapterId": "cap_alerts",
       "refreshBehavior": "interval",
       "legacyEditor": true,
@@ -1979,14 +1520,9 @@
       "description": "Display current and forecast air-quality measurements.",
       "category": "Live Information",
       "icon": "cloud_sun",
-      "configurationSchema": {
-        "fields": []
-      },
+      "configurationSchema": { "fields": [] },
       "defaultConfiguration": {},
-      "outputSchema": {
-        "kind": "time_series",
-        "fields": []
-      },
+      "outputSchema": { "kind": "time_series", "fields": [] },
       "adapterId": "air_quality",
       "refreshBehavior": "interval",
       "legacyEditor": true,
@@ -2026,22 +1562,10 @@
             "required": true,
             "default": "normal",
             "options": [
-              {
-                "value": "normal",
-                "label": "Normal"
-              },
-              {
-                "value": "notice",
-                "label": "Notice"
-              },
-              {
-                "value": "warning",
-                "label": "Warning"
-              },
-              {
-                "value": "critical",
-                "label": "Critical"
-              }
+              { "value": "normal", "label": "Normal" },
+              { "value": "notice", "label": "Notice" },
+              { "value": "warning", "label": "Warning" },
+              { "value": "critical", "label": "Critical" }
             ]
           },
           {
@@ -2159,22 +1683,10 @@
             "required": true,
             "default": "normal",
             "options": [
-              {
-                "value": "normal",
-                "label": "Normal"
-              },
-              {
-                "value": "notice",
-                "label": "Notice"
-              },
-              {
-                "value": "warning",
-                "label": "Warning"
-              },
-              {
-                "value": "critical",
-                "label": "Critical"
-              }
+              { "value": "normal", "label": "Normal" },
+              { "value": "notice", "label": "Notice" },
+              { "value": "warning", "label": "Warning" },
+              { "value": "critical", "label": "Critical" }
             ]
           },
           {
@@ -2262,14 +1774,9 @@
       "description": "Collect submissions, approve them, and publish records to Widgets.",
       "category": "Interactive",
       "icon": "form_input",
-      "configurationSchema": {
-        "fields": []
-      },
+      "configurationSchema": { "fields": [] },
       "defaultConfiguration": {},
-      "outputSchema": {
-        "kind": "records",
-        "fields": []
-      },
+      "outputSchema": { "kind": "records", "fields": [] },
       "adapterId": "form_records",
       "refreshBehavior": "manual",
       "legacyEditor": true,
