@@ -7,6 +7,10 @@ import { Steps } from "@astrojs/starlight/components";
 
 The TeenKode test fork uses `deploy/fork/VERSION` and the **Fork Dev build**
 workflow. Versions use `X.Y.Z-dev.N` and appear in the Beta update channel.
+The file sets the minimum version. Each new published build advances N
+automatically from the fork's release history, without waiting for upstream.
+Review PRs, merge them into the fork's `main`, then validate the resulting
+Dev build on the test TVs before proposing a separate feature PR upstream.
 The fork publishes the Android `.test` APK and its server image. It keeps
 the existing test APK certificate. It does not publish Edge or Windows.
 To update the test server, run `bash deploy/fork/update.sh`. It selects the

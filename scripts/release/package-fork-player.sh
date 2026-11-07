@@ -11,7 +11,7 @@ verify="$("$tools/apksigner" verify --verbose --print-certs "$apk" 2>&1)"
 cert="$(printf '%s\n' "$verify" | bash scripts/extract-apksigner-sha256.sh)"
 test "$cert" = '91549d13cdb06604cdcb8adfa6fc9e787366bd199e3c9047abfa114a03e0c17f'
 metadata="$("$tools/aapt" dump badging "$apk")"
-version="$(cat deploy/fork/VERSION)"
+version="${TILECAST_FORK_VERSION:-$(cat deploy/fork/VERSION)}"
 code="$(python3 scripts/release/release_version.py code "$version")"
 grep -F "package: name='org.tilecast.player.test' versionCode='$code' versionName='$version'" <<< "$metadata"
 python3 apps/player-android/ci/check-native-alignment.py "$apk"

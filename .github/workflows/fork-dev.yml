@@ -13,8 +13,24 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  server:
+  version:
     if: github.repository == 'TeenKode/tilecast'
+    runs-on: ubuntu-latest
+    outputs:
+      number: ${{ steps.resolve.outputs.version }}
+      published: ${{ steps.resolve.outputs.published }}
+    steps:
+      - uses: actions/checkout@v7
+      - id: resolve
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/releases?per_page=100" > "$RUNNER_TEMP/fork-releases.json"
+          python3 scripts/release/resolve_fork_version.py --minimum "$(cat deploy/fork/VERSION)" --commit "$GITHUB_SHA" --releases "$RUNNER_TEMP/fork-releases.json" >> "$GITHUB_OUTPUT"
+
+  server:
+    needs: version
+    if: github.repository == 'TeenKode/tilecast' && needs.version.outputs.published != 'true'
     runs-on: ubuntu-latest
     outputs:
       image: ghcr.io/teenkode/tilecast-server@${{ steps.image.outputs.digest }}
@@ -33,8 +49,10 @@ jobs:
           cd apps/server
           go test ./internal/version ./internal/updates ./internal/media ./internal/contentdefs ./internal/livestream ./internal/playlists
       - id: version
+        env:
+          FORK_VERSION: ${{ needs.version.outputs.number }}
         run: |
-          version="$(cat deploy/fork/VERSION)"
+          version="$FORK_VERSION"
           [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+-dev\.[1-9][0-9]?$ ]]
           python3 scripts/release/release_version.py tag "v$version"
           echo "number=$version" >> "$GITHUB_OUTPUT"
@@ -59,7 +77,8 @@ jobs:
           cache-to: type=gha,mode=max,scope=fork-server
 
   android:
-    if: github.repository == 'TeenKode/tilecast'
+    needs: version
+    if: github.repository == 'TeenKode/tilecast' && needs.version.outputs.published != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 65
     steps:
@@ -113,8 +132,11 @@ jobs:
           fingerprint="${fingerprint//:/}"
           test "${fingerprint,,}" = '91549d13cdb06604cdcb8adfa6fc9e787366bd199e3c9047abfa114a03e0c17f'
       - name: Stamp fork version
+        env:
+          FORK_VERSION: ${{ needs.version.outputs.number }}
         run: |
-          python3 scripts/release/stamp_version.py --version "$(cat deploy/fork/VERSION)"
+          python3 scripts/release/stamp_version.py --version "$FORK_VERSION"
+          echo "TILECAST_FORK_VERSION=$FORK_VERSION" >> "$GITHUB_ENV"
           python3 scripts/release/prepare_fork_android.py
       - name: Test and assemble
         working-directory: apps/player-android
@@ -143,8 +165,8 @@ jobs:
         run: rm -f "$HOME/.android/debug.keystore" "$RUNNER_TEMP/fork-signing/private.pem"
 
   publish:
-    if: github.repository == 'TeenKode/tilecast' && github.ref == 'refs/heads/main'
-    needs: [server, android]
+    if: github.repository == 'TeenKode/tilecast' && github.ref == 'refs/heads/main' && needs.version.outputs.published != 'true'
+    needs: [version, server, android]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -158,8 +180,9 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           SERVER_IMAGE: ${{ needs.server.outputs.image }}
+          FORK_VERSION: ${{ needs.version.outputs.number }}
         run: |
-          version="$(cat deploy/fork/VERSION)"
+          version="$FORK_VERSION"
           printf '%s\n' "$SERVER_IMAGE" > release-output/tilecast-server-image.txt
           (cd release-output && sha256sum tilecast-player* tilecast-server-image.txt > SHA256SUMS)
           gh release create "v$version" release-output/* --target "$GITHUB_SHA" --prerelease --title "Tilecast TEST $version" --notes "Test fork: Android .test APK and Server image $SERVER_IMAGE. Edge and Windows are not included."

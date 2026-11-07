@@ -28,11 +28,19 @@ existing releases stay available and importable. See
 
 The fork uses `X.Y.Z-dev.N`, where N is 1 to 98. These releases use the
 existing `beta` update channel and the same numeric slot as `beta.N`.
-Increase N for each build. Increase the patch version when N reaches 98.
+The Fork Dev workflow increases N after each published build, and increases
+the patch version when N reaches 98. It does not wait for upstream releases.
 Do not mix upstream Beta and fork Dev releases with the same core version
 and slot. A version code must increase before Android accepts an update.
-`deploy/fork/VERSION` selects the fork build version.
+`deploy/fork/VERSION` sets the minimum version; release history determines
+the next unused code. Re-running a published commit keeps its existing release.
 The bundled Browser Player receives the Server image version at build time.
+
+Review and test feature PRs before merging them into the fork's `main`.
+The main build publishes a signed Dev update only after the Server and Android
+checks pass. Install it on the test TVs and confirm real playback and update
+behavior before proposing a separate feature PR to upstream. Keep TEST branding,
+fork deployment settings and signing configuration out of upstream feature PRs.
 
 The fork keeps the installed test Android package `org.tilecast.player.test`
 and its permanent test certificate. The server accepts this package only

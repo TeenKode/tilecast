@@ -357,7 +357,11 @@ test("publication is the commit point and needs a verified draft", () => {
         /github.repository == 'TeenKode\/tilecast'/,
       );
       assert.match(fork.jobs.publish.if, /refs\/heads\/main/);
-      assert.deepEqual(fork.jobs.publish.needs, ["server", "android"]);
+      assert.deepEqual(fork.jobs.publish.needs, [
+        "version",
+        "server",
+        "android",
+      ]);
       assert.match(raw, /--prerelease/);
       assert.match(raw, /ghcr.io\/teenkode\/tilecast-server/);
       assert.doesNotMatch(raw, /ghcr.io\/gbyo\/tilecast-server/);

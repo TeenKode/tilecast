@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.22)
 project(tilecast_rtmp_client LANGUAGES C)
 
 add_library(rtmp-jni SHARED
+    src/main/cpp/rtmp-log-policy.c
     src/main/cpp/rtmpmuxer.c
     src/main/cpp/librtmp-jni.c
     src/main/cpp/librtmp/amf.c
