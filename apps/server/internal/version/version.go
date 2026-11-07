@@ -76,8 +76,8 @@ func CurrentBuild() Build {
 	return Build{Version: Display(), Channel: Channel, Commit: Commit, Date: Date}
 }
 
-// releaseTagPattern matches the only accepted release tag shape: vX.Y.Z for
-// Stable and vX.Y.Z-beta.N for Beta. packages/player-contracts/fixtures/
+// releaseTagPattern accepts Stable, Beta and fork Dev tags. A fork Dev tag
+// uses the Beta channel. packages/player-contracts/fixtures/
 // release-versions.json is the corpus for which versions the unified release
 // accepts; scripts/release/release_version.py applies the same rule.
 var numberedDevPattern = regexp.MustCompile(`^[0-9]+\.[0-9]+\.[0-9]+-dev\.(?:[1-9]|[1-8][0-9]|9[0-8])$`)
