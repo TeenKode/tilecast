@@ -796,5 +796,11 @@
     "file": "00134_countdown_bar_font.sql",
     "owner": "countdown_bar",
     "sha256": "d3159a567cccbfb58cebc50f5ac580a8ea52efdda0ed6a13d6fde1ed7b94739c"
+  },
+  {
+    "version": 135,
+    "file": "00135_fork_test_android_releases.sql",
+    "owner": "core",
+    "sha256": "42489bad96c648ee65cf3ca493ff44b23142c9da4d14e5a5f31f9ac3a0afa5eb"
   }
 ]
