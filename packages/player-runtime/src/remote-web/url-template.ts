@@ -75,9 +75,13 @@ export function resolveWebsiteUrl(
   };
 
   try {
-    for (const [name, value] of [...url.searchParams]) {
+    const params = new URLSearchParams();
+    for (const [name, value] of url.searchParams) {
       if (/[{}]/.test(name)) return null;
-      if (!/[{}]/.test(value)) continue;
+      if (!/[{}]/.test(value)) {
+        params.append(name, value);
+        continue;
+      }
       let invalid = false;
       const replaced = value.replace(TOKEN, (_match, key: string) => {
         const raw = select(key);
@@ -88,8 +92,9 @@ export function resolveWebsiteUrl(
         return String(raw);
       });
       if (invalid || /[{}]/.test(replaced)) return null;
-      url.searchParams.set(name, replaced);
+      params.append(name, replaced);
     }
+    url.search = params.toString();
     const result = url.toString();
     if (result.length > 2048 || result.includes("{") || result.includes("}")) return null;
     return result;
