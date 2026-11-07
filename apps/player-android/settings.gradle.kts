@@ -20,3 +20,4 @@ dependencyResolutionManagement {
 }
 rootProject.name = "TilecastPlayer"
 include(":app")
+include(":rtmp-client")

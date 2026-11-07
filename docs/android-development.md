@@ -15,6 +15,12 @@ The encoded payload can contain credentials. Do not log it.
 Other Players do not support this experimental surface.
 Run `python3 scripts/ci/check-android-stream-adapter.py` to check the boundary.
 
+The RTMP adapter uses the pinned upstream sources in
+`apps/player-android/rtmp-client`. The same pinned NDK builds the RTMP JNI
+library and Player Core. The build uses 16 KB maximum and common page sizes.
+It does not use the old Maven RTMP binary. The full APK alignment check
+remains a release gate. The module retains the upstream license notices.
+
 The APK embeds a Rust host for shared Player Core. The host crate is
 `tilecast-player-android-native` below `apps/player-android/native`.
 It owns one process-level host, a narrow JNI bridge, Android storage

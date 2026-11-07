@@ -109,7 +109,10 @@ dependencies {
     val media3Version = "1.11.1"
     implementation("androidx.media3:media3-exoplayer:$media3Version")
     implementation("androidx.media3:media3-exoplayer-rtsp:$media3Version")
-    implementation("androidx.media3:media3-datasource-rtmp:$media3Version")
+    implementation("androidx.media3:media3-datasource-rtmp:$media3Version") {
+        exclude(group = "io.antmedia", module = "rtmp-client")
+    }
+    implementation(project(":rtmp-client"))
     implementation("androidx.media3:media3-ui:$media3Version")
 
     implementation("com.squareup.okhttp3:okhttp:5.5.0")
