@@ -34,7 +34,7 @@ func NativeStreamPlaybackURL(configuration map[string]any) (string, error) {
  case "rtsp", "rtmp":
   source.Scheme = strings.ToLower(source.Scheme)
  default:
-  return "", errors.New("stream URL must use rtsp://, rtmp:// or rtmps://")
+  return "", errors.New("stream URL must use rtsp:// or rtmp://")
  }
  username := stringConfig(configuration["username"])
  password := stringConfig(configuration["password"])
