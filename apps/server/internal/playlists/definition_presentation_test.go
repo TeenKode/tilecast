@@ -31,7 +31,11 @@ func TestEveryReleaseWidgetCompilesFromItsDefaults(t *testing.T) {
 					host = definition.WebIntegration.AllowedHosts[0]
 				}
 				path := definition.WebIntegration.RequiredPathPrefix
+				scheme := "https://"
 				switch definition.WebIntegration.Transform {
+				case "native_stream":
+					scheme = "rtsp://"
+					path = "/live"
 				case "google_sheets":
 					path = "/spreadsheets/d/1234567890abcdef/edit"
 				case "google_slides":
@@ -39,7 +43,7 @@ func TestEveryReleaseWidgetCompilesFromItsDefaults(t *testing.T) {
 				case "canva_embed":
 					path = "/design/1234567890abcdef/view"
 				}
-				configuration[definition.WebIntegration.URLField] = "https://" + host + path
+				configuration[definition.WebIntegration.URLField] = scheme + host + path
 				if definition.WebIntegration.AllowAnyHTTPSHost {
 					configuration["trustedHost"] = host
 				}
