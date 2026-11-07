@@ -104,6 +104,14 @@ dependencies {
     // 23 (1.16.x requires API 24). Required APIs are feature-detected at
     // runtime; an unsupported WebView fails closed, never silently downgrades.
     implementation("androidx.webkit:webkit:1.15.0")
+    // Native live feeds: no transcoding or gateway service is required for
+    // RTSP (RTP over TCP/UDP) and supported RTMP streams.
+    val media3Version = "1.11.1"
+    implementation("androidx.media3:media3-exoplayer:$media3Version")
+    implementation("androidx.media3:media3-exoplayer-rtsp:$media3Version")
+    implementation("androidx.media3:media3-datasource-rtmp:$media3Version")
+    implementation("androidx.media3:media3-ui:$media3Version")
+
     implementation("com.squareup.okhttp3:okhttp:5.5.0")
     // Kotlin component of rustls-platform-verifier. The version stays
     // unpinned here: the resolution strategy below pins it to the

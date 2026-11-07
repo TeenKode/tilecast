@@ -569,7 +569,9 @@ function DefinitionControl({
         ? "color"
         : field.control === "url"
           ? "url"
-          : "text";
+          : field.ui?.secret
+            ? "password"
+            : "text";
   return (
     <Field>
       <FieldLabel htmlFor={`definition-${field.key}`}>{labelText}</FieldLabel>

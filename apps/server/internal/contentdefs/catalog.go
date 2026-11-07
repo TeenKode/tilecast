@@ -197,6 +197,8 @@ type FieldDefinition struct {
 	// it. Nested repeating-group controls may point at a root source.
 	DataSourceKey string                 `json:"dataSourceKey,omitempty"`
 	MediaTypes    []string               `json:"mediaTypes,omitempty"`
+	// Schemes narrows URL input validation. Without it, HTTP/HTTPS only.
+	Schemes       []string               `json:"schemes,omitempty"`
 	MaximumItems  int                    `json:"maximumItems,omitempty"`
 	ItemFields    []FieldDefinition      `json:"itemFields,omitempty"`
 	UI            map[string]interface{} `json:"ui,omitempty"`
@@ -830,7 +832,7 @@ func validateWebIntegration(spec *WebIntegration, schema ConfigurationSchema) er
 		}
 	}
 	switch spec.Transform {
-	case "passthrough", "google_sheets", "google_slides", "canva_embed":
+	case "passthrough", "google_sheets", "google_slides", "canva_embed", "native_stream":
 	default:
 		return fmt.Errorf("web integration transform %q is unsupported", spec.Transform)
 	}
@@ -1033,6 +1035,18 @@ func validateSchemaFields(fields []FieldDefinition) error {
 		seen[field.Key] = true
 		if !supportedControls[field.Control] {
 			return fmt.Errorf("configuration schema uses unsupported form control %q", field.Control)
+		}
+		if len(field.Schemes)>0 {
+			if field.Control != "url" || len(field.Schemes)>5 {
+				return fmt.Errorf("URL schemes on field %q require a URL control", field.Key)
+			}
+			seenScheme:=map[string]bool{}
+			for _,scheme:=range field.Schemes {
+				if seenScheme[scheme] || (scheme!="http" && scheme!="https" && scheme!="rtsp" && scheme!="rtmp") {
+					return fmt.Errorf("field %q declares an invalid URL scheme %q",field.Key,scheme)
+				}
+				seenScheme[scheme]=true
+			}
 		}
 		if err := validateFieldBounds(field); err != nil {
 			return err
