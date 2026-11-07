@@ -89,6 +89,8 @@ internal object WebsiteUrlVariables {
             val decoded = runCatching { URLDecoder.decode(raw, "UTF-8") }.getOrNull()
                 ?: return null
             if (!decoded.contains('{') && !decoded.contains('}')) return@map part
+            // Braces in JSON expansion are data, not unresolved tokens.
+            if ('{' in decoded.replace(token, "") || '}' in decoded.replace(token, "")) return null
             var invalid = false
             val replaced = token.replace(decoded) { result ->
                 valueFor(result.groupValues[1]) ?: run {
@@ -96,7 +98,7 @@ internal object WebsiteUrlVariables {
                     ""
                 }
             }
-            if (invalid || '{' in replaced || '}' in replaced) return null
+            if (invalid) return null
             "${name}=${URLEncoder.encode(replaced, StandardCharsets.UTF_8.name())}"
         }
         val answer = beforeQuery + "?" + parts.joinToString("&") +
