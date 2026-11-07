@@ -16,7 +16,10 @@ if grep -E 'android:debuggable.*0xffffffff' <<< "$manifest"; then
   echo 'The distributed fork APK must be an optimized, non-debuggable release.' >&2
   exit 1
 fi
-network="$("$tools/aapt" dump xmltree "$apk" res/xml/tilecast_network_security_config.xml)"
+# Release optimization shortens resource filenames; resolve the named resource
+# from the compiled table instead of assuming its source path survives in APK.
+network_path="$("$tools/aapt" dump --values resources "$apk" | python3 scripts/release/android_network_resource.py)"
+network="$("$tools/aapt" dump xmltree "$apk" "$network_path")"
 grep -E 'cleartextTrafficPermitted=.*0xffffffff' <<< "$network" >/dev/null
 version="${TILECAST_FORK_VERSION:-$(cat deploy/fork/VERSION)}"
 code="$(python3 scripts/release/release_version.py code "$version")"
