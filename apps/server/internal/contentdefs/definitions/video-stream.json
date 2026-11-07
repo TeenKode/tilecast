@@ -1,0 +1,201 @@
+{
+  "widgets": [
+    {
+      "id": "video-stream",
+      "version": 1,
+      "name": "Video Stream (RTSP / RTMP)",
+      "description": "Play RTSP/RTMP video directly on Android TV through the native Media3 player. No gateway required.",
+      "category": "Video",
+      "icon": "video",
+      "kind": "app",
+      "featured": true,
+      "keywords": [
+        "rtsp",
+        "rtmp",
+        "camera",
+        "live",
+        "iptv"
+      ],
+      "runtime": "web",
+      "configurationSchema": {
+        "fields": [
+          {
+            "key": "sourceUrl",
+            "label": "RTSP / RTMP address",
+            "control": "url",
+            "required": true,
+            "maxLength": 1024,
+            "description": "rtsp://, rtmp:// or rtmps:// address of the camera or broadcast encoder.",
+            "ui": {
+              "section": "content",
+              "order": 1
+            }
+          },
+          {
+            "key": "username",
+            "label": "Stream username",
+            "control": "text",
+            "default": "",
+            "maxLength": 128,
+            "ui": {
+              "section": "content",
+              "order": 2
+            }
+          },
+          {
+            "key": "password",
+            "label": "Stream password",
+            "control": "text",
+            "default": "",
+            "maxLength": 256,
+            "ui": {
+              "section": "content",
+              "order": 3,
+              "secret": true
+            }
+          },
+          {
+            "key": "rtspTransport",
+            "label": "RTSP transport",
+            "control": "select",
+            "required": true,
+            "default": "tcp",
+            "options": [
+              {
+                "value": "tcp",
+                "label": "TCP (most reliable)"
+              },
+              {
+                "value": "udp",
+                "label": "UDP (lowest latency on LAN)"
+              }
+            ],
+            "ui": {
+              "section": "behavior",
+              "order": 1
+            }
+          },
+          {
+            "key": "muted",
+            "label": "Mute audio",
+            "control": "boolean",
+            "default": true,
+            "ui": {
+              "section": "behavior",
+              "order": 2
+            }
+          },
+          {
+            "key": "volume",
+            "label": "Volume (%)",
+            "control": "integer",
+            "default": 100,
+            "minimum": 0,
+            "maximum": 100,
+            "ui": {
+              "section": "behavior",
+              "order": 3
+            }
+          },
+          {
+            "key": "fit",
+            "label": "Video scaling",
+            "control": "select",
+            "required": true,
+            "default": "contain",
+            "options": [
+              {
+                "value": "contain",
+                "label": "Fit (letterbox)"
+              },
+              {
+                "value": "cover",
+                "label": "Fill and crop"
+              },
+              {
+                "value": "fill",
+                "label": "Stretch"
+              }
+            ],
+            "ui": {
+              "section": "appearance",
+              "order": 1
+            }
+          },
+          {
+            "key": "autoReconnect",
+            "label": "Reconnect automatically",
+            "control": "boolean",
+            "default": true,
+            "ui": {
+              "section": "behavior",
+              "order": 4
+            }
+          },
+          {
+            "key": "reconnectSeconds",
+            "label": "Reconnect delay (seconds)",
+            "control": "integer",
+            "default": 5,
+            "minimum": 1,
+            "maximum": 300,
+            "ui": {
+              "section": "behavior",
+              "order": 5
+            }
+          },
+          {
+            "key": "maxReconnectAttempts",
+            "label": "Max reconnection attempts (0 = unlimited)",
+            "control": "integer",
+            "default": 0,
+            "minimum": 0,
+            "maximum": 1000,
+            "ui": {
+              "section": "behavior",
+              "order": 6,
+              "advanced": true
+            }
+          }
+        ]
+      },
+      "defaultConfiguration": {
+        "username": "",
+        "password": "",
+        "rtspTransport": "tcp",
+        "muted": true,
+        "volume": 100,
+        "fit": "contain",
+        "autoReconnect": true,
+        "reconnectSeconds": 5,
+        "maxReconnectAttempts": 0
+      },
+      "presentationSchemaVersion": 1,
+      "requiredCapabilities": {
+        "web.remote": 2
+      },
+      "emptyStateBehavior": "placeholder",
+      "webIntegration": {
+        "urlField": "sourceUrl",
+        "allowedHosts": [
+          "tilecast-native-stream.invalid"
+        ],
+        "transform": "native_stream",
+        "loadTimeoutSeconds": 90,
+        "lifecycle": "destroy_on_hide",
+        "fallbackBehavior": "placeholder"
+      },
+      "setup": {
+        "eyebrow": "Android TV / YaOS",
+        "steps": [
+          "Enter the RTSP / RTMP stream URL and optional credentials.",
+          "Choose RTSP transport, sound, scaling and reconnection settings.",
+          "Place the Video Stream in a playlist or layout and publish to an Android Player."
+        ],
+        "tip": "Requires the Android APK containing native Media3 stream support. Non-Android players do not yet support this widget."
+      },
+      "deprecation": {}
+    }
+  ],
+  "dataSources": []
+}
