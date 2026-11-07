@@ -46,6 +46,9 @@ The fork keeps the installed test Android package `org.tilecast.player.test`
 and its permanent test certificate. The server accepts this package only
 for signed Dev manifests on the Beta channel. Each Player verifies the
 package and certificate against its own installed application.
+The release gate runs signed Dev manifest imports against PostgreSQL, including
+the schema constraint for the `.test` package. Downgrading that schema requires
+removing test release records first; the migration does not delete them.
 
 Fork Dev releases contain the test Android APK and the server image.
 They do not claim to contain Edge or Windows builds. Existing Edge Players
