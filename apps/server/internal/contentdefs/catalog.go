@@ -830,7 +830,7 @@ func validateWebIntegration(spec *WebIntegration, schema ConfigurationSchema) er
 		}
 	}
 	switch spec.Transform {
-	case "passthrough", "google_sheets", "google_slides", "canva_embed":
+	case "passthrough", "google_sheets", "google_slides", "canva_embed", "stream_gateway":
 	default:
 		return fmt.Errorf("web integration transform %q is unsupported", spec.Transform)
 	}
