@@ -82,6 +82,8 @@ export function resolveWebsiteUrl(
         params.append(name, value);
         continue;
       }
+      // Check the template, not substituted content: JSON values contain braces.
+      if (/[{}]/.test(value.replace(TOKEN, ""))) return null;
       let invalid = false;
       const replaced = value.replace(TOKEN, (_match, key: string) => {
         const raw = select(key);
@@ -91,7 +93,7 @@ export function resolveWebsiteUrl(
         }
         return String(raw);
       });
-      if (invalid || /[{}]/.test(replaced)) return null;
+      if (invalid) return null;
       params.append(name, replaced);
     }
     url.search = params.toString();
