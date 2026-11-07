@@ -549,7 +549,7 @@ const edgeDeploymentSQL = `EXISTS(SELECT 1 FROM update_deployments ed JOIN playe
 // demonstrably healthy at the expected version is a reporting bug, not an
 // operational state, and Studio must not show it as progress forever.
 //
-// Bounded on purpose: four fixed statements, no per-row work, no retries. The
+// Bounded on purpose: five fixed statements, no per-row work, no retries. The
 // order matters — settle first, so a canary that did reconnect healthily is not
 // then paused for failing to.
 func (s *server) reconcileUpdateDeployments(ctx context.Context) {
@@ -570,6 +570,10 @@ func (s *server) reconcileUpdateDeployments(ctx context.Context) {
 	// all, so an update it had plainly finished could not settle until its next
 	// school day. Uptime carries that weight instead — see devices.SettledUptimeSeconds.
 	_, _ = s.db.Exec(ctx, `UPDATE screen_update_states st SET state='succeeded',reconnect_at=COALESCE(st.reconnect_at,now()),completed_at=now(),updated_at=now() WHERE st.state NOT IN('succeeded','failed','cancelled','incompatible','already_current') AND NOT `+edgeDeploymentSQL+` AND EXISTS(SELECT 1 FROM screens sc JOIN screen_player_status ps ON ps.screen_id=sc.id WHERE sc.id=st.screen_id AND sc.last_heartbeat_at>now()-interval '5 minutes' AND ps.player_version_code>=st.expected_version_code AND (sc.uptime_seconds IS NULL OR sc.uptime_seconds>=$1) AND NOT ps.safe_mode AND (ps.update_error IS NULL OR ps.update_error=''))`, devices.SettledUptimeSeconds)
+	// An old installer can fail before its first update-status request. Its
+	// terminal command result must not leave Studio showing pending forever.
+	// A newer command or retry timestamp takes precedence over an old failure.
+	_, _ = s.db.Exec(ctx, `UPDATE screen_update_states st SET state='failed',safe_error=COALESCE(NULLIF(c.safe_result_code,''),'update_command_failed'),completed_at=c.completed_at,updated_at=now() FROM player_commands c WHERE st.state='pending' AND c.screen_id=st.screen_id AND c.type='install_player_update' AND c.state='failed' AND c.completed_at IS NOT NULL AND c.payload->>'deploymentId'=st.deployment_id::text AND c.created_at>=st.updated_at AND NOT EXISTS(SELECT 1 FROM player_commands newer WHERE newer.screen_id=c.screen_id AND newer.type=c.type AND newer.payload->>'deploymentId'=c.payload->>'deploymentId' AND newer.created_at>c.created_at)`)
 	_, _ = s.db.Exec(ctx, `UPDATE update_deployments d SET status='paused',rollout_phase='paused',paused_at=now(),pause_reason='A canary did not reconnect within ten minutes.' WHERE d.status='active' AND d.rollout_phase='canary' AND EXISTS(SELECT 1 FROM screen_update_states st WHERE st.deployment_id=d.id AND st.is_canary AND st.state IN('installing','reconnecting') AND st.updated_at<now()-interval '10 minutes')`)
 	// Player install commands expire after seven days. A deployment must not outlive
 	// the command that could still advance it: once the deployment window itself is

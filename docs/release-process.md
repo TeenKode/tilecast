@@ -46,6 +46,9 @@ The fork keeps the installed test Android package `org.tilecast.player.test`
 and its permanent test certificate. The server accepts this package only
 for signed Dev manifests on the Beta channel. Each Player verifies the
 package and certificate against its own installed application.
+Dev APKs use the optimized Release build type and the same test signer.
+The fork build can set `TILECAST_PRIVATE_CA_SHA256` to classify an already
+trusted enterprise CA as private. See [Android development](android-development.md).
 The release gate runs signed Dev manifest imports against PostgreSQL, including
 the schema constraint for the `.test` package. Downgrading that schema requires
 removing test release records first; the migration does not delete them.

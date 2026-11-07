@@ -125,7 +125,7 @@ func TestCreateUpdateDeploymentPersistsHistoryAndCommand(t *testing.T) {
 	if err = pool.QueryRow(ctx, `SELECT state FROM screen_update_states WHERE deployment_id=$1 AND screen_id=$2`, created.Data.ID, screenID).Scan(&state); err != nil || state != "pending" {
 		t.Fatalf("screen update state=%q err=%v", state, err)
 	}
-	if _, err = pool.Exec(ctx, `UPDATE screen_update_states SET state='failed',safe_error='installer_conflict' WHERE deployment_id=$1 AND screen_id=$2`, created.Data.ID, screenID); err != nil {
+	if _, err = pool.Exec(ctx, `UPDATE player_commands SET state='failed',safe_result_code='installer_conflict',started_at=now(),completed_at=now() WHERE screen_id=$1 AND type='install_player_update'`, screenID); err != nil {
 		t.Fatal(err)
 	}
 

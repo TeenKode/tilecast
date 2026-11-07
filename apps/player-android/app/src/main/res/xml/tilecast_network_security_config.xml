@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- ServerUrlPolicy restricts HTTP server enrollment to private/local origins.
+         Keep the manifest's intended HTTP support authoritative over dependency
+         manifests, including the platform verifier's public-CA CRL allowlist. -->
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

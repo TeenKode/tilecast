@@ -4,6 +4,26 @@ Tilecast Player uses JDK 17 and the checked-in Gradle wrapper. Install the SDK, 
 
 ## Native Player Core host
 
+### Fork TLS and update profile
+
+Fork Dev artifacts use the optimized Release build type. They keep the `.test`
+package and the permanent test signing certificate. Debug APKs are not distributed.
+The app owns its network security configuration. This keeps local HTTP enrollment
+and update downloads available when a library manifest supplies a stricter default.
+The shared server URL policy still refuses public HTTP enrollment.
+
+`TILECAST_PRIVATE_CA_SHA256` can identify one operator-managed CA that is already
+trusted by Android. It does not install a CA or grant trust. The Android verifier
+classifies that exact validated anchor as private. The actual Android keystore
+stays unchanged. Chain, hostname, validity and handshake signature
+checks remain active. Public roots keep their revocation checks. The verifier's
+existing private-root rule applies to the named private CA when no OCSP response
+is stapled. This avoids treating a system-installed enterprise CA as a public CA
+that must publish OCSP or CRL information.
+
+The local Kotlin verifier is pinned to `rustls-platform-verifier-android` 0.2.0.
+The build refuses a different Rust counterpart until JNI compatibility is reviewed.
+
 ### Fork native stream adapter
 
 The test fork permits Media3 only in `NativeStreamPlayerView.kt`.

@@ -179,7 +179,7 @@ class PlayerUpdateManager(private val app:Application,private val api:TilecastAp
                 return CommandOutcome(true,"unattended_update_started","Verified Player update installation started")
             }
             state=state.copy(state="waiting_for_user",message="This Android version requires local installer approval",installReady=true);persist(state);onState(state);api.updateStatus(server,credential,deployment,"waiting_for_user",state.downloadedBytes,permissionStatus="granted",installerStatus="system_confirmation_required");CommandOutcome(true,"update_waiting_for_user","This Android version requires local installer approval")
-        }catch(error:Exception){progressReporter?.awaitIdle();val code=error.message?.takeIf{it.matches(Regex("[a-z_]+"))}?:"update_preparation_failed";api.updateStatus(server,credential,deployment,"failed",0,error=code);CommandOutcome(false,code,"Player update could not be prepared")}
+        }catch(error:Exception){progressReporter?.awaitIdle();val code=error.message?.takeIf{it.matches(Regex("[a-z_]+"))}?:"update_preparation_failed";runCatching{api.updateStatus(server,credential,deployment,"failed",0,error=code)};CommandOutcome(false,code,"Player update could not be prepared")}
     }
 
     fun openPermissionSettings(){app.startActivity(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:${app.packageName}")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))}
