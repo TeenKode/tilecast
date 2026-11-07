@@ -5,6 +5,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.tilecast.player.BuildConfig
 import kotlinx.coroutines.runBlocking
 import org.tilecast.player.network.ApiException
 import org.tilecast.player.network.PlayerUpdateMetadata
@@ -13,13 +14,13 @@ import java.time.Instant
 import java.nio.file.Files
 
 class PlayerUpdateManagerTest {
-    private val update=PlayerUpdateMetadata("release","org.tilecast.player",9,"0.9.0",23,100,"a".repeat(64),"b".repeat(64),"/apk")
-    @Test fun acceptsMatchingUpgrade(){PlayerUpdateVerifier.validate(update,5,35,ArchiveMetadata("org.tilecast.player",9,"b".repeat(64)),"b".repeat(64))}
+    private val update=PlayerUpdateMetadata("release",BuildConfig.APPLICATION_ID,9,"0.9.0",23,100,"a".repeat(64),"b".repeat(64),"/apk")
+    @Test fun acceptsMatchingUpgrade(){PlayerUpdateVerifier.validate(update,5,35,ArchiveMetadata(BuildConfig.APPLICATION_ID,9,"b".repeat(64)),"b".repeat(64))}
     @Test fun rejectsPackageMismatch(){assertThrows(IllegalArgumentException::class.java){PlayerUpdateVerifier.validate(update,5,35,ArchiveMetadata("other.app",9,"b".repeat(64)),"b".repeat(64))}}
-    @Test fun rejectsDowngrade(){assertThrows(IllegalArgumentException::class.java){PlayerUpdateVerifier.validate(update,9,35,ArchiveMetadata("org.tilecast.player",9,"b".repeat(64)),"b".repeat(64))}}
-    @Test fun rejectsCertificateMismatch(){assertThrows(IllegalArgumentException::class.java){PlayerUpdateVerifier.validate(update,5,35,ArchiveMetadata("org.tilecast.player",9,"c".repeat(64)),"b".repeat(64))}}
-    @Test fun rejectsInstalledCertificateMismatch(){assertThrows(IllegalArgumentException::class.java){PlayerUpdateVerifier.validate(update,5,35,ArchiveMetadata("org.tilecast.player",9,"b".repeat(64)),"c".repeat(64))}}
-    @Test fun rejectsUnsupportedSdk(){assertThrows(IllegalArgumentException::class.java){PlayerUpdateVerifier.validate(update.copy(minimumSdk=36),5,35,ArchiveMetadata("org.tilecast.player",9,"b".repeat(64)),"b".repeat(64))}}
+    @Test fun rejectsDowngrade(){assertThrows(IllegalArgumentException::class.java){PlayerUpdateVerifier.validate(update,9,35,ArchiveMetadata(BuildConfig.APPLICATION_ID,9,"b".repeat(64)),"b".repeat(64))}}
+    @Test fun rejectsCertificateMismatch(){assertThrows(IllegalArgumentException::class.java){PlayerUpdateVerifier.validate(update,5,35,ArchiveMetadata(BuildConfig.APPLICATION_ID,9,"c".repeat(64)),"b".repeat(64))}}
+    @Test fun rejectsInstalledCertificateMismatch(){assertThrows(IllegalArgumentException::class.java){PlayerUpdateVerifier.validate(update,5,35,ArchiveMetadata(BuildConfig.APPLICATION_ID,9,"b".repeat(64)),"c".repeat(64))}}
+    @Test fun rejectsUnsupportedSdk(){assertThrows(IllegalArgumentException::class.java){PlayerUpdateVerifier.validate(update.copy(minimumSdk=36),5,35,ArchiveMetadata(BuildConfig.APPLICATION_ID,9,"b".repeat(64)),"b".repeat(64))}}
     @Test fun requestsUnattendedSelfUpdateOnAndroid12AndNewer(){assertFalse(PlayerUpdateInstallPolicy.canRequestUnattended(30));assertTrue(PlayerUpdateInstallPolicy.canRequestUnattended(31));assertTrue(PlayerUpdateInstallPolicy.canRequestUnattended(35))}
     @Test fun selectsTheExactRequestedArtifactWhenSeveralAreStaged(){
         val directory=Files.createTempDirectory("tilecast-updates").toFile()
