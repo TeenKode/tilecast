@@ -2128,6 +2128,8 @@ export type ContentDefinitionField = {
     styleCard?: boolean;
     slider?: boolean;
     advanced?: boolean;
+    /** Mask sensitive input in the Studio editor; does not change server-side authorization. */
+    secret?: boolean;
     semanticRole?: string;
     legacyKeys?: string[];
     typeFallback?: boolean;
