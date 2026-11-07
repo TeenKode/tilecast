@@ -129,7 +129,7 @@ jobs:
         run: rm -f "$HOME/.android/debug.keystore" "$RUNNER_TEMP/fork-signing/private.pem"
 
   publish:
-    if: github.ref == 'refs/heads/main'
+    if: github.repository == 'TeenKode/tilecast' && github.ref == 'refs/heads/main'
     needs: [server, android]
     runs-on: ubuntu-latest
     permissions:
@@ -147,4 +147,5 @@ jobs:
         run: |
           version="$(cat deploy/fork/VERSION)"
           printf '%s\n' "$SERVER_IMAGE" > release-output/tilecast-server-image.txt
+          (cd release-output && sha256sum tilecast-player* tilecast-server-image.txt > SHA256SUMS)
           gh release create "v$version" release-output/* --target "$GITHUB_SHA" --prerelease --title "Tilecast TEST $version" --notes "Test fork: Android .test APK and Server image $SERVER_IMAGE. Edge and Windows are not included."

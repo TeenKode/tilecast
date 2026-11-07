@@ -132,7 +132,7 @@ class NativeStreamPlayerView @JvmOverloads constructor(
             val mediaItem = MediaItem.fromUri(stream.url)
             if (stream.url.startsWith("rtsp:", ignoreCase = true)) {
                 val rtsp = RtspMediaSource.Factory()
-                if (stream.rtspTransport == "tcp") rtsp.setForceUseRtpTcp()
+                if (stream.rtspTransport == "tcp") rtsp.setForceUseRtpTcp(true)
                 player.setMediaSource(rtsp.createMediaSource(mediaItem))
             } else {
                 // media3-datasource-rtmp is auto-discovered by DefaultDataSource.

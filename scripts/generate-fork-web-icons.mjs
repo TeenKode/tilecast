@@ -2,8 +2,11 @@ import { readFileSync } from "node:fs";
 import sharp from "sharp";
 import { testBadge } from "./fork-branding.mjs";
 
-const mark = readFileSync(
-  "apps/player-android/branding/source/tilecast-mark.svg",
+const mark = Buffer.from(
+  readFileSync(
+    "apps/player-android/branding/source/tilecast-mark.svg",
+    "utf8",
+  ).replace("<svg ", '<svg fill="#ffffff" '),
 );
 for (const [name, size] of [
   ["favicon.png", 64],
