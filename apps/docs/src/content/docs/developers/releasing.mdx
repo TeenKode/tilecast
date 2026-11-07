@@ -9,9 +9,10 @@ The TeenKode test fork uses `deploy/fork/VERSION` and the **Fork Dev build**
 workflow. Versions use `X.Y.Z-dev.N` and appear in the Beta update channel.
 The fork publishes the Android `.test` APK and its server image. It keeps
 the existing test APK certificate. It does not publish Edge or Windows.
-To update the test server, run `bash deploy/fork/update.sh IMAGE` with the
-verified `ghcr.io/teenkode/tilecast-server:dev-COMMIT` image shown in the
-successful workflow. The command backs up PostgreSQL before replacement.
+To update the test server, run `bash deploy/fork/update.sh`. It selects the
+latest published Dev release and pulls the server by its immutable digest.
+You can pass a verified image explicitly to select another build.
+The command backs up PostgreSQL before replacement.
 
 Maintainers publish a release by dispatching one workflow. It builds every platform from one commit on `main`, assembles a draft GitHub release, verifies it, and publishes it. For the exact contract, see the [release process](https://github.com/gbyo/tilecast/blob/main/docs/release-process.md). For what users see, see [Releases and downloads](../../reference/releases/).
 

@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	GitHubOwner = "gbyo"
+	GitHubOwner = "TeenKode"
 	GitHubRepo  = "tilecast"
 )
 

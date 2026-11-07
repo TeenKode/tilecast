@@ -2,7 +2,10 @@
 set -euo pipefail
 root="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$root"
-image="${1:?Usage: update.sh ghcr.io/teenkode/tilecast-server:dev-COMMIT}"
+image="${1:-}"
+if [ -z "$image" ]; then
+  image="$(python3 deploy/fork/latest-image.py)"
+fi
 case "$image" in
   ghcr.io/teenkode/tilecast-server:dev-*|ghcr.io/teenkode/tilecast-server@sha256:*) ;;
   *) echo 'Use a verified image from the TeenKode fork.' >&2; exit 1 ;;
@@ -18,5 +21,11 @@ cp deploy/docker/.env "$backup/server.env"
 chmod 600 "$backup"/*
 "${compose[@]}" pull server
 "${compose[@]}" up -d --no-build --wait server
+python3 - "$image" <<'PY'
+import pathlib, sys
+path = pathlib.Path('deploy/docker/.env')
+lines = [line for line in path.read_text().splitlines() if not line.startswith('TILECAST_FORK_IMAGE=')]
+path.write_text('\n'.join(lines + ['TILECAST_FORK_IMAGE=' + sys.argv[1]]) + '\n')
+PY
 printf '%s\n' "$image" > deploy/fork/installed-image
 echo "Installed $image; database backup: $backup/database.dump"

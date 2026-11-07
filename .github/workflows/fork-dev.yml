@@ -16,6 +16,8 @@ jobs:
   server:
     if: github.repository == 'TeenKode/tilecast'
     runs-on: ubuntu-latest
+    outputs:
+      image: ghcr.io/teenkode/tilecast-server@${{ steps.image.outputs.digest }}
     permissions:
       contents: read
       packages: write
@@ -42,7 +44,8 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - uses: docker/build-push-action@v7
+      - id: image
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: deploy/docker/Dockerfile
@@ -140,6 +143,8 @@ jobs:
       - name: Publish fork prerelease
         env:
           GH_TOKEN: ${{ github.token }}
+          SERVER_IMAGE: ${{ needs.server.outputs.image }}
         run: |
           version="$(cat deploy/fork/VERSION)"
-          gh release create "v$version" release-output/* --target "$GITHUB_SHA" --prerelease --title "Tilecast TEST $version" --notes "Test fork: Android .test APK and Server image ghcr.io/teenkode/tilecast-server:dev-$GITHUB_SHA. Edge and Windows are not included."
+          printf '%s\n' "$SERVER_IMAGE" > release-output/tilecast-server-image.txt
+          gh release create "v$version" release-output/* --target "$GITHUB_SHA" --prerelease --title "Tilecast TEST $version" --notes "Test fork: Android .test APK and Server image $SERVER_IMAGE. Edge and Windows are not included."
