@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; media-src 'self'; img-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>Tilecast Video Stream</title>
+  <style>
+    html, body { margin:0; width:100%; height:100%; overflow:hidden; background:#000; }
+    video { width:100vw; height:100vh; display:block; background:transparent; }
+    #status { position:fixed; left:1rem; bottom:1rem; padding:.45rem .7rem;
+      border-radius:.4rem; color:white; background:rgba(0,0,0,.7);
+      font:14px/1.4 system-ui,sans-serif; pointer-events:none; }
+    #status:empty { display:none; }
+  </style>
+</head>
+<body>
+  <video id="video" autoplay playsinline></video>
+  <div id="status" aria-live="polite"></div>
+  <script src="/hls.min.js"></script>
+  <script>
+    "use strict";
+    const cfg = __CONFIG_JSON__;
+    const token = __TOKEN_JSON__;
+    const video = document.getElementById("video");
+    const status = document.getElementById("status");
+    const stream = "/hls/" + token + "/index.m3u8";
+    let hls = null;
+    let retryTimer = null;
+    let lastProgressAt = Date.now();
+    let connected = false;
+    document.body.style.backgroundColor = cfg.backgroundColor;
+    video.style.objectFit = cfg.fit;
+    video.muted = cfg.muted;
+    video.volume = cfg.volume / 100;
+    function report(message) { status.textContent = cfg.showErrors ? message : ""; }
+    function cleanup() {
+      if (retryTimer) clearTimeout(retryTimer);
+      retryTimer = null;
+      if (hls) { hls.destroy(); hls = null; }
+      video.removeAttribute("src");
+      video.load();
+    }
+    function retry(message) {
+      report(message);
+      cleanup();
+      connected = false;
+      retryTimer = setTimeout(connect, cfg.reconnectSeconds * 1000);
+    }
+    function play() {
+      video.play().then(() => {
+        connected = true;
+        lastProgressAt = Date.now();
+        report("");
+      }).catch(() => {
+        if (!video.muted) {
+          video.muted = true;
+          video.play().then(() => report("")).catch(() => retry("Waiting for autoplay"));
+        } else {
+          retry("Waiting for the video player");
+        }
+      });
+    }
+    function connect() {
+      cleanup();
+      report("Connecting to live stream…");
+      lastProgressAt = Date.now();
+      if (window.Hls && window.Hls.isSupported()) {
+        hls = new window.Hls({
+          lowLatencyMode: false,
+          liveSyncDurationCount: Math.min(cfg.playlistSegments - 1, 3),
+          maxLiveSyncPlaybackRate: 1.2,
+          manifestLoadingMaxRetry: 2,
+          manifestLoadingRetryDelay: 1000
+        });
+        hls.on(window.Hls.Events.ERROR, function (_event, data) {
+          if (!data.fatal) return;
+          if (data.type === window.Hls.ErrorTypes.MEDIA_ERROR) {
+            try { hls.recoverMediaError(); return; } catch (_) {}
+          }
+          retry("Stream lost — reconnecting");
+        });
+        hls.on(window.Hls.Events.MANIFEST_PARSED, play);
+        hls.attachMedia(video);
+        hls.loadSource(stream);
+      } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
+        video.src = stream;
+        video.addEventListener("loadedmetadata", play, {once:true});
+      } else {
+        report("This device does not support HLS playback");
+      }
+    }
+    video.addEventListener("timeupdate", function () { lastProgressAt = Date.now(); });
+    video.addEventListener("playing", function () { lastProgressAt = Date.now(); report(""); });
+    video.addEventListener("error", function () {
+      if (!retryTimer) retry("Video playback error — reconnecting");
+    });
+    setInterval(function () {
+      if (connected && !video.paused && Date.now() - lastProgressAt > 20000) {
+        retry("Video stalled — reconnecting");
+      }
+    }, 5000);
+    connect();
+  </script>
+</body>
+</html>
