@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { copyText } from "./clipboard";
 import { toast } from "../components/ui/toast";
@@ -53,5 +54,34 @@ describe("copyText", () => {
       title: feedback.failure,
       type: "error",
     });
+  });
+});
+
+describe("plain HTTP clipboard fallback", () => {
+  it("copies with a temporary selection when the secure Clipboard API is missing", async () => {
+    vi.stubGlobal("navigator", {});
+    const existing = Object.getOwnPropertyDescriptor(document, "execCommand");
+    const execCommand = vi.fn(() => true);
+    Object.defineProperty(document, "execCommand", {
+      configurable: true,
+      value: execCommand,
+    });
+    const focused = document.createElement("input");
+    document.body.appendChild(focused);
+    focused.focus();
+    try {
+      expect(await copyText("LAN address", feedback)).toBe(true);
+      expect(execCommand).toHaveBeenCalledExactlyOnceWith("copy");
+      expect(document.querySelector("textarea")).toBeNull();
+      expect(document.activeElement).toBe(focused);
+      expect(toast.add).toHaveBeenCalledExactlyOnceWith({
+        title: feedback.success,
+        type: "success",
+      });
+    } finally {
+      focused.remove();
+      if (existing) Object.defineProperty(document, "execCommand", existing);
+      else Reflect.deleteProperty(document, "execCommand");
+    }
   });
 });

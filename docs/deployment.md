@@ -4,6 +4,19 @@
 
 Copy `deploy/docker/.env.example` to `deploy/docker/.env`, set a strong PostgreSQL password, leave `TILECAST_COOKIE_SECURE=false` for plain HTTP, and start the Compose file. Restrict port 8080 to the trusted LAN with the host firewall.
 
+Studio supports HTTP on trusted LAN addresses, including IP addresses. On HTTP,
+Studio generates UUIDs using the browser's cryptographically secure
+`crypto.getRandomValues()` when `crypto.randomUUID()` is unavailable and
+uses a selection-based fallback for copy-to-clipboard actions. These
+compatibility paths do not turn HTTP into a secure browser context.
+
+The experimental **Browser Player** still requires HTTPS: its device keys,
+Service Worker, OPFS and other browser guarantees cannot safely be emulated
+over HTTP. Passkeys also require HTTPS (or qualifying local development
+origins). Use HTTPS for these functions and for any installation exposed to
+untrusted networks; plain HTTP transmits Studio credentials and content
+without transport encryption.
+
 Docker bridge networking does not reliably publish multicast DNS on every Linux distribution, so `TILECAST_MDNS_ENABLED` is disabled in the Compose example. Players can always use the server's LAN address manually. Advanced Linux installations may enable mDNS when the container has appropriate host-network multicast access.
 
 ## Font catalog
