@@ -1,0 +1,272 @@
+{
+  "widgets": [
+    {
+      "id": "video-stream",
+      "version": 1,
+      "name": "Video Stream (RTSP / RTMP)",
+      "description": "Play an RTSP or RTMP live feed via the optional local Stream Gateway.",
+      "category": "Video",
+      "icon": "video",
+      "kind": "app",
+      "featured": true,
+      "keywords": [
+        "RTSP",
+        "RTMP",
+        "IPTV",
+        "camera",
+        "live",
+        "video"
+      ],
+      "runtime": "web",
+      "configurationSchema": {
+        "fields": [
+          {
+            "key": "gatewayUrl",
+            "label": "Stream gateway URL (HTTPS)",
+            "control": "url",
+            "required": true,
+            "maxLength": 2048,
+            "description": "Base HTTPS URL of the optional Tilecast Stream Gateway, reachable from every display. Do not include /player."
+          },
+          {
+            "key": "trustedHost",
+            "label": "Trusted gateway host",
+            "control": "text",
+            "required": true,
+            "maxLength": 253,
+            "description": "Exact hostname or IP of the gateway URL. Deliberately authorizes this one destination."
+          },
+          {
+            "key": "sourceUrl",
+            "label": "RTSP or RTMP source URL",
+            "control": "text",
+            "required": true,
+            "maxLength": 2048,
+            "description": "rtsp://, rtmp:// or rtmps:// address. Put login and password in the separate fields below."
+          },
+          {
+            "key": "username",
+            "label": "Stream username",
+            "control": "text",
+            "default": "",
+            "maxLength": 255
+          },
+          {
+            "key": "password",
+            "label": "Stream password",
+            "control": "text",
+            "default": "",
+            "maxLength": 255,
+            "ui": {
+              "secret": true
+            },
+            "description": "Stored in the Tilecast Widget configuration; never entered in the player URL in plaintext. Limit access to this Widget."
+          },
+          {
+            "key": "rtspTransport",
+            "label": "RTSP transport",
+            "control": "select",
+            "required": true,
+            "default": "tcp",
+            "options": [
+              {
+                "value": "tcp",
+                "label": "TCP (recommended)"
+              },
+              {
+                "value": "udp",
+                "label": "UDP"
+              }
+            ],
+            "ui": {
+              "advanced": true,
+              "section": "behavior"
+            }
+          },
+          {
+            "key": "videoCodec",
+            "label": "Video processing",
+            "control": "select",
+            "required": true,
+            "default": "copy",
+            "options": [
+              {
+                "value": "copy",
+                "label": "Remux original video (low CPU; H.264 recommended)"
+              },
+              {
+                "value": "transcode",
+                "label": "Transcode to H.264 (highest compatibility)"
+              }
+            ],
+            "ui": {
+              "section": "behavior"
+            }
+          },
+          {
+            "key": "videoBitrateKbps",
+            "label": "Transcode bitrate (kbit/s)",
+            "control": "integer",
+            "default": 2500,
+            "minimum": 300,
+            "maximum": 12000,
+            "ui": {
+              "section": "behavior",
+              "advanced": true
+            }
+          },
+          {
+            "key": "audioEnabled",
+            "label": "Include stream audio",
+            "control": "boolean",
+            "default": true,
+            "ui": {
+              "section": "behavior"
+            }
+          },
+          {
+            "key": "muted",
+            "label": "Start muted",
+            "control": "boolean",
+            "default": true,
+            "ui": {
+              "section": "behavior"
+            },
+            "description": "Unmuted autoplay is blocked by some Android WebViews; muted playback is the most reliable."
+          },
+          {
+            "key": "volume",
+            "label": "Audio volume (%)",
+            "control": "integer",
+            "default": 100,
+            "minimum": 0,
+            "maximum": 100,
+            "ui": {
+              "section": "behavior"
+            }
+          },
+          {
+            "key": "fit",
+            "label": "Video fit",
+            "control": "select",
+            "required": true,
+            "default": "contain",
+            "options": [
+              {
+                "value": "contain",
+                "label": "Fit entire video"
+              },
+              {
+                "value": "cover",
+                "label": "Fill and crop"
+              },
+              {
+                "value": "fill",
+                "label": "Stretch to fill"
+              }
+            ],
+            "ui": {
+              "section": "appearance"
+            }
+          },
+          {
+            "key": "backgroundColor",
+            "label": "Background color",
+            "control": "color",
+            "default": "#000000",
+            "ui": {
+              "section": "appearance"
+            }
+          },
+          {
+            "key": "reconnectSeconds",
+            "label": "Reconnect delay (seconds)",
+            "control": "integer",
+            "default": 5,
+            "minimum": 2,
+            "maximum": 60,
+            "ui": {
+              "section": "behavior",
+              "advanced": true
+            }
+          },
+          {
+            "key": "segmentSeconds",
+            "label": "HLS segment duration (seconds)",
+            "control": "integer",
+            "default": 2,
+            "minimum": 1,
+            "maximum": 6,
+            "ui": {
+              "section": "behavior",
+              "advanced": true
+            }
+          },
+          {
+            "key": "playlistSegments",
+            "label": "Live playlist segment count",
+            "control": "integer",
+            "default": 5,
+            "minimum": 3,
+            "maximum": 12,
+            "ui": {
+              "section": "behavior",
+              "advanced": true
+            }
+          },
+          {
+            "key": "showErrors",
+            "label": "Show a connection status on the TV",
+            "control": "boolean",
+            "default": true,
+            "ui": {
+              "section": "appearance"
+            }
+          }
+        ]
+      },
+      "defaultConfiguration": {
+        "username": "",
+        "password": "",
+        "rtspTransport": "tcp",
+        "videoCodec": "copy",
+        "videoBitrateKbps": 2500,
+        "audioEnabled": true,
+        "muted": true,
+        "volume": 100,
+        "fit": "contain",
+        "backgroundColor": "#000000",
+        "reconnectSeconds": 5,
+        "segmentSeconds": 2,
+        "playlistSegments": 5,
+        "showErrors": true
+      },
+      "presentationSchemaVersion": 1,
+      "requiredCapabilities": {
+        "web.remote": 2
+      },
+      "emptyStateBehavior": "placeholder",
+      "webIntegration": {
+        "urlField": "gatewayUrl",
+        "allowAnyHttpsHost": true,
+        "transform": "stream_gateway",
+        "loadTimeoutSeconds": 45,
+        "lifecycle": "keep_warm",
+        "warmSeconds": 30,
+        "fallbackBehavior": "placeholder"
+      },
+      "setup": {
+        "eyebrow": "Live video",
+        "steps": [
+          "Deploy Stream Gateway and configure the same STREAM_GATEWAY_KEY in the Tilecast Server and gateway.",
+          "Provide the HTTPS gateway URL and its trusted host.",
+          "Enter the RTSP/RTMP URL, optional credentials and playback settings.",
+          "Add the Video Stream Widget to a playlist or Layout."
+        ],
+        "tip": "The gateway must be reachable from the screens. Its STREAM_ALLOWED_HOSTS list must include the stream source host. WebView autoplay with sound is device-dependent."
+      },
+      "deprecation": {}
+    }
+  ],
+  "dataSources": []
+}
