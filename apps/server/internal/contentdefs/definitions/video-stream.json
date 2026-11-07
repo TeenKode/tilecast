@@ -29,7 +29,11 @@
             "ui": {
               "section": "content",
               "order": 1
-            }
+            },
+            "schemes": [
+              "rtsp",
+              "rtmp"
+            ]
           },
           {
             "key": "username",
