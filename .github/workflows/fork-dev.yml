@@ -81,15 +81,19 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: aarch64-linux-android,armv7-linux-androideabi,x86_64-linux-android
-      - uses: actions/cache@v6
+      - id: native_cache
+        uses: actions/cache/restore@v6
         with:
           path: |
             target
             ~/.cargo/registry
             ~/.cargo/git
             ~/.cargo/bin/cargo-ndk*
-          key: fork-android-${{ runner.os }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}
-          restore-keys: android-test-native-${{ runner.os }}-
+          key: fork-android-v2-${{ runner.os }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml', 'crates/**/*.rs', 'apps/player-android/native/**/*.rs', 'plugins/**/native/**/*.rs') }}
+          restore-keys: |
+            fork-android-v2-${{ runner.os }}-
+            fork-android-${{ runner.os }}-
+            android-test-native-${{ runner.os }}-
       - name: Native toolchain
         run: |
           rustup target add aarch64-linux-android armv7-linux-androideabi x86_64-linux-android
@@ -124,6 +128,16 @@ jobs:
           name: fork-player-release
           path: release-output/*
           if-no-files-found: error
+      - name: Save native compilation cache
+        if: ${{ !cancelled() && steps.native_cache.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@v6
+        with:
+          path: |
+            target
+            ~/.cargo/registry
+            ~/.cargo/git
+            ~/.cargo/bin/cargo-ndk*
+          key: ${{ steps.native_cache.outputs.cache-primary-key }}
       - name: Remove signing files
         if: always()
         run: rm -f "$HOME/.android/debug.keystore" "$RUNNER_TEMP/fork-signing/private.pem"
