@@ -25,9 +25,9 @@ jobs:
       - uses: android-actions/setup-android@v4
       # This maintenance job produces metadata for review. Shipping and PR
       # builds continue to use strict, committed dependency verification.
-      - name: Resolve the new Media3 graph from Google and Maven Central
+      - name: Build the pinned RTMP client and resolve Android tool checksums
         working-directory: apps/player-android
-        run: ./gradlew :rtmp-client:externalNativeBuildDebug :app:testDebugUnitTest --write-verification-metadata sha256 -x :app:verifySharedRuntime -x :app:buildNativeCore --no-daemon
+        run: ./gradlew :rtmp-client:externalNativeBuildDebug --write-verification-metadata sha256 --no-daemon
       - uses: actions/upload-artifact@v7
         if: always()
         with:
