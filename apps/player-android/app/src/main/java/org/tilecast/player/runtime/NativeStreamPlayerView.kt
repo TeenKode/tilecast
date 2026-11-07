@@ -37,7 +37,7 @@ data class NativeStreamConfig(
     fun valid(): Boolean {
         if (url.length !in 1..2048) return false
         val uri = runCatching { Uri.parse(url) }.getOrNull() ?: return false
-        if (uri.scheme?.lowercase() !in setOf("rtsp", "rtmp", "rtmps") || uri.host.isNullOrBlank()) return false
+        if (uri.scheme?.lowercase() !in setOf("rtsp", "rtmp") || uri.host.isNullOrBlank()) return false
         if (uri.fragment != null) return false
         return rtspTransport in setOf("tcp", "udp") &&
             fit in setOf("contain", "cover", "fill") &&
