@@ -12,6 +12,11 @@ WebView's automatic scale applies Android display density and can crop desktop
 pages on 320-dpi TVs. Do not multiply the configured Website zoom by density.
 The host-view position and size still use Runtime's viewport and device scale.
 
+Website URL variables in Layout widgets resolve in the shared Runtime. The
+Android projection must carry `screenId` from the verified manifest so
+`{screen.id}` identifies the enrolled screen, including after a process restart.
+This is the server's screen UUID, not its name, IP or hardware installation ID.
+
 ### Fork TLS and update profile
 
 Fork Dev artifacts use the optimized Release build type. They keep the `.test`
