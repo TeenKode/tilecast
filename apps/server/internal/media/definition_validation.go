@@ -322,8 +322,19 @@ func (normalizer definitionConfigNormalizer) normalizeField(ctx context.Context,
 			}
 		case "url":
 			parsed, err := url.Parse(text)
-			if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Host == "" {
-				return nil, fmt.Errorf("%s must be an HTTP or HTTPS URL", field.Label)
+			schemes := field.Schemes
+			if len(schemes) == 0 {
+				schemes = []string{"http", "https"}
+			}
+			accepted := false
+			for _, scheme := range schemes {
+				if parsed != nil && parsed.Scheme == scheme {
+					accepted = true
+					break
+				}
+			}
+			if err != nil || parsed == nil || !accepted || parsed.Host == "" {
+				return nil, fmt.Errorf("%s must be an URL with an allowed scheme", field.Label)
 			}
 		case "data_source":
 			id, err := uuid.Parse(text)

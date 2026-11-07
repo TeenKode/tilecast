@@ -13,6 +13,7 @@ exports[`every shipped Widget type > are mostly ready to save as created 1`] = `
   "spotlight",
   "tableau-public",
   "timeline",
+  "video-stream",
   "website",
   "youtube",
 ]

@@ -1,4 +1,5 @@
 {
+  "testEnvironment": "TEST",
   "a11y": {
     "loading": "Загрузка",
     "more": "Ещё",

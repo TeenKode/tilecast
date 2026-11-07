@@ -1,0 +1,36 @@
+name: Resolve fork Android dependency checksums
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [integration/fork-dev]
+    paths:
+      - .github/workflows/fork-dependency-metadata.yml
+      - apps/player-android/rtmp-client/build.gradle.kts
+      - apps/player-android/rtmp-client/CMakeLists.txt
+
+permissions:
+  contents: read
+
+jobs:
+  checksums:
+    if: github.repository == 'TeenKode/tilecast'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: android-actions/setup-android@v4
+      # This maintenance job produces metadata for review. Shipping and PR
+      # builds continue to use strict, committed dependency verification.
+      - name: Build the pinned RTMP client and resolve Android tool checksums
+        working-directory: apps/player-android
+        run: ./gradlew :rtmp-client:externalNativeBuildDebug --write-verification-metadata sha256 --no-daemon
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: fork-android-verification-metadata
+          path: apps/player-android/gradle/verification-metadata.xml
+          if-no-files-found: error

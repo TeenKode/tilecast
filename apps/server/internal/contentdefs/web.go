@@ -21,6 +21,13 @@ func WebPresentationURL(definition WidgetDefinition, configuration map[string]an
 		return "", nil, errors.New("web integration descriptor is missing")
 	}
 	raw, _ := configuration[spec.URLField].(string)
+	if spec.Transform == "native_stream" {
+		streamURL, streamErr := NativeStreamPlaybackURL(configuration)
+		if streamErr != nil {
+			return "", nil, streamErr
+		}
+		return streamURL, []string{nativeStreamHost}, nil
+	}
 	if spec.Transform == "canva_embed" {
 		slideshow, _ := configuration["slideshow"].(bool)
 		parsed, err := CanvaPlaybackURL(raw, slideshow)

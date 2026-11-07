@@ -10,6 +10,14 @@
   },
   "providers": [
     {
+      "provider": "video-stream",
+      "name": "Video Stream (Android test fork)",
+      "fate": "web",
+      "creation": true,
+      "pr": "Fork Android native stream adapter",
+      "status": "done"
+    },
+    {
       "provider": "event-scroller",
       "name": "Event Scroller",
       "fate": "v2",

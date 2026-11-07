@@ -44,12 +44,14 @@ class LauncherBrandingContractTest {
         assertTrue(xml.contains("<adaptive-icon"))
         assertTrue(xml.contains("<background android:drawable=\"@color/tilecast_signal_background\""))
         assertTrue(xml.contains("<foreground android:drawable=\"@drawable/ic_launcher_foreground\""))
-        assertTrue(xml.contains("<monochrome android:drawable=\"@drawable/ic_launcher_foreground\""))
+        assertTrue(xml.contains("<monochrome android:drawable=\"@drawable/ic_launcher_monochrome\""))
         assertFalse("the adaptive icon is the only launcher XML", File(res, "mipmap-anydpi-v26/ic_launcher_round.xml").exists())
 
         val foreground = File(res, "drawable/ic_launcher_foreground.xml").readText()
         assertTrue(foreground.contains("android:viewportWidth=\"108\""))
-        assertEquals("one path per tile of the Tilecast mark", 3, Regex("<path\\b").findAll(foreground).count())
+        assertEquals("three tiles and the TEST badge background and lettering", 5, Regex("<path\\b").findAll(foreground).count())
+        val monochrome = File(res, "drawable/ic_launcher_monochrome.xml").readText()
+        assertEquals("three tiles and outlined TEST lettering", 4, Regex("<path\\b").findAll(monochrome).count())
         assertFalse("the mask belongs to Android, not the artwork", foreground.contains("<clip-path"))
     }
 

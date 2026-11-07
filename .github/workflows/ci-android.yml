@@ -70,15 +70,15 @@ jobs:
           yes | sdkmanager --licenses >/dev/null
           sdkmanager --install "ndk;29.0.14206865"
       - name: Guard the single presentation implementation
-        # The shared runtime is authoritative: a legacy composition path, an
-        # exemption list, or a second native renderer must fail loudly here,
-        # not slip back in as a quiet fallback.
+        # Runtime still owns scheduling and composition. Media3 is restricted
+        # to the host adapter for the server-authored RTSP/RTMP surface.
         run: |
-          if grep -rn "androidx.media3\|ExoPlayer\|RuntimeCutover\|FullscreenLayoutPlayback\|RenderedItem(\|SeamlessItemSwap\|nextPlaybackCursor\|SynchronizedPlaybackTimeline" \
+          if grep -rn "RuntimeCutover\|FullscreenLayoutPlayback\|RenderedItem(\|SeamlessItemSwap\|nextPlaybackCursor\|SynchronizedPlaybackTimeline" \
             apps/player-android/app/src/main apps/player-android/app/build.gradle.kts; then
             echo "ci-android: legacy presentation implementation reappeared" >&2
             exit 1
           fi
+          python3 scripts/ci/check-android-stream-adapter.py
       - name: Test, lint, and assemble
         working-directory: apps/player-android
         run: ./gradlew testDebugUnitTest lintDebug assembleDebug assembleDebugAndroidTest

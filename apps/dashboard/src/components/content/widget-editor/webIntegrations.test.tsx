@@ -201,6 +201,7 @@ describe("Website", () => {
       description: "",
       configuration: {
         url: "https://example.com/menu",
+        dataSourceId: "",
         allowedHosts: ["cdn.example.com", "example.com"],
         javascriptEnabled: false,
         domStorageEnabled: true,
@@ -238,6 +239,7 @@ describe("Website", () => {
     await waitFor(() => expect(create).toHaveBeenCalledTimes(1));
     expect(create.mock.calls[0]![0].configuration).toEqual({
       url: "https://example.com",
+      dataSourceId: "",
       allowedHosts: [],
       javascriptEnabled: true,
       domStorageEnabled: true,

@@ -342,10 +342,31 @@ test("publication is the commit point and needs a verified draft", () => {
     publish.run,
     /test "\$\(git rev-parse "\$TAG\^\{commit\}"\)" = "\$GITHUB_SHA"/,
   );
-  // No other workflow creates a public release.
+  // The test fork has a separate, repository-isolated prerelease publisher.
   for (const file of readdirSync(".github/workflows")) {
     if (!file.endsWith(".yml") || file === "linux-player-release.yml") continue;
     const raw = readFileSync(`.github/workflows/${file}`, "utf8");
+    if (file === "fork-dev.yml") {
+      const fork = workflow(file);
+      assert.match(
+        fork.jobs.server.if,
+        /github.repository == 'TeenKode\/tilecast'/,
+      );
+      assert.match(
+        fork.jobs.android.if,
+        /github.repository == 'TeenKode\/tilecast'/,
+      );
+      assert.match(fork.jobs.publish.if, /refs\/heads\/main/);
+      assert.deepEqual(fork.jobs.publish.needs, [
+        "version",
+        "server",
+        "android",
+      ]);
+      assert.match(raw, /--prerelease/);
+      assert.match(raw, /ghcr.io\/teenkode\/tilecast-server/);
+      assert.doesNotMatch(raw, /ghcr.io\/gbyo\/tilecast-server/);
+      continue;
+    }
     assert.doesNotMatch(raw, /gh release create/, file);
     assert.doesNotMatch(raw, /\bgh release upload\b/, file);
   }

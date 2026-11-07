@@ -13,7 +13,7 @@ func TestFixedGitHubReleaseSource(t *testing.T) {
 	if _, err := provider.Open(t.Context(), "https://example.com/tilecast-player.apk"); err == nil {
 		t.Fatal("arbitrary update URL accepted")
 	}
-	if GitHubOwner != "gbyo" || GitHubRepo != "tilecast" {
+	if GitHubOwner != "TeenKode" || GitHubRepo != "tilecast" {
 		t.Fatal("GitHub source is not fixed")
 	}
 }

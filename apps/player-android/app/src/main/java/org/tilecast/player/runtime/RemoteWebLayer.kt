@@ -110,6 +110,8 @@ private fun RemoteSurface(
     }
     key(incarnation) {
         when {
+            surface.page != null && NativeStreamEnvelope.isStreamAddress(surface.page.url) ->
+                NativeStreamSurface(surface, modifier, surfaceEmit)
             surface.page != null -> PageView(surface, surface.page, modifier, surfaceEmit, onProcessGone)
             surface.youTube != null -> YouTubeView(surface, surface.youTube, modifier, surfaceEmit, onProcessGone)
         }

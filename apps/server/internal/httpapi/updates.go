@@ -57,7 +57,7 @@ func (s *server) listPlayerReleases(w http.ResponseWriter, r *http.Request) {
 			items = append(items, map[string]any{"id": id, "tag": tag, "platform": platform, "playerFamily": family, "architecture": architecture, "source": source, "channel": channel, "versionCode": code, "versionName": name, "minimumSdk": sdk, "releaseNotes": notes, "publishedAt": published, "apkSizeBytes": size, "downloadedBytes": downloadedBytes, "apkSha256": hash, "signingCertificateSha256": cert, "manifestSignature": signature, "cacheStatus": cache, "verificationStatus": verification, "verificationError": verificationError, "deploymentCount": deploymentCount, "activeDeploymentCount": activeDeploymentCount})
 		}
 	}
-	writeJSON(w, 200, map[string]any{"data": map[string]any{"repository": "Gibsonmb71/tilecast", "lastCheckedAt": checked, "providerError": providerError, "manifestKeyConfigured": s.updates.ManifestKeyConfigured(), "githubAuth": s.updates.GitHubAuthStatus(), "items": items}})
+	writeJSON(w, 200, map[string]any{"data": map[string]any{"repository": updates.GitHubOwner + "/" + updates.GitHubRepo, "lastCheckedAt": checked, "providerError": providerError, "manifestKeyConfigured": s.updates.ManifestKeyConfigured(), "githubAuth": s.updates.GitHubAuthStatus(), "items": items}})
 }
 
 func (s *server) uploadPlayerRelease(w http.ResponseWriter, r *http.Request) {

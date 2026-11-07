@@ -3,6 +3,7 @@ import { cp, mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { join, relative } from "node:path";
 import { build } from "vite";
+import { testBadge } from "../../../scripts/fork-branding.mjs";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const runtime = fileURLToPath(
@@ -36,7 +37,9 @@ await build({
   publicDir: false,
   define: {
     __RUNTIME_PATH__: JSON.stringify(runtimePath),
-    __HOST_VERSION__: JSON.stringify(pkg.version),
+    __HOST_VERSION__: JSON.stringify(
+      process.env.TILECAST_PLAYER_VERSION ?? pkg.version,
+    ),
   },
   build: {
     outDir: "dist",
@@ -56,6 +59,13 @@ for (const size of [192, 512]) {
   await sharp(join(runtime, "tilecast-logo-white.svg"))
     .resize(size - 48, size - 48, { fit: "contain" })
     .extend({ top: 24, bottom: 24, left: 24, right: 24, background: "#111827" })
+    .composite([
+      {
+        input: Buffer.from(
+          `<svg width="${size}" height="${size}">${testBadge(size * 0.2, size * 0.65, size * 0.6)}</svg>`,
+        ),
+      },
+    ])
     .png()
     .toFile(join(root, `dist/icons/player-${size}.png`));
 }
@@ -63,8 +73,8 @@ await writeFile(
   join(root, "dist/manifest.webmanifest"),
   JSON.stringify({
     id: "/player",
-    name: "Tilecast Browser Player",
-    short_name: "Tilecast Player",
+    name: "Tilecast TEST Browser Player",
+    short_name: "Tilecast TEST",
     start_url: "/player/",
     scope: "/player",
     display: "fullscreen",

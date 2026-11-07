@@ -50,6 +50,7 @@ RUN --mount=type=cache,id=tilecast-dashboard-tsbuild,target=/src/apps/dashboard/
     TILECAST_DASHBOARD_SOURCEMAP="${TILECAST_DASHBOARD_SOURCEMAP}" npm run build --workspace @tilecast/dashboard
 
 FROM node-deps AS player-web-build
+COPY scripts/fork-branding.mjs scripts/fork-branding.mjs
 COPY apps/player-web apps/player-web
 COPY packages/player-runtime packages/player-runtime
 COPY packages/manifest-schema/data-document-value-fixtures.json packages/manifest-schema/data-document-value-fixtures.json
@@ -70,7 +71,8 @@ COPY packages/player-contracts/player-capabilities.json packages/player-contract
 COPY widgets widgets
 COPY data-sources data-sources
 COPY plugins plugins
-RUN npm run build --workspace @tilecast/player-web
+ARG VERSION_NUMBER=0.0.0-dev
+RUN TILECAST_PLAYER_VERSION="${VERSION_NUMBER}" npm run build --workspace @tilecast/player-web
 
 FROM golang:1.27-alpine AS server
 RUN apk add --no-cache ca-certificates git
