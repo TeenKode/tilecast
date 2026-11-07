@@ -158,19 +158,10 @@ jobs:
           java -cp "$RUNNER_TEMP/apk-signature-check:$apksig_jar" VerifyApkSignature \
             apps/player-android/app/build/outputs/apk/debug/app-debug.apk "$TILECAST_TEST_CERT_SHA256"
 
-      - name: Test power methods and existing player runtime
+      - name: Test Android host and check lint
         working-directory: apps/player-android
         run: >-
-          ./gradlew :app:testDebugUnitTest
-          --tests 'org.tilecast.player.power.LocalCvteAdbTest'
-          --tests 'org.tilecast.player.core.CorePlayerConfigTest'
-          --tests 'org.tilecast.player.core.CorePlatformCommandsTest'
-          --tests 'org.tilecast.player.runtime.RuntimeHostSessionTest'
-          --tests 'org.tilecast.player.runtime.RemoteWebHostManagerTest'
-          --tests 'org.tilecast.player.runtime.TrustedRuntimeOriginTest'
-          --tests 'org.tilecast.player.core.ServerUrlPolicyTest'
-          --tests 'org.tilecast.player.core.PlayerCoreHostTest'
-          --tests 'org.tilecast.player.content.WebsitePolicyTest'
+          ./gradlew :app:testDebugUnitTest :app:lintDebug
           --no-daemon
 
       - name: Upload APK artifact

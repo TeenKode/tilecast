@@ -38,6 +38,8 @@ impl ConfigError {
 pub struct Cache {
     pub maximum_bytes: Option<u64>,
     pub minimum_free_bytes: Option<u64>,
+    /// `automatic` videos above this size stream instead of downloading.
+    pub automatic_threshold_bytes: Option<u64>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -58,6 +60,8 @@ pub struct Reliability {
     pub ladder_run_window_ms: i64,
     pub max_ladder_runs_before_safe_mode: usize,
     pub safe_mode_enabled: bool,
+    /// The first-render budget of a Website, from `webviewStallSeconds`.
+    pub website_first_render_ms: Option<i64>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -142,6 +146,7 @@ impl NativeConfiguration {
         let cache = Cache {
             maximum_bytes: bytes(cache_values, "maximumBytes"),
             minimum_free_bytes: bytes(cache_values, "minimumFreeBytes"),
+            automatic_threshold_bytes: bytes(cache_values, "automaticThresholdBytes"),
         };
 
         let sync_values = section(object, "sync");
@@ -164,6 +169,8 @@ impl NativeConfiguration {
                     .map_or(60 * 60_000, |minutes| ((minutes * 60_000.0) as i64).clamp(60_000, 7 * 86_400_000)),
                 max_ladder_runs_before_safe_mode: number(values, "maximumProcessRestarts")
                     .map_or(3, |count| (count.floor() as i64).clamp(1, 1_000) as usize),
+                website_first_render_ms: number(values, "webviewStallSeconds")
+                    .map(|seconds| ((seconds * 1_000.0) as i64).clamp(15_000, 600_000)),
                 safe_mode_enabled: values
                     .and_then(|values| values.get("safeModeEnabled"))
                     .is_none_or(|value| value.as_bool() != Some(false)),
@@ -256,7 +263,7 @@ mod tests {
         let document = json!({"schemaVersion":1,"configRevision":7,
             "cache":{"maximumBytes":123.9,"minimumFreeBytes":-1},
             "sync":{"statusReportSeconds":5,"manifestReconciliationSeconds":120.9},
-            "reliability":{"playbackStallSeconds":1,"restartWindowMinutes":100000,
+            "reliability":{"playbackStallSeconds":1,"webviewStallSeconds":2,"restartWindowMinutes":100000,
                 "maximumProcessRestarts":0,"safeModeEnabled":false},
             "power":{"activeHoursEnabled":true,"activeHoursTimezone":" UTC ",
                 "activeHoursDays":[1,2.5,8,7],"activeHoursStart":"7:30","activeHoursEnd":"bad"},
@@ -264,7 +271,10 @@ mod tests {
             "futurePlatform":{"policy":"host-owned"}});
         let parsed = NativeConfiguration::parse(&document).unwrap();
         assert_eq!(parsed.revision, 7);
-        assert_eq!(parsed.cache, Cache { maximum_bytes: Some(123), minimum_free_bytes: None });
+        assert_eq!(
+            parsed.cache,
+            Cache { maximum_bytes: Some(123), minimum_free_bytes: None, automatic_threshold_bytes: None }
+        );
         assert_eq!(
             parsed.sync,
             Sync { status_report: Duration::from_secs(60), manifest_reconciliation: Duration::from_secs(120) }
@@ -275,7 +285,8 @@ mod tests {
                 stall_threshold_ms: 10000,
                 ladder_run_window_ms: 7 * 86400000,
                 max_ladder_runs_before_safe_mode: 1,
-                safe_mode_enabled: false
+                safe_mode_enabled: false,
+                website_first_render_ms: Some(15_000),
             })
         );
         let hours = parsed.active_hours.as_ref().unwrap();

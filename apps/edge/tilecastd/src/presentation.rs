@@ -648,8 +648,10 @@ impl PresentationEngine {
         match action {
             HealAction::None => {}
             HealAction::Reactivate => {
-                if let Some(current) = self.current.take() {
-                    let _ = self.activate_revision(
+                // A clone: a failed reactivation keeps the presentation, so
+                // supervision keeps measuring the stall and retries later.
+                if let Some(current) = self.current.clone()
+                    && let Err(error) = self.activate_revision(
                         current.document,
                         current.content,
                         current.frames,
@@ -658,7 +660,9 @@ impl PresentationEngine {
                         current.identity,
                         current.extras,
                         now_ms,
-                    );
+                    )
+                {
+                    tracing::warn!(component = "presentation", event = "recovery_reactivation_failed", error = %error);
                 }
             }
             HealAction::ReloadRenderer => {
@@ -947,6 +951,7 @@ impl PresentationEngine {
             supervisor.ladder_run_window_ms = reliability.ladder_run_window_ms;
             supervisor.max_ladder_runs_before_safe_mode = reliability.max_ladder_runs_before_safe_mode;
             supervisor.safe_mode_enabled = reliability.safe_mode_enabled;
+            supervisor.website_first_render_ms = reliability.website_first_render_ms;
         }
         self.native.set_config(supervisor);
         self.configure.kiosk.prevent_display_sleep =
@@ -975,7 +980,7 @@ impl PresentationEngine {
     /// runtime starts the presentation from the beginning (the reference
     /// player's `reload_playback`).
     pub fn reload_current(&mut self, now_ms: i64) -> bool {
-        let Some(current) = self.current.take() else { return false };
+        let Some(current) = self.current.clone() else { return false };
         self.activate_revision(
             current.document,
             current.content,
@@ -1088,8 +1093,15 @@ impl PresentationEngine {
 /// Callers invoke this after a recovery action or command that changes
 /// supervision state. A failed write is logged, never fatal: the next
 /// supervision change persists again.
+///
+/// The whole read, snapshot, and write runs under one lock, and the engine is
+/// snapshotted after taking it. A caller that waits therefore persists the
+/// state as of its own turn, so a stale snapshot from the supervisor loop can
+/// neither overwrite a newer transition nor make that transition's write look
+/// like a no-op.
 pub async fn persist_supervision(context: &crate::daemon::DaemonContext) {
     let Some(db) = context.db() else { return };
+    let _serialized = context.supervision_persist.lock().await;
     let now = context.now();
     let previous = match db.run(|conn| edge_state::repo::renderer::get(conn)).await {
         Ok(record) => record,

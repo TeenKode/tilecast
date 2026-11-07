@@ -463,6 +463,7 @@ class PlayerViewModel internal constructor(
     private fun applyPlatformPolicy(config: CorePlayerConfig) {
         val platform = config.platform
         reliability.configurePowerMethods(platform.power.sleepMethod, platform.power.wakeMethod)
+        BootRecovery.setLaunchAfterBoot(getApplication<Application>(), platform.reliability.launchAfterBoot)
         prefs.edit()
             .putBoolean("launch-after-boot", platform.reliability.launchAfterBoot)
             .putBoolean("accessibility-enabled-by-policy", platform.accessibility.controlAssistEnabled)
@@ -519,7 +520,7 @@ class PlayerViewModel internal constructor(
             val state = mutableUpdate.value ?: return@launch
             val manager = updates ?: return@launch
             val server = (host.state.value as? CoreHostState.Ready)?.status?.serverUrl
-            manager.refreshPermission(server, credentials.read(), state)
+            manager.refreshPermission(server, credentials.read(), state) { mutableTakeoverActive.value }
             reportPlatformObservations()
         }
     }
@@ -537,7 +538,7 @@ class PlayerViewModel internal constructor(
         viewModelScope.launch {
             val state = mutableUpdate.value ?: return@launch
             val server = (host.state.value as? CoreHostState.Ready)?.status?.serverUrl
-            updates?.beginInstall(server, credentials.read(), state)
+            updates?.beginInstall(server, credentials.read(), state) { mutableTakeoverActive.value }
             reportPlatformObservations()
         }
     }

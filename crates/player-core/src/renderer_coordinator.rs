@@ -63,6 +63,14 @@ pub struct RendererCoordinator {
     last_recovery: Option<RecoveryCause>,
 }
 
+fn tolerances_for(config: &SupervisorConfig) -> HealthTolerances {
+    let defaults = HealthTolerances::default();
+    HealthTolerances {
+        website_first_render_ms: config.website_first_render_ms.unwrap_or(defaults.website_first_render_ms),
+        ..defaults
+    }
+}
+
 impl RendererCoordinator {
     pub fn new(packaged: PackagedRendererProfile, config: SupervisorConfig, now: Timestamp) -> Self {
         Self {
@@ -73,9 +81,9 @@ impl RendererCoordinator {
             next_generation: 1,
             tracker: RendererTracker::default(),
             supervisor: SupervisorState::new(now.unix_millis()),
+            tolerances: tolerances_for(&config),
             config,
             health: PlaybackHealthTracker::default(),
-            tolerances: HealthTolerances::default(),
             last_recovery: None,
         }
     }
@@ -233,6 +241,11 @@ impl RendererCoordinator {
             self.supervisor.reset_clock(now.unix_millis());
             return HealAction::None;
         }
+        if self.health.awaiting_website_first_render(now.unix_millis(), &self.tolerances) {
+            // The first render of a Website has its own budget, which the
+            // general playback threshold must not cut short.
+            return HealAction::None;
+        }
         let stall = self.playback_health(now).stall().cloned();
         let action = self.supervisor.evaluate(now.unix_millis(), &self.config);
         if action != HealAction::None
@@ -304,7 +317,20 @@ impl RendererCoordinator {
         }
     }
 
+    /// The operator's manual retry. Outside safe mode it runs the next due
+    /// ladder rung without the cooldown. In safe mode it leaves safe mode
+    /// and reactivates, keeping the ladder history so a renderer that is
+    /// still failing returns to safe mode after one more exhausted ladder.
     pub fn retry_recovery(&mut self, now: Timestamp) -> HealAction {
+        if self.supervisor.safe_mode {
+            let now_ms = now.unix_millis();
+            let history = std::mem::take(&mut self.supervisor.ladder_runs_at_ms);
+            self.supervisor.clear_safe_mode(now_ms);
+            self.supervisor.ladder_runs_at_ms = history;
+            self.supervisor.escalation_step = 1;
+            self.supervisor.last_action_at_ms = Some(now_ms);
+            return HealAction::Reactivate;
+        }
         self.supervisor.last_action_at_ms = None;
         self.evaluate_recovery(now)
     }
@@ -326,6 +352,7 @@ impl RendererCoordinator {
     }
 
     pub fn set_config(&mut self, config: SupervisorConfig) {
+        self.tolerances = tolerances_for(&config);
         self.config = config;
     }
     pub fn config(&self) -> SupervisorConfig {
@@ -615,6 +642,18 @@ mod tests {
     }
 
     #[test]
+    fn retry_recovery_leaves_safe_mode_and_reactivates() {
+        let mut core = coordinator();
+        core.restore_safe_mode("renderer recovery exhausted repeatedly", now(0));
+        core.supervisor.ladder_runs_at_ms = vec![0, 1];
+        assert_eq!(core.retry_recovery(now(1_000)), HealAction::Reactivate);
+        assert!(!core.is_safe_mode());
+        assert_eq!(core.supervisor.escalation_step, 1);
+        assert_eq!(core.supervisor.ladder_runs_at_ms, vec![0, 1]);
+        assert_eq!(core.supervisor.last_action_at_ms, Some(1_000));
+    }
+
+    #[test]
     fn recovery_ignores_presentations_without_playback_expectations() {
         let mut core = coordinator();
         let connection = uuid::Uuid::from_u128(1);
@@ -833,6 +872,41 @@ mod tests {
         let cause = rig.core.last_recovery().unwrap();
         assert_eq!(cause.stall.reason, StallReason::NeverRendered);
         assert_eq!(cause.stall.since_ms, SEC);
+    }
+
+    #[test]
+    fn a_website_gets_its_own_first_render_budget_before_the_playback_threshold_applies() {
+        let mut rig = Rig::new(Expectation::Website);
+        rig.core.set_config(SupervisorConfig {
+            stall_threshold_ms: 30 * SEC,
+            website_first_render_ms: Some(45 * SEC),
+            ..SupervisorConfig::default()
+        });
+        rig.report(ProgressEvidence::ItemStarted, None, SEC);
+        let actions = rig.run(10 * SEC, 2 * MIN, |_, _| {});
+        let (first_at, first) = actions[0];
+        assert_eq!(first, HealAction::Reactivate);
+        assert_eq!(first_at, 50 * SEC, "no recovery before the 45 second website budget is spent");
+        assert_eq!(rig.core.last_recovery().unwrap().stall.reason, StallReason::NeverRendered);
+    }
+
+    #[test]
+    fn a_website_that_renders_inside_its_budget_is_never_recovered() {
+        let mut rig = Rig::new(Expectation::Website);
+        rig.core.set_config(SupervisorConfig {
+            stall_threshold_ms: 30 * SEC,
+            website_first_render_ms: Some(45 * SEC),
+            ..SupervisorConfig::default()
+        });
+        rig.report(ProgressEvidence::ItemStarted, None, SEC);
+        let actions = rig.run(10 * SEC, 10 * MIN, |rig, at| {
+            if at == 40 * SEC {
+                rig.report(ProgressEvidence::WebsiteLoaded, None, at);
+            } else if at > 40 * SEC && every_30s(at) {
+                rig.report(ProgressEvidence::WebsiteAlive, None, at);
+            }
+        });
+        assert_eq!(actions, vec![]);
     }
 
     #[test]

@@ -79,8 +79,8 @@ class CorePlatformCommands(
             ?: return PlatformCommandExecutor.result(false, "command_unsupported", "Command has no type.")
         val payload = runCatching { root["payload"]?.jsonObject }.getOrNull() ?: buildJsonObject {}
         return when (type) {
-            "power_assist_sleep" -> powerResult(effects.powerSleep(), sleep = true)
-            "power_assist_wake" -> powerResult(effects.powerWake(), sleep = false)
+            "power_assist_sleep" -> powerResult(SLEEP_OUTCOMES, effects.powerSleep(), "Power Assist sleep did not happen.")
+            "power_assist_wake" -> powerResult(WAKE_OUTCOMES, effects.powerWake(), "Power Assist wake did not happen.")
             "restart_activity" -> {
                 effects.restartActivity()
                 PlatformCommandExecutor.result(
@@ -106,20 +106,9 @@ class CorePlatformCommands(
         }
     }
 
-    private fun powerResult(code: String, sleep: Boolean): String {
-        val accepted = if (sleep) {
-            code in setOf("device_policy_requested", "accessibility_lock_requested",
-                "accessibility_lock_deferred", "cvte_sleep_queued", "black_screen_selected")
-        } else {
-            code in setOf("device_wake_requested", "wake_lock_requested", "cvte_wake_queued")
-        }
-        val message = when {
-            code.startsWith("cvte_") -> "CVTE fake standby request queued; physical state is not yet confirmed."
-            code == "black_screen_selected" -> "Black screen selected; the display remains powered."
-            accepted -> "Android accepted the power operation."
-            else -> "Power method unavailable or blocked on this device."
-        }
-        return PlatformCommandExecutor.result(accepted, code, message)
+    private fun powerResult(outcomes: Map<String, PowerOutcome>, code: String, unknownMessage: String): String {
+        val outcome = outcomes[code] ?: PowerOutcome(false, unknownMessage)
+        return PlatformCommandExecutor.result(outcome.performed, code, outcome.message)
     }
 
     private fun installUpdate(
@@ -144,3 +133,39 @@ class CorePlatformCommands(
         return PlatformCommandExecutor.result(outcome.success, outcome.code, outcome.message)
     }
 }
+
+/**
+ * Whether a Power Assist result code means Android took the requested
+ * action. Core records `ok = false` as a failed command, so deferred,
+ * unsupported, and blocked outcomes must not report success.
+ */
+internal data class PowerOutcome(val performed: Boolean, val message: String)
+
+private val SLEEP_OUTCOMES = mapOf(
+    "cvte_sleep_queued" to PowerOutcome(true, "CVTE fake standby request queued; physical state is not yet confirmed."),
+    "black_screen_selected" to PowerOutcome(true, "Black screen selected; the display remains powered."),
+    "device_policy_unavailable" to PowerOutcome(false, "Device-policy sleep is unavailable on this screen."),
+    "accessibility_unavailable" to PowerOutcome(false, "Accessibility sleep is unavailable on this screen."),
+    "device_policy_requested" to PowerOutcome(true, "Power Assist sleep request was sent to Android."),
+    "accessibility_lock_requested" to PowerOutcome(true, "Power Assist sleep request was sent to Android."),
+    "accessibility_lock_deferred" to PowerOutcome(
+        true,
+        "Power Assist sleep is queued until Accessibility Control next responds.",
+    ),
+    "fire_tv_sleep_blocked" to PowerOutcome(false, "Fire TV does not let the Player put the display to sleep."),
+    "maintenance_session_deferred" to PowerOutcome(false, "Sleep was deferred because a maintenance session is open."),
+    "player_update_deferred" to PowerOutcome(false, "Sleep was deferred because a Player update is in progress."),
+    "black_screen_only" to PowerOutcome(
+        false,
+        "Android sleep is unavailable on this screen; the Player shows a black screen instead.",
+    ),
+    "sleep_unsupported" to PowerOutcome(false, "Android did not accept the sleep request."),
+)
+
+private val WAKE_OUTCOMES = mapOf(
+    "cvte_wake_queued" to PowerOutcome(true, "CVTE fake standby request queued; physical state is not yet confirmed."),
+    "wake_lock_requested" to PowerOutcome(true, "Android accepted the wake-lock request."),
+    "wake_lock_unsupported" to PowerOutcome(false, "Android did not accept the wake-lock request."),
+    "device_wake_requested" to PowerOutcome(true, "Power Assist wake request was sent to Android."),
+    "wake_launch_blocked" to PowerOutcome(false, "Android blocked the Player from starting to wake the screen."),
+)
