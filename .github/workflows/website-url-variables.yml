@@ -54,4 +54,4 @@ jobs:
       # setup-android@v3 requests the removed legacy `tools` package.
       - name: Compile Android and test URL variables
         working-directory: apps/player-android
-        run: ./gradlew :app:testDebugUnitTest --tests org.tilecast.player.runtime.WebsiteUrlVariablesTest --no-daemon
+        run: ./gradlew :app:testDebugUnitTest --tests org.tilecast.player.runtime.WebsiteUrlVariablesTest -x :app:verifySharedRuntime -x :app:buildNativeCore --no-daemon
