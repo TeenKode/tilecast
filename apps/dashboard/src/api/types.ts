@@ -2128,6 +2128,8 @@ export type ContentDefinitionField = {
     styleCard?: boolean;
     slider?: boolean;
     advanced?: boolean;
+    /** Sensitive value: mask while authoring; access controls still matter. */
+    secret?: boolean;
     semanticRole?: string;
     legacyKeys?: string[];
     typeFallback?: boolean;
