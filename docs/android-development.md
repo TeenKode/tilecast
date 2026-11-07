@@ -4,6 +4,14 @@ Tilecast Player uses JDK 17 and the checked-in Gradle wrapper. Install the SDK, 
 
 ## Native Player Core host
 
+### Website canvas zoom
+
+Android Website surfaces preserve the legacy Player's physical-pixel zoom.
+At 100%, one page pixel maps to one display pixel. Set this scale explicitly:
+WebView's automatic scale applies Android display density and can crop desktop
+pages on 320-dpi TVs. Do not multiply the configured Website zoom by density.
+The host-view position and size still use Runtime's viewport and device scale.
+
 ### Fork TLS and update profile
 
 Fork Dev artifacts use the optimized Release build type. They keep the `.test`
