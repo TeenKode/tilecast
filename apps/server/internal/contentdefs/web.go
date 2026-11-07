@@ -58,6 +58,12 @@ func WebPresentationURL(definition WidgetDefinition, configuration map[string]an
 	parsed.Fragment = ""
 	switch spec.Transform {
 	case "passthrough":
+	case "stream_gateway":
+		returnURL, streamErr := streamGatewayPlaybackURL(parsed, configuration)
+		if streamErr != nil {
+			return "", nil, streamErr
+		}
+		return returnURL, []string{host}, nil
 	case "google_sheets":
 		gid := strings.TrimSpace(stringConfig(configuration["sheetGid"]))
 		if gid == "" {
