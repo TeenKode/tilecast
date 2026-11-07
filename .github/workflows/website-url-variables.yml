@@ -50,7 +50,8 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-      - uses: android-actions/setup-android@v3
+      # GitHub Ubuntu runners already provide the Android SDK and command-line tools.
+      # setup-android@v3 requests the removed legacy `tools` package.
       - name: Compile Android and test URL variables
         working-directory: apps/player-android
         run: ./gradlew :app:testDebugUnitTest --tests org.tilecast.player.runtime.WebsiteUrlVariablesTest --no-daemon
