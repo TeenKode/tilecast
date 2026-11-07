@@ -68,10 +68,12 @@ export function resolveWebsiteUrl(
     }
     const match = /^([a-zA-Z_][\w-]*)(?::(\d{1,3}))?$/.exec(path);
     if (!match) return undefined;
+    const fieldName = match[1];
+    if (!fieldName) return undefined;
     const index = match[2] ? Number(match[2]) : 0;
     return data.records.length
-      ? data.records[index]?.rawFields[match[1]]
-      : (index === 0 ? data.rawObjectValues[match[1]] : undefined);
+      ? data.records[index]?.rawFields[fieldName]
+      : (index === 0 ? data.rawObjectValues[fieldName] : undefined);
   };
 
   try {
