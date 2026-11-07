@@ -31,7 +31,7 @@ func NativeStreamPlaybackURL(configuration map[string]any) (string, error) {
   return "", errors.New("stream URL must have a host and no embedded credentials or fragment")
  }
  switch strings.ToLower(source.Scheme) {
- case "rtsp", "rtmp", "rtmps":
+ case "rtsp", "rtmp":
   source.Scheme = strings.ToLower(source.Scheme)
  default:
   return "", errors.New("stream URL must use rtsp://, rtmp:// or rtmps://")
