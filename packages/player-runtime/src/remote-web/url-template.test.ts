@@ -36,6 +36,10 @@ describe("Website URL variables", () => {
     expect(resolved.searchParams.get("next")).toBe("Актовый зал");
     expect(resolved.hostname).toBe("example.org");
   });
+  it("preserves repeated parameter names", () => {
+    const url = new URL(resolveWebsiteUrl("https://example.org/?room={data.room}&room={data.room:1}", context)!);
+    expect(url.searchParams.getAll("room")).toEqual(["Кабинет & 3", "Актовый зал"]);
+  });
   it("passes JSON without injecting new query parameters", () => {
     const resolved = new URL(resolveWebsiteUrl("https://example.org/?rooms={data.json}", context)!);
     expect(JSON.parse(resolved.searchParams.get("rooms")!)).toEqual([
