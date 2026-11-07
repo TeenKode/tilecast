@@ -7,6 +7,7 @@ import java.util.TimeZone
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
+import kotlinx.serialization.json.putJsonObject
 import kotlinx.serialization.json.addJsonObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
