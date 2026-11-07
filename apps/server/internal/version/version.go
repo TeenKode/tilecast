@@ -56,7 +56,7 @@ func Display() string {
 	if IsRelease() {
 		return Version
 	}
-	if strings.HasSuffix(Version, "-dev") {
+	if strings.HasSuffix(Version, "-dev") || numberedDevPattern.MatchString(Version) {
 		return Version
 	}
 	return Version + "-dev"
@@ -80,7 +80,8 @@ func CurrentBuild() Build {
 // Stable and vX.Y.Z-beta.N for Beta. packages/player-contracts/fixtures/
 // release-versions.json is the corpus for which versions the unified release
 // accepts; scripts/release/release_version.py applies the same rule.
-var releaseTagPattern = regexp.MustCompile(`^v([0-9]+)\.([0-9]+)\.([0-9]+)(?:-beta\.([1-9][0-9]?))?$`)
+var numberedDevPattern = regexp.MustCompile(`^[0-9]+\.[0-9]+\.[0-9]+-dev\.(?:[1-9]|[1-8][0-9]|9[0-8])$`)
+var releaseTagPattern = regexp.MustCompile(`^v([0-9]+)\.([0-9]+)\.([0-9]+)(?:-(beta|dev)\.([1-9]|[1-8][0-9]|9[0-8]))?$`)
 
 // ParseReleaseTag validates a coordinated release tag and returns its version
 // and channel. Keep it in step with the tag check in
@@ -88,11 +89,11 @@ var releaseTagPattern = regexp.MustCompile(`^v([0-9]+)\.([0-9]+)\.([0-9]+)(?:-be
 func ParseReleaseTag(tag string) (versionName, channel string, err error) {
 	matches := releaseTagPattern.FindStringSubmatch(tag)
 	if matches == nil {
-		return "", "", fmt.Errorf("release tag must use v<major>.<minor>.<patch> or v<major>.<minor>.<patch>-beta.<n>")
+		return "", "", fmt.Errorf("release tag must use v<major>.<minor>.<patch> or a beta.<n>/dev.<n> suffix with n in 1..98")
 	}
 	versionName = fmt.Sprintf("%s.%s.%s", matches[1], matches[2], matches[3])
 	if matches[4] == "" {
 		return versionName, ChannelStable, nil
 	}
-	return versionName + "-beta." + matches[4], ChannelBeta, nil
+	return versionName + "-" + matches[4] + "." + matches[5], ChannelBeta, nil
 }

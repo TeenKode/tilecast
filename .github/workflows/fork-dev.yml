@@ -31,7 +31,7 @@ jobs:
           python3 -m unittest discover -s scripts/release -p 'test_*.py'
           python3 scripts/ci/check-android-stream-adapter.py
           cd apps/server
-          go test ./internal/updates ./internal/media ./internal/contentdefs ./internal/livestream
+          go test ./internal/version ./internal/updates ./internal/media ./internal/contentdefs ./internal/livestream
       - id: version
         run: |
           version="$(cat deploy/fork/VERSION)"

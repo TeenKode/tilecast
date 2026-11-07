@@ -47,6 +47,15 @@ func TestDisplayReportsInjectedVersionForStable(t *testing.T) {
 	}
 }
 
+func TestDisplayPreservesNumberedForkVersion(t *testing.T) {
+	oldVersion, oldChannel := Version, Channel
+	t.Cleanup(func() { Version, Channel = oldVersion, oldChannel })
+	Version, Channel = "1.0.1-dev.1", ChannelDevelopment
+	if got := CurrentBuild(); got.Version != Version || got.Channel != ChannelDevelopment {
+		t.Fatalf("fork identity changed: %+v", got)
+	}
+}
+
 func TestDisplayReportsInjectedVersionForBeta(t *testing.T) {
 	t.Cleanup(func() {
 		Version = DevelopmentVersion
@@ -77,6 +86,10 @@ func TestParseReleaseTag(t *testing.T) {
 		{"v1.2.3", "1.2.3", ChannelStable, true},
 		{"v0.26.0-beta.1", "0.26.0-beta.1", ChannelBeta, true},
 		{"v0.26.0-beta.98", "0.26.0-beta.98", ChannelBeta, true},
+		{"v1.0.1-dev.1", "1.0.1-dev.1", ChannelBeta, true},
+		{"v1.0.1-dev.98", "1.0.1-dev.98", ChannelBeta, true},
+		{"v1.0.1-dev.99", "", "", false},
+		{"v0.26.0-beta.99", "", "", false},
 		{"v0.26.0-beta", "", "", false},
 		{"v0.26.0-beta.0", "", "", false},
 		{"v0.26.0-beta.01", "", "", false},
