@@ -818,7 +818,8 @@ func (s *server) playerUpdateMetadata(w http.ResponseWriter, r *http.Request) {
 	var manifestBytes []byte
 	var stateSchema *int
 	var sdk *int
-	if err := s.db.QueryRow(r.Context(), `SELECT pr.platform,pr.player_family,pr.architecture,pr.version_code,pr.version_name,pr.minimum_sdk,pr.apk_size,pr.apk_sha256,pr.signing_certificate_sha256,pr.apk_name,pr.manifest_bytes,pr.manifest_signature,pr.state_schema_version FROM player_releases pr WHERE pr.id=$1 AND pr.verification_status='verified' AND EXISTS(SELECT 1 FROM screen_update_states st JOIN update_deployments d ON d.id=st.deployment_id WHERE st.screen_id=$2 AND d.release_id=pr.id AND d.status='active' AND st.state NOT IN ('cancelled','incompatible'))`, release, principal.ScreenID).Scan(&platform, &family, &architecture, &code, &name, &sdk, &size, &hash, &cert, &artifactName, &manifestBytes, &signature, &stateSchema); err != nil {
+	var applicationID *string
+	if err := s.db.QueryRow(r.Context(), `SELECT pr.platform,pr.player_family,pr.architecture,pr.version_code,pr.version_name,pr.minimum_sdk,pr.apk_size,pr.apk_sha256,pr.signing_certificate_sha256,pr.apk_name,pr.manifest_bytes,pr.manifest_signature,pr.state_schema_version,pr.application_id FROM player_releases pr WHERE pr.id=$1 AND pr.verification_status='verified' AND EXISTS(SELECT 1 FROM screen_update_states st JOIN update_deployments d ON d.id=st.deployment_id WHERE st.screen_id=$2 AND d.release_id=pr.id AND d.status='active' AND st.state NOT IN ('cancelled','incompatible'))`, release, principal.ScreenID).Scan(&platform, &family, &architecture, &code, &name, &sdk, &size, &hash, &cert, &artifactName, &manifestBytes, &signature, &stateSchema, &applicationID); err != nil {
 		writeError(w, 404, "player_update_not_found", "Update is unavailable for this screen.")
 		return
 	}
@@ -852,7 +853,7 @@ func (s *server) playerUpdateMetadata(w http.ResponseWriter, r *http.Request) {
 		data["artifactSha256"] = hash
 		data["artifactPath"] = fmt.Sprintf("/api/v1/player/updates/%s/artifact", release)
 	default:
-		data["applicationId"] = updates.ApplicationID
+		data["applicationId"] = applicationID
 		data["minimumSdk"] = sdk
 		data["apkSizeBytes"] = size
 		data["apkSha256"] = hash
