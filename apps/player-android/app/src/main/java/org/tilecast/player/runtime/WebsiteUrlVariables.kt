@@ -10,8 +10,6 @@ import java.time.format.DateTimeFormatter
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.jsonArray
-import kotlinx.serialization.json.jsonObject
 import org.tilecast.player.network.DocumentValue
 import org.tilecast.player.network.ManifestDataSource
 
@@ -62,8 +60,9 @@ internal object WebsiteUrlVariables {
                 else -> null
             }
             "data.values" -> if (rows.isEmpty()) null else {
-                val first = rows.first().keys.firstOrNull() ?: return@when null
-                JsonArray(rows.map { JsonPrimitive(it[first] ?: "") }).toString()
+                val first = rows.first().keys.firstOrNull()
+                if (first == null) null
+                else JsonArray(rows.map { JsonPrimitive(it[first] ?: "") }).toString()
             }
             else -> {
                 if (!key.startsWith("data.") || source == null) null
