@@ -25,7 +25,7 @@
             "control": "url",
             "required": true,
             "maxLength": 1024,
-            "description": "rtsp://, rtmp:// or rtmps:// address of the camera or broadcast encoder.",
+            "description": "rtsp:// or rtmp:// address of the camera or broadcast encoder.",
             "ui": {
               "section": "content",
               "order": 1
