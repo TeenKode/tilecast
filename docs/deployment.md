@@ -17,7 +17,6 @@ origins). Use HTTPS for these functions and for any installation exposed to
 untrusted networks; plain HTTP transmits Studio credentials and content
 without transport encryption.
 
-
 Docker bridge networking does not reliably publish multicast DNS on every Linux distribution, so `TILECAST_MDNS_ENABLED` is disabled in the Compose example. Players can always use the server's LAN address manually. Advanced Linux installations may enable mDNS when the container has appropriate host-network multicast access.
 
 ## Font catalog

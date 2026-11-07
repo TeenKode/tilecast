@@ -6,9 +6,7 @@ describe("HTTP-compatible randomUUID", () => {
     const getRandomValues = vi.fn((bytes: Uint8Array) => bytes.fill(0xff));
     const cryptoAPI = { getRandomValues } as unknown as Crypto;
     expect(installRandomUUIDCompatibility(cryptoAPI)).toBe(true);
-    expect(cryptoAPI.randomUUID()).toBe(
-      "ffffffff-ffff-4fff-bfff-ffffffffffff",
-    );
+    expect(cryptoAPI.randomUUID()).toBe("ffffffff-ffff-4fff-bfff-ffffffffffff");
     expect(getRandomValues).toHaveBeenCalledTimes(1);
     expect(getRandomValues.mock.calls[0]?.[0]).toHaveLength(16);
   });
