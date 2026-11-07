@@ -1,0 +1,20 @@
+# Optional service, independent of the Tilecast server compose.
+# Configure a trusted HTTPS reverse proxy for the gateway URL used by Studio.
+services:
+  stream-gateway:
+    build: .
+    restart: unless-stopped
+    environment:
+      STREAM_GATEWAY_KEY: ${STREAM_GATEWAY_KEY:?Set a shared encryption key}
+      STREAM_ALLOWED_HOSTS: ${STREAM_ALLOWED_HOSTS:?Set the source-host allowlist}
+      STREAM_GATEWAY_PORT: "8890"
+      STREAM_MAX_STREAMS: ${STREAM_MAX_STREAMS:-8}
+      STREAM_IDLE_SECONDS: ${STREAM_IDLE_SECONDS:-120}
+    ports:
+      - "8890:8890"
+    tmpfs:
+      - /tmp/tilecast-streams:size=512m,mode=1777
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
