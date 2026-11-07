@@ -34,7 +34,9 @@ internal object WebsiteUrlVariables {
         val beforeQuery = template.substringBefore('?')
         val fragment = template.substringAfter('#', "")
         if (beforeQuery.contains('{') || beforeQuery.contains('}') ||
-            fragment.contains('{') || fragment.contains('}')) return null
+            fragment.contains('{') || fragment.contains('}') ||
+            beforeQuery.contains("%7B", ignoreCase = true) ||
+            beforeQuery.contains("%7D", ignoreCase = true)) return null
         val parsed = runCatching { URL(template) }.getOrNull() ?: return null
         if (parsed.protocol !in listOf("http", "https") || parsed.host.isBlank() ||
             parsed.userInfo != null) return null
