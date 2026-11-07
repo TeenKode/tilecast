@@ -14,6 +14,9 @@ Dev build on the test TVs before proposing a separate feature PR upstream.
 The fork publishes the Android `.test` APK and its server image. It keeps
 the existing test APK certificate. It does not publish Edge or Windows.
 The release checks include importing a signed test manifest into PostgreSQL.
+Dev APKs use optimized Release builds with the permanent test certificate.
+The optional `TILECAST_PRIVATE_CA_SHA256` build setting identifies an enterprise
+CA already trusted by Android; it does not add certificate trust.
 To update the test server, run `bash deploy/fork/update.sh`. It selects the
 latest published Dev release and pulls the server by its immutable digest.
 You can pass a verified image explicitly to select another build.

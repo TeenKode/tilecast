@@ -63,7 +63,7 @@ jobs:
           python3 -m unittest discover -s scripts/release -p 'test_*.py'
           python3 scripts/ci/check-android-stream-adapter.py
           cd apps/server
-          go test ./internal/version ./internal/updates ./internal/media ./internal/contentdefs ./internal/livestream ./internal/playlists
+          go test ./internal/version ./internal/updates ./internal/httpapi ./internal/media ./internal/contentdefs ./internal/livestream ./internal/playlists
       - id: version
         env:
           FORK_VERSION: ${{ needs.version.outputs.number }}
@@ -96,6 +96,8 @@ jobs:
     needs: version
     if: github.repository == 'TeenKode/tilecast' && needs.version.outputs.published != 'true'
     runs-on: ubuntu-latest
+    env:
+      TILECAST_PRIVATE_CA_SHA256: ${{ secrets.TILECAST_PRIVATE_CA_SHA256 }}
     timeout-minutes: 65
     steps:
       - uses: actions/checkout@v7
@@ -156,7 +158,7 @@ jobs:
           python3 scripts/release/prepare_fork_android.py
       - name: Test and assemble
         working-directory: apps/player-android
-        run: ./gradlew :app:testDebugUnitTest :app:lintDebug :app:assembleDebug --no-daemon
+        run: ./gradlew :platform-verifier:testDebugUnitTest :app:testDebugUnitTest :app:lintRelease :app:assembleRelease --no-daemon
       - name: Package signed update
         env:
           TILECAST_FORK_MANIFEST_KEY: ${{ runner.temp }}/fork-signing/private.pem

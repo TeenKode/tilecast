@@ -1,7 +1,4 @@
 import java.util.Properties
-import org.gradle.api.file.RegularFileProperty
-import org.gradle.api.provider.ValueSource
-import org.gradle.api.provider.ValueSourceParameters
 import org.gradle.api.tasks.Sync
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
@@ -116,11 +113,8 @@ dependencies {
     implementation("androidx.media3:media3-ui:$media3Version")
 
     implementation("com.squareup.okhttp3:okhttp:5.5.0")
-    // Kotlin component of rustls-platform-verifier. The version stays
-    // unpinned here: the resolution strategy below pins it to the
-    // rustls-platform-verifier-android version in the root Cargo.lock, which
-    // is the exact native component it must match.
-    implementation("org.rustls:rustls-platform-verifier")
+    // JNI-compatible Kotlin verifier; its module checks the Cargo.lock version.
+    implementation(project(":platform-verifier"))
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
     implementation("com.google.zxing:core:3.5.4")
     // Lucide, the icon set Studio uses, as Android vector drawables
@@ -205,50 +199,6 @@ tasks.register<Exec>("verifySharedRuntime") {
 }
 
 tasks.named("preBuild") { dependsOn("verifySharedRuntime", "buildNativeCore", "syncGeistFont") }
-
-// The Kotlin verifier component must match the native
-// rustls-platform-verifier-android crate exactly; a SemVer mismatch crashes
-// at handshake time. This reads the locked version from the root Cargo.lock
-// through a ValueSource so Gradle's configuration cache stays valid. After a
-// version change, regenerate gradle/verification-metadata.xml with:
-// ./gradlew --write-verification-metadata sha256 :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleDebugAndroidTest
-abstract class RustlsVersion : ValueSource<String, RustlsVersion.Params> {
-    interface Params : ValueSourceParameters {
-        val lockFile: RegularFileProperty
-    }
-
-    companion object {
-        const val CRATE_NAME = "rustls-platform-verifier-android"
-    }
-
-    override fun obtain(): String {
-        val lines = parameters.lockFile.get().asFile.readLines()
-        val nameIndex = lines.indexOfFirst { it.trim() == "name = \"$CRATE_NAME\"" }
-        val version = if (nameIndex < 0) {
-            null
-        } else {
-            lines.drop(nameIndex + 1)
-                .firstOrNull { it.trimStart().startsWith("version = ") }
-                ?.substringAfter('"', "")
-                ?.substringBefore('"', "")
-                ?.takeIf { it.isNotEmpty() }
-        }
-        return version ?: error("$CRATE_NAME not found in Cargo.lock")
-    }
-}
-
-val rustlsPlatformVerifierVersion = providers.of(RustlsVersion::class.java) {
-    parameters.lockFile.set(layout.projectDirectory.file("../../../Cargo.lock"))
-}
-
-configurations.configureEach {
-    resolutionStrategy.eachDependency {
-        if (requested.group == "org.rustls" && requested.name == "rustls-platform-verifier") {
-            useVersion(rustlsPlatformVerifierVersion.get())
-            because("native component version must be identical to version of ${RustlsVersion.CRATE_NAME}")
-        }
-    }
-}
 
 // Native Player Core: cargo-ndk builds the Android host crate for every
 // shipped ABI into (gitignored) build output, which jniLibs then packages.

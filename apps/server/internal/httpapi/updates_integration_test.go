@@ -122,10 +122,33 @@ func TestCreateUpdateDeploymentPersistsHistoryAndCommand(t *testing.T) {
 		t.Fatalf("unexpected command payload: %#v", commandPayload)
 	}
 	var state string
+	// Player metadata must preserve the verified release's package identity.
+	// A hardcoded production package makes an otherwise valid .test OTA fail.
+	for _, applicationID := range []string{"org.tilecast.player", "org.tilecast.player.test"} {
+		if _, err = pool.Exec(ctx, `UPDATE player_releases SET application_id=$2,channel='beta',version_name='1.0.1-dev.3' WHERE id=$1`, releaseID, applicationID); err != nil {
+			t.Fatal(err)
+		}
+		metadataRequest := httptest.NewRequest(http.MethodGet, "/api/v1/player/updates/"+releaseID.String(), nil)
+		metadataRequest = metadataRequest.WithContext(context.WithValue(metadataRequest.Context(), deviceContextKey, devices.DevicePrincipal{ScreenID: screenID, Enabled: true}))
+		metadataRequest = withURLParam(metadataRequest, "releaseId", releaseID.String())
+		metadataResponse := httptest.NewRecorder()
+		s.playerUpdateMetadata(metadataResponse, metadataRequest)
+		var metadata struct {
+			Data struct {
+				ApplicationID string `json:"applicationId"`
+			} `json:"data"`
+		}
+		if err = json.Unmarshal(metadataResponse.Body.Bytes(), &metadata); err != nil || metadataResponse.Code != http.StatusOK || metadata.Data.ApplicationID != applicationID {
+			t.Fatalf("package metadata: status=%d body=%s err=%v", metadataResponse.Code, metadataResponse.Body.String(), err)
+		}
+	}
+	if _, err = pool.Exec(ctx, `UPDATE player_releases SET application_id='org.tilecast.player',channel='stable',version_name='0.11.0' WHERE id=$1`, releaseID); err != nil {
+		t.Fatal(err)
+	}
 	if err = pool.QueryRow(ctx, `SELECT state FROM screen_update_states WHERE deployment_id=$1 AND screen_id=$2`, created.Data.ID, screenID).Scan(&state); err != nil || state != "pending" {
 		t.Fatalf("screen update state=%q err=%v", state, err)
 	}
-	if _, err = pool.Exec(ctx, `UPDATE screen_update_states SET state='failed',safe_error='installer_conflict' WHERE deployment_id=$1 AND screen_id=$2`, created.Data.ID, screenID); err != nil {
+	if _, err = pool.Exec(ctx, `UPDATE player_commands SET state='failed',safe_result_code='installer_conflict',started_at=now(),completed_at=now() WHERE screen_id=$1 AND type='install_player_update'`, screenID); err != nil {
 		t.Fatal(err)
 	}
 

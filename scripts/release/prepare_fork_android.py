@@ -12,4 +12,10 @@ after = '''    buildTypes {
         release {'''
 if source.count(before) != 1:
     raise SystemExit("Unexpected Android buildTypes; refusing to change package identity")
-path.write_text(source.replace(before, after))
+source = source.replace(before, after)
+signing = '            signingConfig = signingConfigs.findByName("production")'
+if source.count(signing) != 1:
+    raise SystemExit("Unexpected release signing configuration")
+source = source.replace(signing, '''            applicationIdSuffix = ".test"
+            signingConfig = signingConfigs.getByName("debug")''')
+path.write_text(source)
