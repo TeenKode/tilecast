@@ -37,7 +37,9 @@ await build({
   publicDir: false,
   define: {
     __RUNTIME_PATH__: JSON.stringify(runtimePath),
-    __HOST_VERSION__: JSON.stringify(pkg.version),
+    __HOST_VERSION__: JSON.stringify(
+      process.env.TILECAST_PLAYER_VERSION ?? pkg.version,
+    ),
   },
   build: {
     outDir: "dist",

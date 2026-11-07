@@ -32,6 +32,7 @@ Increase N for each build. Increase the patch version when N reaches 98.
 Do not mix upstream Beta and fork Dev releases with the same core version
 and slot. A version code must increase before Android accepts an update.
 `deploy/fork/VERSION` selects the fork build version.
+The bundled Browser Player receives the Server image version at build time.
 
 The fork keeps the installed test Android package `org.tilecast.player.test`
 and its permanent test certificate. The server accepts this package only

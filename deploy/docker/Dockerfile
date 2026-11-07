@@ -71,7 +71,8 @@ COPY packages/player-contracts/player-capabilities.json packages/player-contract
 COPY widgets widgets
 COPY data-sources data-sources
 COPY plugins plugins
-RUN npm run build --workspace @tilecast/player-web
+ARG VERSION_NUMBER=0.0.0-dev
+RUN TILECAST_PLAYER_VERSION="${VERSION_NUMBER}" npm run build --workspace @tilecast/player-web
 
 FROM golang:1.27-alpine AS server
 RUN apk add --no-cache ca-certificates git
