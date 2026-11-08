@@ -56,12 +56,11 @@ class MediaCacheStorage(context: Context) {
      * Missing or unusable USB media falls back to the internal CAS.
      */
     fun resolvedMediaRoot(): File? {
-        val volumes = removableVolumes()
+        // Only eligible volumes participate in automatic selection, so a full
+        // first USB drive cannot hide another drive with sufficient space.
+        val volumes = removableVolumes().filter { it.freeBytes > 1024L * 1024 * 1024 }
         val wanted = chooseMediaVolumeId(selection(), volumes.map { it.id }) ?: return null
         val volume = volumes.firstOrNull { it.id == wanted } ?: return null
-        // Core retains a 1 GiB free-space floor. Avoid choosing an unusably
-        // small volume and keep the fallback entirely within internal storage.
-        if (volume.freeBytes <= 1024L * 1024 * 1024) return null
         val root = File(volume.filesDir, "tilecast-player-media")
         return root.takeIf {
             runCatching { (it.isDirectory || it.mkdirs()) && it.canWrite() }.getOrDefault(false)
