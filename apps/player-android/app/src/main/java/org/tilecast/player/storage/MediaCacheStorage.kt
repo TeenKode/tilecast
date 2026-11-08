@@ -51,6 +51,55 @@ class MediaCacheStorage(context: Context) {
             }
 
     /**
+     * Explicit, administrator-confirmed cleanup of obsolete internal media ONLY.
+     * Never touches state.db, installed config, credentials or preferences.
+     * The caller must revalidate the live native CAS path throughout deletion.
+     * Symlinks are not followed; unexpected entries abort without traversal.
+     */
+    fun cleanupOldInternalCache(externalCoreStillActive: () -> Boolean): String {
+        val root = File(app.filesDir, "player-core")
+        val expectedRoot = runCatching { root.canonicalFile }.getOrNull()
+            ?: return "Cleanup refused: internal path unavailable"
+        if (!externalCoreStillActive()) return "Cleanup refused: Core is not using USB"
+        var deleted = 0
+        for (name in listOf("cas", "partial")) {
+            if (!externalCoreStillActive()) return "Cleanup stopped: active storage changed ($deleted entries removed)"
+            val dir = File(root, name)
+            if (!dir.exists()) continue
+            if (!dir.isDirectory || dir.canonicalFile != File(expectedRoot, name)) {
+                return "Cleanup refused: unexpected internal cache path"
+            }
+            // Delete contents, not the CAS directory itself, so the internal
+            // layout remains valid if the operator selects internal later.
+            val children = dir.listFiles() ?: return "Cleanup stopped: cannot list internal cache"
+            for (child in children) {
+                if (!externalCoreStillActive()) return "Cleanup stopped: Core storage changed ($deleted entries removed)"
+                val count = deleteCacheTree(child, dir, externalCoreStillActive)
+                    ?: return "Cleanup stopped: unsafe path, I/O error, or Core storage changed ($deleted entries removed)"
+                deleted += count
+            }
+        }
+        return "Old internal media cleanup complete ($deleted entries removed). Database and settings were untouched."
+    }
+
+    private fun deleteCacheTree(file: File, boundary: File, stillSafe: () -> Boolean): Int? {
+        if (!stillSafe()) return null
+        // Canonical containment also prevents traversal through symbolic links.
+        val base = boundary.canonicalFile.toPath()
+        val path = file.canonicalFile.toPath()
+        if (!path.startsWith(base) || path == base) return null
+        if (java.nio.file.Files.isSymbolicLink(file.toPath())) return null
+        var count = 0
+        if (file.isDirectory) {
+            for (child in file.listFiles() ?: return null) {
+                count += deleteCacheTree(child, boundary, stillSafe) ?: return null
+            }
+        }
+        if (!stillSafe() || !file.delete()) return null
+        return count + 1
+    }
+
+    /**
      * Called only at cold Core startup. The database, pairing credentials,
      * configuration, and other private state remain in internal app storage.
      * Missing or unusable USB media falls back to the internal CAS.
