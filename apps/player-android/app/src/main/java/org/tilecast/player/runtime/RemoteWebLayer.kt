@@ -168,6 +168,12 @@ private fun PageView(
         modifier = modifier,
         factory = { context ->
             WebView(context).apply {
+                // WRAP_CONTENT gives percentage-height documents a zero-height
+                // containing block, even when Compose measures a full-size surface.
+                layoutParams = ViewGroup.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                )
                 settings.javaScriptEnabled = page.javascriptEnabled
                 settings.domStorageEnabled = page.domStorageEnabled
                 settings.allowFileAccess = false
