@@ -42,7 +42,7 @@ fun MediaStorageSettings() {
     val internalRoot = File(context.filesDir, "player-core").canonicalFile
     val externalActive = actualCas != null && runCatching {
         val active = File(actualCas).canonicalFile
-        active != internalCas.canonicalFile && !active.toPath().startsWith(internalRoot.toPath())
+        active != internalCas.canonicalFile && !active.absolutePath.startsWith(internalRoot.absolutePath + File.separator)
     }.getOrDefault(false)
     var confirmCleanup by remember { mutableStateOf(false) }
     var cleanupRunning by remember { mutableStateOf(false) }
@@ -112,9 +112,9 @@ fun MediaStorageSettings() {
                                 val ready = core.state.value as? CoreHostState.Ready
                                 val path = ready?.status?.takeIf { it.ok }?.casDir ?: return@cleanupOldInternalCache false
                                 runCatching {
-                                    val active = File(path).canonicalFile.toPath()
-                                    !active.startsWith(internalRoot.toPath()) &&
-                                        active == File(actualCas ?: "").canonicalFile.toPath()
+                                    val active = File(path).canonicalFile.absolutePath
+                                    !active.startsWith(internalRoot.absolutePath + File.separator) &&
+                                        active == File(actualCas ?: "").canonicalFile.absolutePath
                                 }.getOrDefault(false)
                             }
                         }
