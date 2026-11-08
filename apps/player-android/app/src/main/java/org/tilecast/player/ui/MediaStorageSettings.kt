@@ -36,6 +36,7 @@ fun MediaStorageSettings() {
     val core = remember(context) { PlayerCoreHost.get(context) }
     val coreState by core.state.collectAsState()
     val scope = rememberCoroutineScope()
+    var volumes by remember { mutableStateOf(storage.removableVolumes()) }
     val internalCas = remember(context) { File(context.filesDir, "player-core/cas") }
     val internalPartial = remember(context) { File(context.filesDir, "player-core/partial") }
     val actualCas = (coreState as? CoreHostState.Ready)?.status?.takeIf { it.ok }?.casDir
@@ -49,7 +50,6 @@ fun MediaStorageSettings() {
     var cleanupRunning by remember { mutableStateOf(false) }
     var cleanupResult by remember { mutableStateOf<String?>(null) }
     var selection by remember { mutableStateOf(storage.selection()) }
-    var volumes by remember { mutableStateOf(storage.removableVolumes()) }
     val usable = volumes.filter { it.freeBytes > 1024L * 1024 * 1024 }
     val selectedAvailable = usable.any { it.id == selection.volumeId }
     val configuredDescription = when (selection.mode) {
