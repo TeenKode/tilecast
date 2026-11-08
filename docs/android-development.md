@@ -11,8 +11,11 @@ At 100%, one page pixel maps to one display pixel. Set this scale explicitly:
 WebView's automatic scale applies Android display density and can crop desktop
 pages on 320-dpi TVs. Do not multiply the configured Website zoom by density.
 The host-view position and size still use Runtime's viewport and device scale.
+Remote page WebViews use `MATCH_PARENT` for both layout dimensions.
+The default `WRAP_CONTENT` can give percentage-height documents a zero-height
+containing block, even when the visible native view has the correct size.
 
-Website URL variables in Layout widgets resolve in the shared Runtime. The
+Website URL variables in Layout widgets resolve in the shared Runtime.
 Both the production Rust adapter and the Kotlin compatibility projection must
 carry `screenId` from the verified manifest so
 `{screen.id}` identifies the enrolled screen, including after a process restart.
