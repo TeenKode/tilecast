@@ -76,6 +76,7 @@ directory. SQLite state, pairing and configuration always stay in internal stora
 
 Open local administrator maintenance (Back, Back, Up, Down, OK), unlock with the
 local PIN, and select **Media cache storage**:
+
 - Internal memory (default).
 - Automatic (first writable removable volume, falling back to internal).
 - A specific USB volume (falls back to internal if it is absent).
