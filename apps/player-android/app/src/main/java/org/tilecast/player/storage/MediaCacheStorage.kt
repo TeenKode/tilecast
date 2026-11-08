@@ -155,6 +155,13 @@ class MediaCacheStorage(context: Context) {
         val coreDir = File(app.filesDir, "player-core")
         val targets = listOf(internalCas, File(coreDir, "partial"))
         if (targets.none { it.exists() }) return CleanupResult.EMPTY
+        // The Core directory itself must be a normal directory within the
+        // app-private files root, not an alias to another location.
+        val validCore = runCatching {
+            (Os.lstat(coreDir.absolutePath).st_mode and OsConstants.S_IFMT) == OsConstants.S_IFDIR &&
+                coreDir.canonicalFile == File(app.filesDir.canonicalFile, "player-core")
+        }.getOrDefault(false)
+        if (!validCore) return CleanupResult.UNSAFE_LAYOUT
         // Preflight all entries before deleting anything. Reject symbolic links,
         // special files and paths escaping the app's Core directory.
         if (targets.any { !isSafeCacheTree(it, coreDir) }) return CleanupResult.UNSAFE_LAYOUT
@@ -165,22 +172,26 @@ class MediaCacheStorage(context: Context) {
         }
     }
 
-    private fun isSafeCacheTree(node: File, coreDir: File): Boolean {
+    private fun isSafeCacheEntry(node: File, coreDir: File): Boolean {
         if (!node.exists()) return true
         return runCatching {
             val mode = Os.lstat(node.absolutePath).st_mode and OsConstants.S_IFMT
-            val isDirectory = mode == OsConstants.S_IFDIR
-            if (mode != OsConstants.S_IFREG && !isDirectory) return@runCatching false
-            val corePath = coreDir.canonicalPath + File.separator
-            if (!node.canonicalPath.startsWith(corePath)) return@runCatching false
-            !isDirectory || node.listFiles()?.all { isSafeCacheTree(it, coreDir) } == true
+            if (mode != OsConstants.S_IFREG && mode != OsConstants.S_IFDIR) return@runCatching false
+            node.canonicalPath.startsWith(coreDir.canonicalPath + File.separator)
         }.getOrDefault(false)
+    }
+
+    private fun isSafeCacheTree(node: File, coreDir: File): Boolean {
+        if (!isSafeCacheEntry(node, coreDir)) return false
+        if (!node.isDirectory) return true
+        return node.listFiles()?.all { isSafeCacheTree(it, coreDir) } == true
     }
 
     private fun removeSafeCacheTree(node: File, coreDir: File): Boolean {
         if (!node.exists()) return true
-        // Validate again to reduce exposure to changes after the preflight.
-        if (!isSafeCacheTree(node, coreDir)) return false
+        // Recheck this entry after the full-tree preflight, without recursively
+        // rescanning every subtree at every level (large CAS caches are common).
+        if (!isSafeCacheEntry(node, coreDir)) return false
         if (node.isDirectory) {
             val children = node.listFiles() ?: return false
             if (!children.all { removeSafeCacheTree(it, coreDir) }) return false
