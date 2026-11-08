@@ -136,11 +136,7 @@ class MediaCacheStorage(context: Context) {
     private fun isPlainDirectory(file: File): Boolean = fileMode(file) == OsConstants.S_IFDIR
 
     /** lstat detects dangling symlinks; File.exists() would silently skip them. */
-    private fun fileMode(file: File): Int? = try {
-        Os.lstat(file.absolutePath).st_mode and OsConstants.S_IFMT
-    } catch (error: android.system.ErrnoException) {
-        if (error.errno == OsConstants.ENOENT) MISSING else null
-    }
+    private fun fileMode(file: File): Int? = cacheEntryMode(file)
 
     private companion object { const val MISSING = -1 }
 
@@ -168,4 +164,11 @@ internal fun canClearInactiveInternalCache(
     return eligibleUsbCasDirs.any { candidate ->
         runCatching { candidate.canonicalFile == actual }.getOrDefault(false)
     }
+}
+
+/** lstat rather than exists: dangling symlinks must never be mistaken for missing files. */
+internal fun cacheEntryMode(file: File): Int? = try {
+    Os.lstat(file.absolutePath).st_mode and OsConstants.S_IFMT
+} catch (error: android.system.ErrnoException) {
+    if (error.errno == OsConstants.ENOENT) -1 else null
 }
