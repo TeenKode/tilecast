@@ -42,7 +42,8 @@ fun MediaStorageSettings() {
     val internalRoot = File(context.filesDir, "player-core").canonicalFile
     val externalActive = actualCas != null && runCatching {
         val active = File(actualCas).canonicalFile
-        active != internalCas.canonicalFile && !active.absolutePath.startsWith(internalRoot.absolutePath + File.separator)
+        active != internalCas.canonicalFile && !active.absolutePath.startsWith(internalRoot.absolutePath + File.separator) &&
+            volumes.any { volume -> active == File(volume.filesDir, "tilecast-player-media/cas").canonicalFile }
     }.getOrDefault(false)
     var confirmCleanup by remember { mutableStateOf(false) }
     var cleanupRunning by remember { mutableStateOf(false) }
@@ -110,11 +111,14 @@ fun MediaStorageSettings() {
                         val result = withContext(Dispatchers.IO) {
                             storage.cleanupOldInternalCache {
                                 val ready = core.state.value as? CoreHostState.Ready
-                                val path = ready?.status?.takeIf { it.ok }?.casDir ?: return@cleanupOldInternalCache false
+                                val path = ready?.takeIf { it.coreRunning }?.status?.takeIf { it.ok }?.casDir ?: return@cleanupOldInternalCache false
                                 runCatching {
                                     val active = File(path).canonicalFile.absolutePath
                                     !active.startsWith(internalRoot.absolutePath + File.separator) &&
-                                        active == File(actualCas ?: "").canonicalFile.absolutePath
+                                        active == File(actualCas ?: "").canonicalFile.absolutePath &&
+                                        storage.removableVolumes().any { volume ->
+                                            active == File(volume.filesDir, "tilecast-player-media/cas").canonicalPath
+                                        }
                                 }.getOrDefault(false)
                             }
                         }
