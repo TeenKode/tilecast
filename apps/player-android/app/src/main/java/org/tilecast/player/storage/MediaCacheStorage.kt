@@ -113,7 +113,7 @@ class MediaCacheStorage(context: Context) {
             if (!safe()) return false
             val mode = fileMode(file) ?: return false
             if (mode == MISSING) return true
-            if (mode != OsConstants.S_IFREG && mode != OsConstants.S_IFDIR) return false
+            if (!isSafeCacheMode(mode)) return false
             if (!runCatching { file.canonicalPath.startsWith(root.canonicalPath + File.separator) }.getOrDefault(false)) return false
             if (mode == OsConstants.S_IFDIR) {
                 val children = file.listFiles() ?: return false
@@ -172,3 +172,7 @@ internal fun cacheEntryMode(file: File): Int? = try {
 } catch (error: android.system.ErrnoException) {
     if (error.errno == OsConstants.ENOENT) -1 else null
 }
+
+/** Pure type check, separately testable without Android's lstat syscall. */
+internal fun isSafeCacheMode(mode: Int?): Boolean =
+    mode == OsConstants.S_IFREG || mode == OsConstants.S_IFDIR
