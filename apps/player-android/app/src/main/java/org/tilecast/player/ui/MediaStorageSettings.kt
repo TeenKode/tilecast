@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -11,18 +12,18 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.rememberCoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import java.io.File
-import org.tilecast.player.core.CoreHostState
-import org.tilecast.player.core.PlayerCoreHost
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import org.tilecast.player.core.CoreHostState
+import org.tilecast.player.core.PlayerCoreHost
 import org.tilecast.player.storage.MediaCacheStorage
+import org.tilecast.player.ui.theme.SignalButton
 import org.tilecast.player.ui.theme.SignalMuted
 import org.tilecast.player.ui.theme.SignalOutlinedButton
 import org.tilecast.player.ui.theme.SignalText
@@ -35,21 +36,15 @@ fun MediaStorageSettings() {
     val storage = remember(context) { MediaCacheStorage(context) }
     val core = remember(context) { PlayerCoreHost.get(context) }
     val coreState by core.state.collectAsState()
-    val scope = rememberCoroutineScope()
+    val activeCasDir = ((coreState as? CoreHostState.Ready)?.status)
+        ?.takeIf { it.ok }?.casDir
+    var selection by remember { mutableStateOf(storage.selection()) }
     var volumes by remember { mutableStateOf(storage.removableVolumes()) }
-    val internalCas = remember(context) { File(context.filesDir, "player-core/cas") }
-    val internalPartial = remember(context) { File(context.filesDir, "player-core/partial") }
-    val actualCas = (coreState as? CoreHostState.Ready)?.status?.takeIf { it.ok }?.casDir
-    val internalRoot = File(context.filesDir, "player-core").canonicalFile
-    val externalActive = actualCas != null && runCatching {
-        val active = File(actualCas).canonicalFile
-        active != internalCas.canonicalFile && !active.absolutePath.startsWith(internalRoot.absolutePath + File.separator) &&
-            volumes.any { volume -> active == File(volume.filesDir, "tilecast-player-media/cas").canonicalFile }
-    }.getOrDefault(false)
     var confirmCleanup by remember { mutableStateOf(false) }
     var cleanupRunning by remember { mutableStateOf(false) }
-    var cleanupResult by remember { mutableStateOf<String?>(null) }
-    var selection by remember { mutableStateOf(storage.selection()) }
+    var cleanupFeedback by remember { mutableStateOf<String?>(null) }
+    val scope = rememberCoroutineScope()
+
     val usable = volumes.filter { it.freeBytes > 1024L * 1024 * 1024 }
     val selectedAvailable = usable.any { it.id == selection.volumeId }
     val configuredDescription = when (selection.mode) {
@@ -57,20 +52,23 @@ fun MediaStorageSettings() {
         "usb" -> if (selectedAvailable) "USB (${usable.first { it.id == selection.volumeId }.label} currently eligible)" else "USB unavailable (internal fallback on next start)"
         else -> "Internal memory"
     }
+    val activeUsb = storage.activeUsbVolume(activeCasDir, volumes)
+    val runningDescription = when {
+        activeCasDir == null -> "Core has not reported an active cache"
+        storage.isInternalActive(activeCasDir) -> "Internal memory"
+        activeUsb != null -> "USB ${activeUsb.label}"
+        else -> "External path not recognized as currently mounted USB"
+    }
 
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text("Media cache storage", color = SignalText, style = MaterialTheme.typography.titleMedium)
         Text("Configured for next Core start: $configuredDescription", color = SignalMuted, style = MaterialTheme.typography.bodyMedium)
-        Text(
-            "Actually active Core CAS: " + when {
-                actualCas == null -> "not available (Core has not reported a ready cache)"
-                externalActive -> "USB ($actualCas)"
-                else -> "internal ($actualCas)"
-            },
-            color = if (actualCas == null) SignalWarning else SignalText,
-            style = MaterialTheme.typography.bodyMedium,
-        )
-        Text("The configured selection only applies after a full process restart. If USB failed to open at startup, the actual Core path above remains internal. Removing USB during playback does not trigger a seamless fallback.", color = SignalWarning, style = MaterialTheme.typography.bodyMedium)
+        Text("Actually running (native Core): $runningDescription", color = SignalText, style = MaterialTheme.typography.bodyMedium)
+        Text("Active CAS directory: ${activeCasDir ?: "unavailable"}", color = SignalMuted, style = MaterialTheme.typography.bodyMedium)
+        if (activeCasDir != null && storage.isInternalActive(activeCasDir) && selection.mode != "internal") {
+            Text("USB is configured, but Core is actually using internal memory. The selected USB may have been missing or failed to open; check USB and fully restart Tilecast.", color = SignalWarning, style = MaterialTheme.typography.bodyMedium)
+        }
+        Text("Changes require force-stopping and relaunching the entire Player process or rebooting the TV. The maintenance 'Restart Tilecast' button only restarts the Activity, not the native Core.", color = SignalWarning, style = MaterialTheme.typography.bodyMedium)
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             SignalOutlinedButton(onClick = {
                 storage.save("internal")
@@ -95,47 +93,63 @@ fun MediaStorageSettings() {
         } else if (usable.isEmpty()) {
             Text("USB needs more than 1 GiB free and must be writable.", color = SignalWarning, style = MaterialTheme.typography.bodyMedium)
         }
-        if (externalActive && !cleanupRunning) {
-            SignalOutlinedButton(onClick = { confirmCleanup = true; cleanupResult = null }) {
-                Text("Clean up old internal media cache")
-            }
-        }
-        if (confirmCleanup) {
-            Text("Delete ONLY old internal CAS and incomplete downloads? This cannot be undone. Media may need to download again. The internal SQLite database, pairing, credentials and settings are preserved. Cleanup is available only while Native Core reports an active external CAS.", color = SignalWarning)
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                SignalOutlinedButton(onClick = { confirmCleanup = false }) { Text("Cancel") }
-                SignalOutlinedButton(onClick = {
-                    confirmCleanup = false
-                    cleanupRunning = true
-                    scope.launch {
-                        val result = withContext(Dispatchers.IO) {
-                            storage.cleanupOldInternalCache {
-                                val ready = core.state.value as? CoreHostState.Ready
-                                val path = ready?.takeIf { it.coreRunning }?.status?.takeIf { it.ok }?.casDir ?: return@cleanupOldInternalCache false
-                                runCatching {
-                                    val active = File(path).canonicalFile.absolutePath
-                                    !active.startsWith(internalRoot.absolutePath + File.separator) &&
-                                        active == File(actualCas ?: "").canonicalFile.absolutePath &&
-                                        storage.removableVolumes().any { volume ->
-                                            active == File(volume.filesDir, "tilecast-player-media/cas").canonicalPath
-                                        }
-                                }.getOrDefault(false)
-                            }
-                        }
-                        cleanupResult = result
-                        cleanupRunning = false
-                    }
-                }) { Text("Confirm deletion") }
-            }
-        }
-        if (cleanupRunning) Text("Cleaning old internal cache…", color = SignalMuted)
-        cleanupResult?.let { Text(it, color = SignalMuted) }
         Text(
-            "Reboot the TV or fully force-stop and reopen Tilecast to apply this choice. " +
-                "Existing internal cached files are not moved or deleted and may continue using significant TV storage. Missing media is downloaded again when online. " +
+            "Existing internal cached files are not moved or removed when USB is selected. " +
+                "The new USB cache downloads missing media again while online. " +
                 "Do not remove USB media during playback.",
             color = SignalMuted,
             style = MaterialTheme.typography.bodyMedium,
+        )
+        if (activeUsb != null) {
+            SignalOutlinedButton(onClick = { confirmCleanup = true }, enabled = !cleanupRunning) {
+                Text(if (cleanupRunning) "Clearing internal cache…" else "Clear inactive internal media cache")
+            }
+        } else {
+            Text("Internal cache cleanup is only available when native Core confirms that it is running on a currently mounted USB volume.", color = SignalMuted, style = MaterialTheme.typography.bodyMedium)
+        }
+        cleanupFeedback?.let { message ->
+            Text(message, color = SignalWarning, style = MaterialTheme.typography.bodyMedium)
+        }
+    }
+
+    if (confirmCleanup) {
+        AlertDialog(
+            onDismissRequest = { confirmCleanup = false },
+            title = { Text("Delete the old internal media cache?") },
+            text = {
+                Text(
+                    "Only player-core/cas and player-core/partial in internal storage will be deleted. " +
+                        "The active USB cache, SQLite database, pairing, credentials and settings are preserved. " +
+                        "If USB is later removed or unavailable, offline playback may stop until the content is downloaded again. " +
+                        "This cannot be undone."
+                )
+            },
+            confirmButton = {
+                SignalButton(onClick = {
+                    confirmCleanup = false
+                    cleanupRunning = true
+                    cleanupFeedback = null
+                    scope.launch {
+                        val result = withContext(Dispatchers.IO) {
+                            // Re-read Core's actual status, not a cached selected volume.
+                            val nativeCas = (core.state.value as? CoreHostState.Ready)
+                                ?.status?.takeIf { it.ok }?.casDir
+                            storage.clearInactiveInternalCache(nativeCas)
+                        }
+                        cleanupRunning = false
+                        cleanupFeedback = when (result) {
+                            MediaCacheStorage.CleanupResult.CLEARED -> "Old internal CAS and partial downloads deleted; pairing and settings were kept."
+                            MediaCacheStorage.CleanupResult.EMPTY -> "There was no old internal media cache to delete."
+                            MediaCacheStorage.CleanupResult.NOT_USING_USB -> "Cleanup refused: native Core is not confirmed active on a currently mounted USB volume."
+                            MediaCacheStorage.CleanupResult.UNSAFE_LAYOUT -> "Cleanup refused: unexpected cache filesystem layout or symbolic link."
+                            MediaCacheStorage.CleanupResult.FAILED -> "Cleanup failed. Some old cached files may remain; the active USB cache and private state were not targeted."
+                        }
+                    }
+                }) { Text("Delete old cache") }
+            },
+            dismissButton = {
+                SignalOutlinedButton(onClick = { confirmCleanup = false }) { Text("Cancel") }
+            },
         )
     }
 }
