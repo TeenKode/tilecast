@@ -1,12 +1,27 @@
 package org.tilecast.player.storage
 
 import java.io.File
+import java.nio.file.Files
+import android.system.OsConstants
+import org.junit.Rule
+import org.junit.rules.TemporaryFolder
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class MediaCacheStorageTest {
+    @get:Rule val temporary = TemporaryFolder()
+
+    @Test fun danglingSymlinkIsNeverClassifiedAsMissing() {
+        val root = temporary.newFolder("cache")
+        val dangling = File(root, "dangling")
+        Files.createSymbolicLink(dangling.toPath(), File(root, "missing-target").toPath())
+        assertFalse(dangling.exists()) // File.exists follows the broken link.
+        assertEquals(OsConstants.S_IFLNK, cacheEntryMode(dangling))
+        assertEquals(-1, cacheEntryMode(File(root, "genuinely-missing")))
+    }
+
     private val usb = listOf("/storage/ABCD-1234/Android/data/org.tilecast.player/files", "/storage/5678-AAAA/Android/data/org.tilecast.player/files")
 
     @Test fun defaultsToInternal() {
