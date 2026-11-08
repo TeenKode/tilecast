@@ -528,12 +528,8 @@ impl AndroidPlayerConfig {
                 &["auto", "device_policy", "accessibility", "black_screen", "cvte"],
             )
             .unwrap_or(power_defaults.sleep_method),
-            wake_method: token(
-                power_values,
-                "androidWakeMethod",
-                &["auto", "activity", "wake_lock", "cvte"],
-            )
-            .unwrap_or(power_defaults.wake_method),
+            wake_method: token(power_values, "androidWakeMethod", &["auto", "activity", "wake_lock", "cvte"])
+                .unwrap_or(power_defaults.wake_method),
             keep_screen_on: flag_on(power_values, "keepScreenOn"),
             sleep_outside_active_hours: flag_off(power_values, "sleepOutsideActiveHours"),
             startup_grace_seconds: count(
@@ -837,8 +833,7 @@ mod tests {
             json!({"androidSleepMethod": "shell", "androidWakeMethod": "root"}),
             json!({"androidSleepMethod": false, "androidWakeMethod": 26}),
         ] {
-            let config = AndroidPlayerConfig::parse(&document(json!({"power": power})))
-                .expect("parse");
+            let config = AndroidPlayerConfig::parse(&document(json!({"power": power}))).expect("parse");
             assert_eq!(config.platform.power.sleep_method, "auto");
             assert_eq!(config.platform.power.wake_method, "auto");
         }
