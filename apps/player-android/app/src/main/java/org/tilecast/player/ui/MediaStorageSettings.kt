@@ -17,9 +17,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import org.tilecast.player.core.CoreHostState
 import org.tilecast.player.core.PlayerCoreHost
 import org.tilecast.player.storage.MediaCacheStorage
@@ -130,12 +128,9 @@ fun MediaStorageSettings() {
                     cleanupRunning = true
                     cleanupFeedback = null
                     scope.launch {
-                        val result = withContext(Dispatchers.IO) {
-                            // Re-read Core's actual status, not a cached selected volume.
-                            val nativeCas = (core.state.value as? CoreHostState.Ready)
-                                ?.status?.takeIf { it.ok }?.casDir
-                            storage.clearInactiveInternalCache(nativeCas)
-                        }
+                        // Core holds its lifecycle lock and re-reads JNI status
+                        // before each deletion; no stale StateFlow snapshot.
+                        val result = core.clearInactiveInternalMediaCache(storage)
                         cleanupRunning = false
                         cleanupFeedback = when (result) {
                             MediaCacheStorage.CleanupResult.CLEARED -> "Old internal CAS and partial downloads deleted; pairing and settings were kept."
