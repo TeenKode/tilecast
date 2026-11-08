@@ -22,6 +22,16 @@ public final class Probe extends Instrumentation {
             final Activity activity = waitForMonitorWithTimeout(monitor, 15000);
             if (activity == null) throw new IllegalStateException("No player activity");
             Thread.sleep(15000);
+            runOnMainSync(() -> {
+                WebView remote = find(activity.getWindow().getDecorView());
+                if (remote != null) {
+                    result.putString("beforeParams", remote.getLayoutParams().width+"x"+remote.getLayoutParams().height);
+                    remote.setLayoutParams(new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+                    remote.requestLayout();
+                    remote.reload();
+                }
+            });
+            Thread.sleep(5000);
             final CountDownLatch done = new CountDownLatch(1);
             runOnMainSync(() -> {
                 WebView remote = find(activity.getWindow().getDecorView());
