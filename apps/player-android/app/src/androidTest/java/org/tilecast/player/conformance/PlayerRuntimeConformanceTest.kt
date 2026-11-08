@@ -21,7 +21,6 @@ import androidx.test.platform.app.InstrumentationRegistry
 import androidx.webkit.WebViewAssetLoader
 import androidx.webkit.WebViewCompat
 import androidx.webkit.WebViewFeature
-import java.io.ByteArrayInputStream
 import java.io.File
 import java.util.Locale
 import java.util.TimeZone
@@ -30,6 +29,8 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
 import org.json.JSONObject
 import org.tilecast.player.runtime.TrustedRuntimeOrigin
+import org.tilecast.player.runtime.TcMediaBridge
+import org.tilecast.player.runtime.MediaAuthorization
 import org.junit.Test
 import org.junit.runner.RunWith
 
@@ -403,20 +404,11 @@ class PlayerRuntimeConformanceTest {
         } else {
             "video/mp4"
         }
-        val headers = mutableMapOf("Accept-Ranges" to "bytes")
-        val range = rangeHeader?.removePrefix("bytes=")?.split("-")
-        if (range?.size == 2) {
-            val start = range[0].toLongOrNull() ?: 0L
-            val end = range[1].toLongOrNull()?.coerceAtMost(bytes.size - 1L) ?: (bytes.size - 1L)
-            if (start in 0 until bytes.size && end >= start) {
-                headers["Content-Range"] = "bytes $start-$end/${bytes.size}"
-                val slice = bytes.sliceArray(start.toInt()..end.toInt())
-                return WebResourceResponse(
-                    mime, null, 206, "Partial Content", headers,
-                    ByteArrayInputStream(slice),
-                )
-            }
-        }
-        return WebResourceResponse(mime, null, 200, "OK", headers, ByteArrayInputStream(bytes))
+        val resolved = TcMediaBridge.resolve(
+            "tcmedia://variant/fixture/$hex",
+            setOf(MediaAuthorization.AuthorizedMedia("fixture", hex)),
+            mapOf(hex to file.absolutePath), mapOf(hex to mime), rangeHeader,
+        ) ?: return WebResourceResponse("text/plain", null, 404, "not found", emptyMap(), null)
+        return TcMediaBridge.toResponse(resolved)
     }
 }

@@ -199,7 +199,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onStart() {
         super.onStart()
-        model.onForegroundChanged(true)
+        model.onForegroundChanged(this, true)
         ContextCompat.registerReceiver(this, clockReceiver, IntentFilter().apply { addAction(Intent.ACTION_TIME_CHANGED); addAction(Intent.ACTION_TIMEZONE_CHANGED) }, ContextCompat.RECEIVER_NOT_EXPORTED)
         model.onClockChanged()
         model.refreshUpdatePermission()
@@ -208,11 +208,15 @@ class MainActivity : ComponentActivity() {
         reliabilityHandler.postDelayed({ BootRecovery.markForegroundHealthy(this); model.refreshCommissioning() }, 5000)
     }
 
-    override fun onResume() { super.onResume(); model.refreshCommissioning() }
+    override fun onResume() {
+        super.onResume()
+        model.onForegroundChanged(this, true)
+        model.refreshCommissioning()
+    }
 
     override fun onStop() {
         captureEpoch++
-        model.onForegroundChanged(false)
+        model.onForegroundChanged(this, false)
         unregisterReceiver(clockReceiver)
         super.onStop()
     }

@@ -105,7 +105,8 @@ class TrustedRuntimeWebView(
                 if (url.startsWith("${MediaAuthorization.SCHEME}:", ignoreCase = true) ||
                     url.startsWith("${FrameAuthorization.SCHEME}:", ignoreCase = true)
                 ) {
-                    return mediaInterceptor(url, request.requestHeaders?.get("Range"))
+                    val range = request.requestHeaders?.entries?.firstOrNull { it.key.equals("Range", true) }?.value
+                    return mediaInterceptor(url, range)
                         ?: super.shouldInterceptRequest(view, request)
                 }
                 return assetLoader.shouldInterceptRequest(request.url)

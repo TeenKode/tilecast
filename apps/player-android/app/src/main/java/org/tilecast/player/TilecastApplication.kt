@@ -11,6 +11,8 @@ import org.tilecast.player.work.HeartbeatWorker
 import java.util.concurrent.TimeUnit
 
 class TilecastApplication : Application() {
+    internal val playerActivityVisibility = PlayerActivityVisibility()
+
     override fun onCreate() {
         super.onCreate()
         WebView.setWebContentsDebuggingEnabled(false)

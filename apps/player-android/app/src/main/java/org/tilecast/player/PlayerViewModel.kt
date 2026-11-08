@@ -437,10 +437,12 @@ class PlayerViewModel internal constructor(
     }
 
     /** The Activity reports foreground transitions for presence and power policy. */
-    fun onForegroundChanged(foreground: Boolean) {
-        prefs.edit().putBoolean("foreground", foreground).apply {
-            if (!foreground) putLong("last-foreground-exit", System.currentTimeMillis())
-        }.apply()
+    fun onForegroundChanged(activity: android.app.Activity, visible: Boolean) {
+        val visibility = getApplication<TilecastApplication>().playerActivityVisibility
+        val wasForeground = visibility.isForeground
+        if (!visibility.update(activity, visible) && wasForeground) {
+            prefs.edit().putLong("last-foreground-exit", System.currentTimeMillis()).apply()
+        }
         reportPlatformObservations()
     }
 
@@ -570,7 +572,7 @@ class PlayerViewModel internal constructor(
             update?.errorCode?.let { put("updateError", it) }
             put("configuredReliabilityMode", configured)
             put("effectiveReliabilityMode", effective)
-            put("foregroundState", if (prefs.getBoolean("foreground", false)) "foreground" else "background")
+            put("foregroundState", if (getApplication<TilecastApplication>().playerActivityVisibility.isForeground) "foreground" else "background")
             instantOrNull(prefs.getLong("last-foreground-exit", 0))?.let { put("lastForegroundExitAt", it) }
             if (prefs.getBoolean("report-foreground-package", false)) {
                 prefs.getString("last-foreground-package", null)?.let { put("lastForegroundPackage", it) }

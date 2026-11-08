@@ -39,6 +39,14 @@ A screen that stops reporting sends nothing, so connectivity incidents are also 
 
 A Player that restarts an item when its manifest is reconciled can fail for a few milliseconds and then play the same item normally, and it reports neither `renderer.recovered` nor a new root presentation. A `content.completed` event therefore recovers the open playback incident when all of these hold: the event names the same content the incident was opened for, the session reached `expected_item_boundary` or `completed_duration`, it carries no failure code, and it lasted at least [the minimum play](#minimum-play). Playback of other content does not recover the incident. A healthy image on a screen whose video keeps failing says nothing about the video, and closing the incident on it would reopen it on the next failure as a series of one-second outages.
 
+The Server also checks an open safe-mode incident against the current heartbeat.
+Confirmed healthy playback with safe mode off recovers the incident automatically.
+This check covers a Player restart that does not report `safe_mode.exited`.
+An absent status, background playback, or a playback error does not prove recovery.
+Contact-only liveness requests and rejected status messages do not recover safe mode.
+The Server records one `safe_mode.exited` event for this recovery.
+Later healthy heartbeats do not add recovery events.
+
 A condition that returns after recovering opens a _new_ incident rather than reviving the old one. Two outages must not be measured as one.
 
 **Probable cause is only stated when the evidence establishes it.** A heartbeat gap proves reporting stopped; it proves nothing about why, so the incident carries no cause and Studio shows "Unknown cause". A renderer failure reported by the Player is evidence, and is stated.
