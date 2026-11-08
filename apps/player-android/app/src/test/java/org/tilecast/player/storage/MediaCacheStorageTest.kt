@@ -1,7 +1,6 @@
 package org.tilecast.player.storage
 
 import java.io.File
-import android.system.OsConstants
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -12,10 +11,13 @@ class MediaCacheStorageTest {
         // JVM unit tests cannot call android.system.Os.lstat (Android API).
         // The native lstat result is checked here; device coverage must
         // exercise actual dangling symlinks in an instrumentation test.
-        assertFalse(isSafeCacheMode(OsConstants.S_IFLNK))
-        assertFalse(isSafeCacheMode(OsConstants.S_IFSOCK))
-        assertTrue(isSafeCacheMode(OsConstants.S_IFDIR))
-        assertTrue(isSafeCacheMode(OsConstants.S_IFREG))
+        // Android framework constants are stubbed in local JVM tests.
+        // POSIX S_IF* values are stable Linux ABI values; device tests
+        // separately exercise Os.lstat and dangling symlink behavior.
+        assertFalse(isSafeCacheMode(0xA000)) // S_IFLNK
+        assertFalse(isSafeCacheMode(0xC000)) // S_IFSOCK
+        assertTrue(isSafeCacheMode(0x4000))  // S_IFDIR
+        assertTrue(isSafeCacheMode(0x8000))  // S_IFREG
         assertFalse(isSafeCacheMode(null))
     }
 
