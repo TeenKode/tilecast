@@ -175,4 +175,6 @@ internal fun cacheEntryMode(file: File): Int? = try {
 
 /** Pure type check, separately testable without Android's lstat syscall. */
 internal fun isSafeCacheMode(mode: Int?): Boolean =
-    mode == OsConstants.S_IFREG || mode == OsConstants.S_IFDIR
+    // Linux POSIX file-type values. Android's OsConstants are stubbed to zero
+    // in local JVM tests; the production lstat mask still uses OsConstants.
+    mode == 0x8000 || mode == 0x4000
