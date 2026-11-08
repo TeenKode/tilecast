@@ -29,15 +29,16 @@ fun MediaStorageSettings() {
     var volumes by remember { mutableStateOf(storage.removableVolumes()) }
     val usable = volumes.filter { it.freeBytes > 1024L * 1024 * 1024 }
     val selectedAvailable = usable.any { it.id == selection.volumeId }
-    val activeDescription = when (selection.mode) {
-        "auto" -> if (usable.isNotEmpty()) "Automatic: USB (${usable.first().label})" else "Automatic: internal (no usable USB)"
-        "usb" -> if (selectedAvailable) "USB (${usable.first { it.id == selection.volumeId }.label})" else "USB disconnected: internal fallback"
+    val configuredDescription = when (selection.mode) {
+        "auto" -> if (usable.isNotEmpty()) "Automatic (USB ${usable.first().label} currently eligible)" else "Automatic (no eligible USB currently)"
+        "usb" -> if (selectedAvailable) "USB (${usable.first { it.id == selection.volumeId }.label} currently eligible)" else "USB unavailable (internal fallback on next start)"
         else -> "Internal memory"
     }
 
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text("Media cache storage", color = SignalText, style = MaterialTheme.typography.titleMedium)
-        Text("Selected: $activeDescription", color = SignalMuted, style = MaterialTheme.typography.bodyMedium)
+        Text("Configured for next Core start: $configuredDescription", color = SignalMuted, style = MaterialTheme.typography.bodyMedium)
+        Text("Actual running cache location is not reported by Core. A restart is required after changing storage; startup may fall back to internal storage if USB cannot be opened.", color = SignalWarning, style = MaterialTheme.typography.bodyMedium)
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             SignalOutlinedButton(onClick = {
                 storage.save("internal")
@@ -64,7 +65,7 @@ fun MediaStorageSettings() {
         }
         Text(
             "Reboot the TV or fully force-stop and reopen Tilecast to apply this choice. " +
-                "Cached files are not moved; missing media is downloaded again when online. " +
+                "Existing internal cached files are not moved or deleted and may continue using significant TV storage. Missing media is downloaded again when online. " +
                 "Do not remove USB media during playback.",
             color = SignalMuted,
             style = MaterialTheme.typography.bodyMedium,
