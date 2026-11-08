@@ -7,10 +7,18 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.File
+import org.tilecast.player.core.CoreHostState
+import org.tilecast.player.core.PlayerCoreHost
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -25,6 +33,20 @@ import org.tilecast.player.ui.theme.SignalWarning
 fun MediaStorageSettings() {
     val context = LocalContext.current
     val storage = remember(context) { MediaCacheStorage(context) }
+    val core = remember(context) { PlayerCoreHost.get(context) }
+    val coreState by core.state.collectAsState()
+    val scope = rememberCoroutineScope()
+    val internalCas = remember(context) { File(context.filesDir, "player-core/cas") }
+    val internalPartial = remember(context) { File(context.filesDir, "player-core/partial") }
+    val actualCas = (coreState as? CoreHostState.Ready)?.status?.takeIf { it.ok }?.casDir
+    val internalRoot = File(context.filesDir, "player-core").canonicalFile
+    val externalActive = actualCas != null && runCatching {
+        val active = File(actualCas).canonicalFile
+        active != internalCas.canonicalFile && !active.toPath().startsWith(internalRoot.toPath())
+    }.getOrDefault(false)
+    var confirmCleanup by remember { mutableStateOf(false) }
+    var cleanupRunning by remember { mutableStateOf(false) }
+    var cleanupResult by remember { mutableStateOf<String?>(null) }
     var selection by remember { mutableStateOf(storage.selection()) }
     var volumes by remember { mutableStateOf(storage.removableVolumes()) }
     val usable = volumes.filter { it.freeBytes > 1024L * 1024 * 1024 }
@@ -38,7 +60,16 @@ fun MediaStorageSettings() {
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text("Media cache storage", color = SignalText, style = MaterialTheme.typography.titleMedium)
         Text("Configured for next Core start: $configuredDescription", color = SignalMuted, style = MaterialTheme.typography.bodyMedium)
-        Text("Actual running cache location is not reported by Core. A restart is required after changing storage; startup may fall back to internal storage if USB cannot be opened.", color = SignalWarning, style = MaterialTheme.typography.bodyMedium)
+        Text(
+            "Actually active Core CAS: " + when {
+                actualCas == null -> "not available (Core has not reported a ready cache)"
+                externalActive -> "USB ($actualCas)"
+                else -> "internal ($actualCas)"
+            },
+            color = if (actualCas == null) SignalWarning else SignalText,
+            style = MaterialTheme.typography.bodyMedium,
+        )
+        Text("The configured selection only applies after a full process restart. If USB failed to open at startup, the actual Core path above remains internal. Removing USB during playback does not trigger a seamless fallback.", color = SignalWarning, style = MaterialTheme.typography.bodyMedium)
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             SignalOutlinedButton(onClick = {
                 storage.save("internal")
@@ -63,6 +94,38 @@ fun MediaStorageSettings() {
         } else if (usable.isEmpty()) {
             Text("USB needs more than 1 GiB free and must be writable.", color = SignalWarning, style = MaterialTheme.typography.bodyMedium)
         }
+        if (externalActive && !cleanupRunning) {
+            SignalOutlinedButton(onClick = { confirmCleanup = true; cleanupResult = null }) {
+                Text("Clean up old internal media cache")
+            }
+        }
+        if (confirmCleanup) {
+            Text("Delete ONLY old internal CAS and incomplete downloads? This cannot be undone. Media may need to download again. The internal SQLite database, pairing, credentials and settings are preserved. Cleanup is available only while Native Core reports an active external CAS.", color = SignalWarning)
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                SignalOutlinedButton(onClick = { confirmCleanup = false }) { Text("Cancel") }
+                SignalOutlinedButton(onClick = {
+                    confirmCleanup = false
+                    cleanupRunning = true
+                    scope.launch {
+                        val result = withContext(Dispatchers.IO) {
+                            storage.cleanupOldInternalCache {
+                                val ready = core.state.value as? CoreHostState.Ready
+                                val path = ready?.status?.takeIf { it.ok }?.casDir ?: return@cleanupOldInternalCache false
+                                runCatching {
+                                    val active = File(path).canonicalFile.toPath()
+                                    !active.startsWith(internalRoot.toPath()) &&
+                                        active == File(actualCas ?: "").canonicalFile.toPath()
+                                }.getOrDefault(false)
+                            }
+                        }
+                        cleanupResult = result
+                        cleanupRunning = false
+                    }
+                }) { Text("Confirm deletion") }
+            }
+        }
+        if (cleanupRunning) Text("Cleaning old internal cache…", color = SignalMuted)
+        cleanupResult?.let { Text(it, color = SignalMuted) }
         Text(
             "Reboot the TV or fully force-stop and reopen Tilecast to apply this choice. " +
                 "Existing internal cached files are not moved or deleted and may continue using significant TV storage. Missing media is downloaded again when online. " +
