@@ -19,7 +19,7 @@ internal object PlayerCoreNative {
     }
 
     external fun nativeVersion(): String?
-    external fun nativeOpen(filesDir: String, userAgent: String, setupRelay: String, handler: CoreBridgeHandler): Long
+    external fun nativeOpen(filesDir: String, mediaRoot: String, userAgent: String, setupRelay: String, handler: CoreBridgeHandler): Long
     external fun nativeStatus(handle: Long): String?
     external fun nativeStartCore(handle: Long): Int
     external fun nativeBeginPairing(handle: Long, url: String): String?

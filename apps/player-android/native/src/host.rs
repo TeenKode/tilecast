@@ -27,7 +27,7 @@ use crate::drivers::Drivers;
 use crate::jvm::Jvm;
 use crate::manifest_host::{AndroidManifestHost, PrepareError};
 use crate::pairing_host::{JvmMetadataSource, MetadataSource};
-use crate::paths::{CorePaths, core_paths};
+use crate::paths::{CorePaths, core_paths, core_paths_with_media};
 use crate::renderer::{AndroidRendererPort, JvmRendererPlatform, PresentationEngine, RendererSnapshot};
 use crate::stores::{JvmCredentialStore, JvmPairingStore, JvmStoreCalls, StoreCalls};
 
@@ -873,6 +873,18 @@ fn validated(user_agent: &str) -> Result<String, HostError> {
 ///
 /// `setup_relay` is the phone setup relay origin; empty turns phone setup off.
 pub fn open_host(files_dir: &Path, jvm: Arc<Jvm>, user_agent: &str, setup_relay: &str) -> Result<i64, HostError> {
+    open_host_on_media(files_dir, None, jvm, user_agent, setup_relay)
+}
+
+/// A removable media root is supplied only after Android has enumerated and
+/// validated an app-specific, mounted and writable external directory.
+pub fn open_host_on_media(
+    files_dir: &Path,
+    media_root: Option<&Path>,
+    jvm: Arc<Jvm>,
+    user_agent: &str,
+    setup_relay: &str,
+) -> Result<i64, HostError> {
     let calls: Arc<dyn StoreCalls> = Arc::new(JvmStoreCalls::new(jvm.clone()));
     let meta: Arc<dyn MetadataSource> = Arc::new(JvmMetadataSource::new(jvm.clone()));
     let platform: Arc<dyn crate::commands::PlatformCommands> =
@@ -884,7 +896,7 @@ pub fn open_host(files_dir: &Path, jvm: Arc<Jvm>, user_agent: &str, setup_relay:
             player_core::SetupRelay::at(Some(origin)).map(|relay| Arc::new(relay) as Arc<dyn player_core::PhoneRelay>)
         }
     };
-    open_host_with(files_dir, calls, meta, platform, renderer, user_agent, Some(jvm), phone_setup)
+    open_host_with_media(files_dir, media_root, calls, meta, platform, renderer, user_agent, Some(jvm), phone_setup)
 }
 
 /// Opens the process host against abstract stores. Production uses
@@ -900,7 +912,33 @@ pub fn open_host_with(
     jvm: Option<Arc<Jvm>>,
     phone_setup: Option<Arc<dyn player_core::PhoneRelay>>,
 ) -> Result<i64, HostError> {
+    open_host_with_media(files_dir, None, calls, meta, platform, renderer, user_agent, jvm, phone_setup)
+}
+
+#[allow(clippy::too_many_arguments)]
+pub fn open_host_with_media(
+    files_dir: &Path,
+    media_root: Option<&Path>,
+    calls: Arc<dyn StoreCalls>,
+    meta: Arc<dyn MetadataSource>,
+    platform: Arc<dyn crate::commands::PlatformCommands>,
+    renderer: Arc<dyn crate::renderer::RendererPlatform>,
+    user_agent: &str,
+    jvm: Option<Arc<Jvm>>,
+    phone_setup: Option<Arc<dyn player_core::PhoneRelay>>,
+) -> Result<i64, HostError> {
     if files_dir.as_os_str().is_empty() || !files_dir.is_absolute() {
+        return Err(HostError::FilesDir);
+    }
+    // Paths originate from getExternalFilesDirs() in Kotlin; reject malformed
+    // or traversing paths even at this internal JNI boundary.
+    if media_root.is_some_and(|path| {
+        !path.is_absolute()
+            || path.components().any(|part| matches!(
+                part,
+                std::path::Component::ParentDir | std::path::Component::CurDir
+            ))
+    }) {
         return Err(HostError::FilesDir);
     }
     let user_agent = validated(user_agent)?;
@@ -908,7 +946,7 @@ pub fn open_host_with(
     if live.is_some() {
         return Err(HostError::AlreadyLive);
     }
-    let host = AndroidHost::open(core_paths(files_dir), calls, meta, platform, renderer, user_agent, jvm, phone_setup)?;
+    let host = AndroidHost::open(core_paths_with_media(files_dir, media_root), calls, meta, platform, renderer, user_agent, jvm, phone_setup)?;
     *live = Some(Arc::new(host));
     Ok(LIVE_HANDLE)
 }

@@ -29,6 +29,7 @@ import org.tilecast.player.content.PlayerUpdateManager
 import org.tilecast.player.network.TilecastApi
 import org.tilecast.player.reliability.ReliabilityController
 import org.tilecast.player.security.MigratingCredentialStore
+import org.tilecast.player.storage.MediaCacheStorage
 
 /** Renderer snapshot shared by the native host (bridge contract v3). */
 data class CoreRendererStatus(
@@ -489,10 +490,16 @@ interface CoreBridge {
     fun close(handle: Long): Int
 }
 
-internal class JniCoreBridge : CoreBridge {
+internal class JniCoreBridge(private val mediaRoot: String = "") : CoreBridge {
     override fun version(): String? = PlayerCoreNative.nativeVersion()
-    override fun open(filesDir: String, userAgent: String, setupRelay: String, handler: CoreBridgeHandler): Long =
-        PlayerCoreNative.nativeOpen(filesDir, userAgent, setupRelay, handler)
+    override fun open(filesDir: String, userAgent: String, setupRelay: String, handler: CoreBridgeHandler): Long {
+        val selected = PlayerCoreNative.nativeOpen(filesDir, mediaRoot, userAgent, setupRelay, handler)
+        // A drive can disappear between Android's enumeration and CAS open.
+        // Never prevent startup when internal storage remains usable.
+        return if (selected == 0L && mediaRoot.isNotEmpty()) {
+            PlayerCoreNative.nativeOpen(filesDir, "", userAgent, setupRelay, handler)
+        } else selected
+    }
     override fun statusJson(handle: Long): String? = PlayerCoreNative.nativeStatus(handle)
     override fun startCore(handle: Long): Int = PlayerCoreNative.nativeStartCore(handle)
     override fun beginPairing(handle: Long, url: String): String? =
@@ -876,7 +883,7 @@ class PlayerCoreHost private constructor(
 
         private fun build(context: Context): PlayerCoreHost {
             val app = context.applicationContext
-            val bridge = JniCoreBridge()
+            val bridge = JniCoreBridge(MediaCacheStorage(app).resolvedMediaRoot()?.absolutePath.orEmpty())
             val coreDir = File(app.filesDir, "player-core")
             val credentials = MigratingCredentialStore.forProduction(app)
             val updates = PlayerUpdateManager(app as Application, TilecastApi())

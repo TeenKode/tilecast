@@ -67,3 +67,24 @@ report from it, so preparation and the live renderer cannot disagree. Run
 
 Native text uses Geist through `ui/theme/Type.kt`. The `syncGeistFont` Gradle
 task packages the vendored font. Do not set a font family in a composable.
+
+### USB media cache (Android TV)
+
+The Android Player can store **verified media CAS objects and resumable downloads** on
+a mounted, writable USB volume exposed by Android as an app-specific external files
+directory. SQLite state, pairing and configuration always stay in internal storage.
+
+Open local administrator maintenance (Back, Back, Up, Down, OK), unlock with the
+local PIN, and select **Media cache storage**:
+- Internal memory (default).
+- Automatic (first writable removable volume, falling back to internal).
+- A specific USB volume (falls back to internal if it is absent).
+
+Reboot the TV or fully force-stop and reopen the Player after changing the
+selection. Moving existing cache objects is not automatic. The CAS reconciles
+its index at startup and fetches missing media again while online. Reinsert a
+missing USB drive and restart to use it again. Unplugging the drive while
+playing interrupts media hosted there. Supported storage uses regular
+filesystem paths via `getExternalFilesDirs`; SAF-only USB storage is not
+eligible. This feature requires no root or broad storage permission. The
+existing CAS limit and free-space reserve still apply.
