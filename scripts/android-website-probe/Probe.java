@@ -11,7 +11,8 @@ import java.util.concurrent.TimeUnit;
 
 /** Temporary signed instrumentation; reads only public remote-page diagnostics. */
 public final class Probe extends Instrumentation {
-    @Override public void onCreate(Bundle arguments) { super.onCreate(arguments); start(); }
+    private boolean preview;
+    @Override public void onCreate(Bundle arguments) { super.onCreate(arguments); preview=arguments!=null && "true".equals(arguments.getString("preview")); start(); }
     @Override public void onStart() {
         final Bundle result = new Bundle();
         try {
@@ -22,6 +23,14 @@ public final class Probe extends Instrumentation {
             final Activity activity = waitForMonitorWithTimeout(monitor, 15000);
             if (activity == null) throw new IllegalStateException("No player activity");
             Thread.sleep(15000);
+            if (preview) {
+                runOnMainSync(() -> {
+                    WebView remote=find(activity.getWindow().getDecorView());
+                    if(remote!=null) remote.evaluateJavascript("window.FadeOutScreen=false;window.FadeOutScreenCnt=0;window.Redraw=true",null);
+                });
+                Thread.sleep(1500);
+                result.putString("preview", "Local working-hours preview only; restart restores site policy");
+            }
             final CountDownLatch done = new CountDownLatch(1);
             runOnMainSync(() -> {
                 WebView remote = find(activity.getWindow().getDecorView());
@@ -36,6 +45,7 @@ public final class Probe extends Instrumentation {
                 remote.evaluateJavascript("JSON.stringify({href:location.href,width:innerWidth,height:innerHeight,dpr:devicePixelRatio,title:document.title,visibility:document.documentElement.style.visibility,ready:document.readyState,canvas:!!window.Canvas,nika:!!window.NIKA,fade:window.FadeOutScreen,redraw:window.Redraw,work:window.WORK_PERIOD,bg:document.body.style.background,scripts:Array.from(document.scripts).map(s=>s.src),main:document.getElementById('MainDiv')?document.getElementById('MainDiv').getBoundingClientRect().toJSON():null,canvasSize:window.Canvas?[Canvas.width,Canvas.height]:null})", value -> {result.putString("page",value);done.countDown();});
             });
             if (!done.await(10, TimeUnit.SECONDS)) result.putString("timeout", "JavaScript callback timeout");
+            if (preview) { sendStatus(0,result); Thread.sleep(20000); }
             finish(Activity.RESULT_OK, result);
         } catch (Throwable error) { result.putString("probeError", error.toString()); finish(Activity.RESULT_CANCELED,result); }
     }
