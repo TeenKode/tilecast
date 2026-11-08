@@ -13,7 +13,8 @@ pages on 320-dpi TVs. Do not multiply the configured Website zoom by density.
 The host-view position and size still use Runtime's viewport and device scale.
 
 Website URL variables in Layout widgets resolve in the shared Runtime. The
-Android projection must carry `screenId` from the verified manifest so
+Both the production Rust adapter and the Kotlin compatibility projection must
+carry `screenId` from the verified manifest so
 `{screen.id}` identifies the enrolled screen, including after a process restart.
 This is the server's screen UUID, not its name, IP or hardware installation ID.
 
