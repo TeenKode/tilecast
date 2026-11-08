@@ -53,56 +53,6 @@ class MediaCacheStorage(context: Context) {
             }
 
     /**
-     * Explicit, administrator-confirmed cleanup of obsolete internal media ONLY.
-     * Never touches state.db, installed config, credentials or preferences.
-     * The caller must revalidate the live native CAS path throughout deletion.
-     * Symlinks are not followed; unexpected entries abort without traversal.
-     */
-    fun cleanupOldInternalCache(externalCoreStillActive: () -> Boolean): String {
-        val root = File(app.filesDir, "player-core")
-        val expectedRoot = runCatching { root.canonicalFile }.getOrNull()
-            ?: return "Cleanup refused: internal path unavailable"
-        if (!externalCoreStillActive()) return "Cleanup refused: Core is not using USB"
-        var deleted = 0
-        for (name in listOf("cas", "partial")) {
-            if (!externalCoreStillActive()) return "Cleanup stopped: active storage changed ($deleted entries removed)"
-            val dir = File(root, name)
-            if (!dir.exists()) continue
-            if (!dir.isDirectory || dir.canonicalFile != File(expectedRoot, name)) {
-                return "Cleanup refused: unexpected internal cache path"
-            }
-            // Delete contents, not the CAS directory itself, so the internal
-            // layout remains valid if the operator selects internal later.
-            val children = dir.listFiles() ?: return "Cleanup stopped: cannot list internal cache"
-            for (child in children) {
-                if (!externalCoreStillActive()) return "Cleanup stopped: Core storage changed ($deleted entries removed)"
-                val count = deleteCacheTree(child, dir, externalCoreStillActive)
-                    ?: return "Cleanup stopped: unsafe path, I/O error, or Core storage changed ($deleted entries removed)"
-                deleted += count
-            }
-        }
-        return "Old internal media cleanup complete ($deleted entries removed). Database and settings were untouched."
-    }
-
-    private fun deleteCacheTree(file: File, boundary: File, stillSafe: () -> Boolean): Int? {
-        if (!stillSafe()) return null
-        // Canonical containment also prevents traversal through symbolic links.
-        val base = boundary.canonicalFile.absolutePath
-        val path = file.canonicalFile.absolutePath
-        if (!path.startsWith(base + File.separator)) return null
-        // Reject symlinks (including a symlink to an in-boundary target).
-        if (file.absolutePath != path) return null
-        var count = 0
-        if (file.isDirectory) {
-            for (child in file.listFiles() ?: return null) {
-                count += deleteCacheTree(child, boundary, stillSafe) ?: return null
-            }
-        }
-        if (!stillSafe() || !file.delete()) return null
-        return count + 1
-    }
-
-    /**
      * Called only at cold Core startup. The database, pairing credentials,
      * configuration, and other private state remain in internal app storage.
      * Missing or unusable USB media falls back to the internal CAS.
@@ -139,65 +89,61 @@ class MediaCacheStorage(context: Context) {
     enum class CleanupResult { CLEARED, EMPTY, NOT_USING_USB, UNSAFE_LAYOUT, FAILED }
 
     /**
-     * Only clear orphaned internal CAS + partial downloads when Core reports an
-     * actually opened CAS on a *currently mounted* Android-listed USB volume.
-     * Never touch state.db, the credentials, config, or the active CAS.
-     *
-     * Call from a worker thread after an explicit administrator confirmation.
+     * The caller MUST hold PlayerCoreHost's mutex for the whole operation,
+     * preventing stop/reopen while media is removed. A live native CAS status
+     * and mounted USB enumeration are checked before each filesystem operation.
+     * Never delete any private Core state other than cas/ and partial/.
      */
-    fun clearInactiveInternalCache(actualCasDir: String?): CleanupResult {
-        val volume = activeUsbVolume(actualCasDir) ?: return CleanupResult.NOT_USING_USB
-        val internalCas = internalCasDir()
-        val usbCas = File(File(volume.filesDir, "tilecast-player-media"), "cas")
-        if (!canClearInactiveInternalCache(actualCasDir, internalCas, listOf(usbCas))) {
-            return CleanupResult.NOT_USING_USB
+    fun clearInactiveInternalCache(liveCasDir: () -> String?): CleanupResult {
+        fun safe(): Boolean {
+            val actual = liveCasDir() ?: return false
+            val volume = activeUsbVolume(actual) ?: return false
+            val usbCas = File(File(volume.filesDir, "tilecast-player-media"), "cas")
+            return canClearInactiveInternalCache(actual, internalCasDir(), listOf(usbCas))
         }
-        val coreDir = File(app.filesDir, "player-core")
-        val targets = listOf(internalCas, File(coreDir, "partial"))
-        if (targets.none { it.exists() }) return CleanupResult.EMPTY
-        // The Core directory itself must be a normal directory within the
-        // app-private files root, not an alias to another location.
-        val validCore = runCatching {
-            (Os.lstat(coreDir.absolutePath).st_mode and OsConstants.S_IFMT) == OsConstants.S_IFDIR &&
-                coreDir.canonicalFile == File(app.filesDir.canonicalFile, "player-core")
+        if (!safe()) return CleanupResult.NOT_USING_USB
+        val root = File(app.filesDir, "player-core")
+        val targets = listOf(File(root, "cas"), File(root, "partial"))
+        val validRoot = runCatching {
+            isPlainDirectory(root) && root.canonicalFile == File(app.filesDir.canonicalFile, "player-core")
         }.getOrDefault(false)
-        if (!validCore) return CleanupResult.UNSAFE_LAYOUT
-        // Preflight all entries before deleting anything. Reject symbolic links,
-        // special files and paths escaping the app's Core directory.
-        if (targets.any { !isSafeCacheTree(it, coreDir) }) return CleanupResult.UNSAFE_LAYOUT
-        return if (targets.all { removeSafeCacheTree(it, coreDir) }) {
-            CleanupResult.CLEARED
-        } else {
-            CleanupResult.FAILED
+        if (!validRoot) return CleanupResult.UNSAFE_LAYOUT
+        var deleted = 0
+        fun deleteTree(file: File): Boolean {
+            if (!safe()) return false
+            val mode = fileMode(file) ?: return false
+            if (mode == MISSING) return true
+            if (mode != OsConstants.S_IFREG && mode != OsConstants.S_IFDIR) return false
+            if (!runCatching { file.canonicalPath.startsWith(root.canonicalPath + File.separator) }.getOrDefault(false)) return false
+            if (mode == OsConstants.S_IFDIR) {
+                val children = file.listFiles() ?: return false
+                for (child in children) if (!deleteTree(child)) return false
+            }
+            if (!safe() || !file.delete()) return false
+            deleted++
+            return true
         }
-    }
-
-    private fun isSafeCacheEntry(node: File, coreDir: File): Boolean {
-        if (!node.exists()) return true
-        return runCatching {
-            val mode = Os.lstat(node.absolutePath).st_mode and OsConstants.S_IFMT
-            if (mode != OsConstants.S_IFREG && mode != OsConstants.S_IFDIR) return@runCatching false
-            node.canonicalPath.startsWith(coreDir.canonicalPath + File.separator)
-        }.getOrDefault(false)
-    }
-
-    private fun isSafeCacheTree(node: File, coreDir: File): Boolean {
-        if (!isSafeCacheEntry(node, coreDir)) return false
-        if (!node.isDirectory) return true
-        return node.listFiles()?.all { isSafeCacheTree(it, coreDir) } == true
-    }
-
-    private fun removeSafeCacheTree(node: File, coreDir: File): Boolean {
-        if (!node.exists()) return true
-        // Recheck this entry after the full-tree preflight, without recursively
-        // rescanning every subtree at every level (large CAS caches are common).
-        if (!isSafeCacheEntry(node, coreDir)) return false
-        if (node.isDirectory) {
-            val children = node.listFiles() ?: return false
-            if (!children.all { removeSafeCacheTree(it, coreDir) }) return false
+        for (target in targets) {
+            if (!safe()) return CleanupResult.NOT_USING_USB
+            val mode = fileMode(target) ?: return CleanupResult.UNSAFE_LAYOUT
+            if (mode == MISSING) continue
+            if (mode != OsConstants.S_IFDIR) return CleanupResult.UNSAFE_LAYOUT
+            if (!deleteTree(target)) return CleanupResult.FAILED
         }
-        return node.delete()
+        return if (deleted == 0) CleanupResult.EMPTY else CleanupResult.CLEARED
     }
+
+    private fun isPlainDirectory(file: File): Boolean = fileMode(file) == OsConstants.S_IFDIR
+
+    /** lstat detects dangling symlinks; File.exists() would silently skip them. */
+    private fun fileMode(file: File): Int? = try {
+        Os.lstat(file.absolutePath).st_mode and OsConstants.S_IFMT
+    } catch (error: android.system.ErrnoException) {
+        if (error.errno == OsConstants.ENOENT) MISSING else null
+    }
+
+    private companion object { const val MISSING = -1 }
+
 }
 
 /** Pure selection logic: a vanished explicit USB is never replaced by another one. */
