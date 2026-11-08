@@ -33,6 +33,20 @@ To turn it off, clear **Play the startup animation when active hours begin**. Th
 
 When playback is already open, a wake request keeps the current Player window. Applying active-hours settings does not restart that window.
 
+### Choose Android sleep and wake methods
+
+Use **Android sleep method** and **Android wake method** to choose separate methods for a screen, Display Group, or organization. Both default to **Automatic**, which keeps the existing Android behavior. Enable **Request sleep outside active hours** to request sleep when active hours end.
+
+The sleep choices include Device Policy for a device owner, accessibility lock screen, a black screen that leaves the panel powered, and CVTE fake standby. Wake choices include opening the Player, a firmware-dependent wake lock, and CVTE fake standby. An unavailable explicit method reports a failure instead of choosing another method.
+
+Choose **CVTE fake standby (local ADB)** for both settings only on compatible firmware. The TV must already expose unauthenticated ADB on its own loopback address and have native fake standby enabled. Tilecast does not enable debugging or change that firmware setting. A TV with ADB authorization enabled rejects this method.
+
+The provider checks the current firmware state before it sends a power key and checks it again afterward. Repeating a request for the current state does not toggle power. A queued command confirms acceptance only; check the actual display before relying on it.
+
+Test manual sleep and wake, the active-hours transition, and scheduled wake after a complete reboot on the exact TV. Firmware must keep the Player and wake alarm running in fake standby. The initial DEXP 43UCY1 test covers the provider's repeated sleep and wake operations; it does not qualify the complete scheduled flow or other CVTE models.
+
+See the [Android power provider contract](https://github.com/TeenKode/tilecast/blob/main/docs/android-power-backends.md) for firmware requirements and diagnostics.
+
 </TabItem>
 
 <TabItem label="Linux">

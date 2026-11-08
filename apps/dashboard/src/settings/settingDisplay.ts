@@ -4,6 +4,13 @@ import type { SettingsSectionId } from "./settingsNavigation";
 
 export const enumLabels: Record<string, string> = {
   managed_kiosk: "Managed Kiosk",
+  auto: "Automatic (existing Android behavior)",
+  device_policy: "Device Policy (device owner)",
+  accessibility: "Accessibility lock screen",
+  black_screen: "Black screen (panel remains on)",
+  activity: "Launch Tilecast Activity",
+  wake_lock: "Wake lock (firmware dependent)",
+  cvte: "CVTE vendor standby (requires supported transport)",
   standard: "Standard reliability",
   first_party: "First-party cookies",
   first_and_third_party: "First- and third-party cookies",
@@ -54,6 +61,10 @@ export const descriptions: Record<string, string> = {
   "player.download.automatic_threshold_bytes":
     "Largest item Automatic delivery will download instead of stream.",
   "power.active_hours_days": "Days when this player should operate normally.",
+  "power.android_sleep_method":
+    "Android only. Automatic uses the stock Player power path; CVTE uses the TV's existing local fake-standby mode and requires loopback ADB.",
+  "power.android_wake_method":
+    "Android only. Choose a separate wake provider. CVTE fake standby requires selecting CVTE for both sleep and wake.",
   "power.outside_active_hours_display":
     "What remains visible when the player is outside active hours and the television does not sleep.",
   "power.outside_active_hours_text":
@@ -208,6 +219,8 @@ export const subsectionOrder: Record<
         "power.shutdown_prepare_seconds",
         "power.keep_screen_on",
         "power.sleep_outside_active_hours",
+        "power.android_sleep_method",
+        "power.android_wake_method",
       ],
     },
     {

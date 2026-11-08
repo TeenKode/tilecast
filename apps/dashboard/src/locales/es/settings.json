@@ -314,6 +314,14 @@
         "title": "Solicitar suspensión fuera del horario activo",
         "description": "Solo Asistencia de energía de Android; Linux muestra su superficie configurada de fuera de horario y no solicita la suspensión del sistema operativo."
       },
+      "android_sleep_method": {
+        "title": "Método de suspensión de Android",
+        "description": "Elige el método de suspensión de Android. Automático conserva el comportamiento actual. La espera CVTE requiere firmware compatible y ADB local."
+      },
+      "android_wake_method": {
+        "title": "Método de activación de Android",
+        "description": "Elige el método de activación de Android. Para la espera CVTE, selecciona CVTE para suspensión y activación. La activación programada depende de las alarmas del firmware."
+      },
       "outside_active_hours_display": {
         "title": "Fuera del horario activo",
         "description": "Elige lo que permanece visible cuando el reproductor está fuera del horario activo y la pantalla no se apaga."
@@ -576,6 +584,13 @@
     }
   },
   "enumValues": {
+    "auto": "Automático (comportamiento estándar de Android)",
+    "device_policy": "Política del dispositivo (administrador)",
+    "accessibility": "Accesibilidad (bloqueo de pantalla)",
+    "black_screen": "Pantalla negra (panel encendido)",
+    "activity": "Abrir Tilecast",
+    "wake_lock": "Wake Lock (según el firmware)",
+    "cvte": "CVTE fake standby (ADB local)",
     "managed_kiosk": "Quiosco gestionado",
     "standard": "Fiabilidad estándar",
     "first_party": "Cookies propias",

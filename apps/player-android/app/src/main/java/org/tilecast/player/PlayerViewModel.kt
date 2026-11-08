@@ -449,10 +449,12 @@ class PlayerViewModel internal constructor(
     private suspend fun refreshPlatformConfig(revision: Long?) {
         val config = runCatching { host.effectiveConfig() }.getOrNull() ?: CorePlayerConfig(null)
         appliedConfigRevision = revision
+        val previousPower = mutablePlatform.value?.power
         mutablePlatform.value = config.platform
         applyPlatformPolicy(config)
-        // A new policy re-applies the current active-hours state.
-        lastPowerActive = null
+        // Apply newly selected methods without waiting for the next scheduled edge,
+        // but do not repeat power commands for unrelated config revisions.
+        if (previousPower != config.platform.power) lastPowerActive = null
         applyPowerEffects()
         reportPlatformObservations()
     }
@@ -460,6 +462,7 @@ class PlayerViewModel internal constructor(
     /** Writes the policy prefs the OS integration reads: boot, kiosk return, and foreground reporting. */
     private fun applyPlatformPolicy(config: CorePlayerConfig) {
         val platform = config.platform
+        reliability.configurePowerMethods(platform.power.sleepMethod, platform.power.wakeMethod)
         BootRecovery.setLaunchAfterBoot(getApplication<Application>(), platform.reliability.launchAfterBoot)
         prefs.edit()
             .putBoolean("launch-after-boot", platform.reliability.launchAfterBoot)
@@ -482,11 +485,9 @@ class PlayerViewModel internal constructor(
     private var lastPowerActive: Boolean? = null
 
     private fun applyPowerEffects() {
+        val platform = mutablePlatform.value ?: return
         val active = mutableActiveHours.value
         if (active == lastPowerActive) return
-        // The edge is recorded only once a policy can act on it, so a status
-        // that arrives before the configuration is applied when it loads.
-        val platform = mutablePlatform.value ?: return
         lastPowerActive = active
         if (active) {
             reliability.requestWake()

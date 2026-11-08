@@ -79,6 +79,22 @@ class CorePlatformCommandsTest {
         assertEquals(listOf("sleep", "wake"), effects.calls)
     }
 
+    @Test fun powerMethodsReportQueuedAndUnavailableHonestStatuses() {
+        val effects = FakeEffects(sleepResult = "cvte_sleep_queued", wakeResult = "cvte_wake_queued")
+        val executor = CorePlatformCommands(effects, FakeCredentials(), { "http://server" }, { false })
+        val sleep = answer(executor.execute("""{"type":"power_assist_sleep","payload":{}}"""))
+        val wake = answer(executor.execute("""{"type":"power_assist_wake","payload":{}}"""))
+        assertEquals(true, sleep["ok"]?.jsonPrimitive?.booleanOrNull)
+        assertEquals("cvte_sleep_queued", sleep["code"]?.jsonPrimitive?.contentOrNull)
+        assertEquals(true, wake["ok"]?.jsonPrimitive?.booleanOrNull)
+        effects.sleepResult = "device_policy_unavailable"
+        effects.wakeResult = "wake_lock_unsupported"
+        val unavailableSleep = answer(executor.execute("""{"type":"power_assist_sleep","payload":{}}"""))
+        val unavailableWake = answer(executor.execute("""{"type":"power_assist_wake","payload":{}}"""))
+        assertEquals(false, unavailableSleep["ok"]?.jsonPrimitive?.booleanOrNull)
+        assertEquals(false, unavailableWake["ok"]?.jsonPrimitive?.booleanOrNull)
+    }
+
     @Test fun unperformedPowerOutcomesAreFailures() {
         val effects = FakeEffects()
         val executor = CorePlatformCommands(effects, FakeCredentials(), { "http://server" }, { false })
