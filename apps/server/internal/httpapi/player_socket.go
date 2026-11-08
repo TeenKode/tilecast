@@ -174,6 +174,7 @@ func (s *server) playerSocket(w http.ResponseWriter, r *http.Request) {
 func (s *server) handleSocketStatus(r *http.Request, ctx context.Context, principal devices.DevicePrincipal, payload json.RawMessage) {
 	snapshot := s.captureHeartbeatActivity(ctx, principal.ScreenID)
 	contactRecorded := false
+	heartbeatAccepted := false
 
 	heartbeat, dropped, err := decodeHeartbeatTolerantly(payload)
 	if len(dropped) > 0 {
@@ -206,6 +207,7 @@ func (s *server) handleSocketStatus(r *http.Request, ctx context.Context, princi
 		}
 	} else {
 		contactRecorded = true
+		heartbeatAccepted = true
 		// Socket status is the player's normal heartbeat path. Run the same
 		// multicast degradation hook as the HTTP fallback so a follower can
 		// trigger session-level unicast fallback without waiting for a poll.
@@ -224,7 +226,9 @@ func (s *server) handleSocketStatus(r *http.Request, ctx context.Context, princi
 		}
 		var status playlists.PlayerStatus
 		if err := json.Unmarshal(statusPayload, &status); err == nil {
-			_ = s.playlists.ReportStatus(ctx, principal.ScreenID, status)
+			if err := s.playlists.ReportStatus(ctx, principal.ScreenID, status); err == nil {
+				snapshot.playbackStatusAccepted = heartbeatAccepted
+			}
 		}
 	}
 	if contactRecorded {

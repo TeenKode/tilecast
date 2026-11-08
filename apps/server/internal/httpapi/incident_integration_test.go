@@ -183,6 +183,66 @@ func TestHealthyHeartbeatRecoversStalePlaybackIncident(t *testing.T) {
 	})
 }
 
+func TestHealthyHeartbeatRecoversStaleSafeModeIncident(t *testing.T) {
+	withActivityDatabase(t, func(env activityTestEnvironment) {
+		start := time.Now().UTC().Add(-time.Hour)
+		postActivityBatch(t, env, playerActivityBatchInput{Events: []playerActivityEventInput{
+			activityEvent(1, "safe_mode.entered", start),
+		}}, http.StatusAccepted)
+		request := httptest.NewRequest(http.MethodPost, "/api/v1/player/heartbeat", nil)
+		// A new process can already have safe_mode=false before the snapshot.
+		// Neither that default nor background/failed playback proves recovery.
+		for _, state := range []heartbeatActivityState{
+			{},
+			{PlaybackState: "playing", SafeMode: true},
+			{PlaybackState: "playing", ForegroundState: "background"},
+			{PlaybackState: "playing", PlaybackError: "read failed"},
+		} {
+			tx, err := env.pool.Begin(context.Background())
+			if err != nil {
+				t.Fatal(err)
+			}
+			env.server.reconcileSafeModeIncidentFromHeartbeat(request, tx, env.screenID, state, time.Now().UTC())
+			if err := tx.Commit(context.Background()); err != nil {
+				t.Fatal(err)
+			}
+			if active := filterIncidents(readIncidents(t, env, ""), incidentSafeMode); len(active) != 1 {
+				t.Fatalf("unhealthy status recovered safe mode: %+v", state)
+			}
+		}
+		if _, err := env.pool.Exec(context.Background(), `
+			INSERT INTO screen_player_status(screen_id,playback_state,last_playback_error,safe_mode,foreground_state)
+			VALUES($1,'playing','',FALSE,'foreground')
+			ON CONFLICT(screen_id) DO UPDATE SET
+				playback_state='playing',last_playback_error='',safe_mode=FALSE,foreground_state='foreground'`, env.screenID); err != nil {
+			t.Fatal(err)
+		}
+		// Contact-only or rejected status messages cannot reuse an old healthy
+		// row as new evidence of safe-mode recovery.
+		env.server.recordHeartbeatActivity(request, env.screenID, heartbeatActivitySnapshot{}, time.Now().UTC())
+		if active := filterIncidents(readIncidents(t, env, ""), incidentSafeMode); len(active) != 1 {
+			t.Fatal("contact without accepted playback status recovered safe mode")
+		}
+		for i := 0; i < 2; i++ {
+			env.server.recordHeartbeatActivity(request, env.screenID, heartbeatActivitySnapshot{
+				state:                  heartbeatActivityState{PlaybackState: "playing", ForegroundState: "foreground"},
+				playbackStatusAccepted: true,
+			}, time.Now().UTC().Add(time.Duration(i)*time.Second))
+		}
+		recovered := filterIncidents(readIncidents(t, env, "?status=all"), incidentSafeMode)
+		if len(recovered) != 1 || recovered[0].Status != "recovered" || recovered[0].RecoveryMode != "automatic" || recovered[0].ResolvedAt != nil {
+			t.Fatalf("safe mode recovery = %+v, want automatic recovery", recovered)
+		}
+		var exits int
+		if err := env.pool.QueryRow(context.Background(), `SELECT count(*) FROM player_activity_events WHERE screen_id=$1 AND event_type='safe_mode.exited'`, env.screenID).Scan(&exits); err != nil {
+			t.Fatal(err)
+		}
+		if exits != 1 {
+			t.Fatalf("healthy heartbeats produced %d safe-mode exits, want 1", exits)
+		}
+	})
+}
+
 func TestIncidentActionsFollowTheLifecycle(t *testing.T) {
 	withActivityDatabase(t, func(env activityTestEnvironment) {
 		start := time.Now().UTC().Add(-time.Hour)

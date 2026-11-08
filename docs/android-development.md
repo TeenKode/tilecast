@@ -41,6 +41,23 @@ that must publish OCSP or CRL information.
 The local Kotlin verifier is pinned to `rustls-platform-verifier-android` 0.2.0.
 The build refuses a different Rust counterpart until JNI compatibility is reviewed.
 
+### Cached media ranges
+
+The Android WebView applies the request Range offset to an intercepted stream.
+The media adapter supplies the file prefix for that seek.
+The stream stops at the requested range end.
+It must not seek to the range start before WebView reads the stream.
+Otherwise, WebView applies the offset a second time.
+The conformance host uses the same adapter.
+
+### Foreground status
+
+The application tracks all started Player Activities in the current process.
+An old Activity can stop after its replacement starts.
+That stop must not report background playback while another Activity is visible.
+The heartbeat reads the current process visibility.
+It does not use a foreground flag saved by a previous process.
+
 ### Fork native stream adapter
 
 The test fork permits Media3 only in `NativeStreamPlayerView.kt`.

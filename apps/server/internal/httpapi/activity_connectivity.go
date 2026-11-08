@@ -37,8 +37,9 @@ type heartbeatActivityState struct {
 }
 
 type heartbeatActivitySnapshot struct {
-	previousHeartbeat *time.Time
-	state             heartbeatActivityState
+	previousHeartbeat      *time.Time
+	state                  heartbeatActivityState
+	playbackStatusAccepted bool
 }
 
 func (s *server) playerHeartbeatWithActivity(w http.ResponseWriter, r *http.Request) {
@@ -54,6 +55,7 @@ func (s *server) playerHeartbeatWithActivity(w http.ResponseWriter, r *http.Requ
 	if status >= 300 {
 		return
 	}
+	snapshot.playbackStatusAccepted = true
 	s.recordHeartbeatActivity(r, principal.ScreenID, snapshot, time.Now().UTC())
 }
 
@@ -140,6 +142,9 @@ func (s *server) recordHeartbeatActivity(r *http.Request, screenID uuid.UUID, sn
 	// that any still-open playback incident has ended, even if the player did not
 	// emit one of the older explicit renderer/presentation recovery events.
 	s.reconcilePlaybackIncidentFromHeartbeat(r, tx, screenID, after, now)
+	if snapshot.playbackStatusAccepted {
+		s.reconcileSafeModeIncidentFromHeartbeat(r, tx, screenID, after, now)
+	}
 	s.anchorHeartbeatStateInterval(r, tx, screenID, after, now)
 	// The expectation is materialized at the moment the selection becomes
 	// effective, so compliance is always measured against the plan that was in
@@ -242,6 +247,29 @@ func (s *server) reconcilePlaybackIncidentFromHeartbeat(r *http.Request, tx pgx.
 		ID: uuid.New(), EventType: "renderer.recovered", Category: "reliability", Severity: "info",
 		OccurredAt: now, Result: "recovered", Priority: 8,
 	})
+}
+
+// A restart can clear safe mode before the Server observes its exit. Only
+// confirmed healthy playback can recover that stale incident; an absent or
+// idle status is not evidence that the Player recovered.
+func (s *server) reconcileSafeModeIncidentFromHeartbeat(r *http.Request, tx pgx.Tx, screenID uuid.UUID, status heartbeatActivityState, now time.Time) {
+	if !heartbeatConfirmsHealthy(status) {
+		return
+	}
+	ctx := activityContextWithoutCancel(r.Context())
+	var active bool
+	if err := tx.QueryRow(ctx, `SELECT EXISTS(
+		SELECT 1 FROM incidents WHERE dedupe_key=$1 AND status IN('open','acknowledged')
+	)`, incidentDedupeKey(screenID, incidentSafeMode)).Scan(&active); err != nil {
+		s.logger.Error("safe mode incident reconciliation failed", "screen_id", screenID, "error", err)
+		return
+	}
+	if active {
+		s.recordServerTransition(r, tx, screenID, playerActivityEventInput{
+			ID: uuid.New(), EventType: "safe_mode.exited", Category: "reliability", Severity: "info",
+			OccurredAt: now, Result: "recovered", Priority: 9,
+		})
+	}
 }
 
 func (s *server) readHeartbeatActivityState(ctx context.Context, screenID uuid.UUID) (heartbeatActivityState, error) {
