@@ -8,6 +8,11 @@ import android.view.ViewGroup;
 import android.webkit.WebView;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
+import java.io.File;
+import org.json.JSONArray;
+import org.json.JSONObject;
 
 /** Temporary signed instrumentation; reads only public remote-page diagnostics. */
 public final class Probe extends Instrumentation {
@@ -23,6 +28,26 @@ public final class Probe extends Instrumentation {
             final Activity activity = waitForMonitorWithTimeout(monitor, 15000);
             if (activity == null) throw new IllegalStateException("No player activity");
             Thread.sleep(15000);
+            try {
+                Class<?> api=Class.forName("org.tilecast.player.core.PlayerCoreNative");
+                Object instance=api.getField("INSTANCE").get(null);
+                JSONObject status=new JSONObject((String)api.getMethod("nativeStatus",long.class).invoke(instance,1L));
+                result.putString("renderer",String.valueOf(status.optJSONObject("renderer")));
+                File file=new File(getTargetContext().getFilesDir(),"player-core/state.db");
+                try(SQLiteDatabase db=SQLiteDatabase.openDatabase(file.toString(),null,SQLiteDatabase.OPEN_READONLY); Cursor c=db.rawQuery("SELECT version,document FROM manifest_target",null)) {
+                    JSONArray rows=new JSONArray();
+                    while(c.moveToNext()) {
+                        JSONObject document=new JSONObject(c.getString(1));
+                        JSONArray widgets=document.optJSONArray("widgets"), safe=new JSONArray();
+                        if(widgets!=null)for(int i=0;i<widgets.length();i++) {
+                            JSONObject widget=widgets.getJSONObject(i), p=widget.optJSONObject("presentation");
+                            safe.put(new JSONObject().put("id",widget.optString("id")).put("provider",widget.optString("provider")).put("kind",p==null?null:p.optString("kind")).put("required",p==null?null:p.optJSONObject("requiredCapabilities")).put("webMode",p==null||p.optJSONObject("web")==null?null:p.optJSONObject("web").optString("mode")));
+                        }
+                        rows.put(new JSONObject().put("version",c.getLong(0)).put("widgets",safe));
+                    }
+                    result.putString("targetRequirements",rows.toString());
+                }
+            } catch(Throwable error) {result.putString("manifestProbeError",error.toString());}
             if (preview) {
                 runOnMainSync(() -> {
                     WebView remote=find(activity.getWindow().getDecorView());
