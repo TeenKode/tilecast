@@ -68,6 +68,12 @@ public class LocalCvteAdbTest {
         assertThrows(IOException.class, () -> exchange(new byte[12]));
     }
 
+    @Test public void expiredRequestCannotOpenPowerTransport() throws IOException {
+        assertThrows(IOException.class, () -> LocalCvteAdb.setAwake(false, 0));
+        assertThrows(IOException.class, () -> LocalCvteAdb.timeoutMillis(System.nanoTime() - 1));
+        assertTrue(LocalCvteAdb.timeoutMillis(System.nanoTime() + 60_000_000_000L) <= 8000);
+    }
+
     private static boolean exchange(byte[]... packets) throws IOException {
         ByteArrayOutputStream input = new ByteArrayOutputStream();
         for (byte[] packet : packets) input.write(packet);

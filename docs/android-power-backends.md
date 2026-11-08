@@ -70,6 +70,8 @@ per firmware.
   `TilecastCvtePower` logcat tag.
 - A scheduled CVTE wake reopens the existing Tilecast Activity using
   `NEW_TASK | CLEAR_TOP | SINGLE_TOP`, without spawning new tasks.
+- Queue time, connection, handshake, and response reads share an eight-second
+  request budget. An expired request does not start another power operation.
 - Android standby depends on firmware delivering the alarm. The
   Player cannot turn on a fully unplugged TV.
 - If accessibility is used, YaOS may independently reset that service;

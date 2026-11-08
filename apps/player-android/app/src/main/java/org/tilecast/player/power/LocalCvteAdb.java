@@ -2,10 +2,12 @@ package org.tilecast.player.power;
 
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
+import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.net.SocketTimeoutException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
@@ -31,13 +33,35 @@ final class LocalCvteAdb {
 
     /** No blind toggle. The firmware is the authority for fake standby. */
     static boolean setAwake(boolean awake) throws IOException {
+        return setAwake(awake, 8000L);
+    }
+
+    static boolean setAwake(boolean awake, long remainingMillis) throws IOException {
+        if (remainingMillis <= 0) throw new SocketTimeoutException("Expired CVTE power request");
+        long deadline = System.nanoTime() + Math.min(remainingMillis, 8000L) * 1_000_000L;
         try (Socket socket = new Socket()) {
-            socket.connect(new InetSocketAddress("127.0.0.1", 5555), 1200);
-            socket.setSoTimeout(7000);
-            DataInputStream in = new DataInputStream(socket.getInputStream());
+            socket.connect(new InetSocketAddress("127.0.0.1", 5555), Math.min(1200, timeoutMillis(deadline)));
+            // One total budget includes connect, handshake and every partial read.
+            // A peer that trickles bytes cannot extend the broadcast lifetime.
+            DataInputStream in = new DataInputStream(new FilterInputStream(socket.getInputStream()) {
+                @Override public int read() throws IOException {
+                    socket.setSoTimeout(timeoutMillis(deadline));
+                    return in.read();
+                }
+                @Override public int read(byte[] data, int offset, int length) throws IOException {
+                    socket.setSoTimeout(timeoutMillis(deadline));
+                    return in.read(data, offset, length);
+                }
+            });
             OutputStream out = socket.getOutputStream();
             return exchange(in, out, awake);
         }
+    }
+
+    static int timeoutMillis(long deadline) throws SocketTimeoutException {
+        long remaining = deadline - System.nanoTime();
+        if (remaining <= 0) throw new SocketTimeoutException("Local ADB power request timed out");
+        return (int) Math.max(1L, Math.min(8000L, remaining / 1_000_000L));
     }
 
     // Stream seam for protocol tests. Production always connects to loopback above.

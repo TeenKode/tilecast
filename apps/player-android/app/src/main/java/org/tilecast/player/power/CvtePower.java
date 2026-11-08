@@ -13,7 +13,7 @@ import java.util.concurrent.Executors;
  */
 public final class CvtePower {
     private static final String TAG = "TilecastCvtePower";
-    private static final long MAX_QUEUE_AGE_MS = 9000L;
+    private static final long REQUEST_BUDGET_MS = 8000L;
     private static final ExecutorService EXECUTOR = Executors.newSingleThreadExecutor(r -> {
         Thread t = new Thread(r, "tilecast-cvte-power");
         t.setDaemon(true);
@@ -25,12 +25,12 @@ public final class CvtePower {
     private CvtePower() {}
 
     public static void request(boolean awake, Result callback) {
-        final long expiresAt = SystemClock.elapsedRealtime() + MAX_QUEUE_AGE_MS;
+        final long expiresAt = SystemClock.elapsedRealtime() + REQUEST_BUDGET_MS;
         EXECUTOR.execute(() -> {
             boolean success = false;
             if (SystemClock.elapsedRealtime() < expiresAt) {
                 try {
-                    success = LocalCvteAdb.setAwake(awake);
+                    success = LocalCvteAdb.setAwake(awake, expiresAt - SystemClock.elapsedRealtime());
                 } catch (Exception e) {
                     Log.e(TAG, "CVTE request failed", e);
                 }
