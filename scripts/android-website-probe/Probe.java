@@ -16,7 +16,7 @@ public final class Probe extends Instrumentation {
         final Bundle result = new Bundle();
         try {
             ActivityMonitor monitor = addMonitor("org.tilecast.player.MainActivity", null, false);
-            Intent intent = getTargetContext().getPackageManager().getLaunchIntentForPackage("org.tilecast.player.test");
+            Intent intent = new Intent().setClassName("org.tilecast.player.test", "org.tilecast.player.MainActivity");
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             getTargetContext().startActivity(intent);
             final Activity activity = waitForMonitorWithTimeout(monitor, 15000);
