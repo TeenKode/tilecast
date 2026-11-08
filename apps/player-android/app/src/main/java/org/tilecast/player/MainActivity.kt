@@ -6,6 +6,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.SharedPreferences
 import android.os.Handler
 import android.os.Looper
 import android.view.KeyEvent
@@ -48,6 +49,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -149,6 +151,13 @@ class MainActivity : ComponentActivity() {
             }
     }
     private var adminPrompt by mutableStateOf(false)
+    private var softwareScreenBlanked by mutableStateOf(false)
+    private var powerPreferences: SharedPreferences? = null
+    private val powerListener = SharedPreferences.OnSharedPreferenceChangeListener { preferences, key ->
+        if (key == "software-screen-blanked") {
+            softwareScreenBlanked = preferences.getBoolean("software-screen-blanked", false)
+        }
+    }
     @Volatile private var adminVisible = false
     private var captureEpoch = 0L
     private val escapeKeys = ArrayDeque<Int>()
@@ -160,6 +169,10 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         reliability = ReliabilityController(this)
+        powerPreferences = getSharedPreferences("tilecast-reliability", MODE_PRIVATE).also {
+            it.registerOnSharedPreferenceChangeListener(powerListener)
+            softwareScreenBlanked = it.getBoolean("software-screen-blanked", false)
+        }
         getSharedPreferences("tilecast-reliability", MODE_PRIVATE).edit().putBoolean("update-active", model.update.value?.state in setOf("waiting_for_permission", "waiting_for_user", "installing")).putBoolean("update-relaunch-requested", false).putInt("update-relaunch-attempts", 0).apply()
         // The view model starts Core's drivers, so it exists before the
         // renderer. The renderer's handshake still tolerates either order.
@@ -172,7 +185,14 @@ class MainActivity : ComponentActivity() {
         WindowCompat.getInsetsController(window, window.decorView).hide(WindowInsetsCompat.Type.systemBars())
         setContent {
             TilecastSignalTheme {
-                TilecastPlayer(model, renderer, adminPrompt, { showAdminPrompt(false) }, reliability)
+                Box(Modifier.fillMaxSize()) {
+                    TilecastPlayer(model, renderer, adminPrompt, { showAdminPrompt(false) }, reliability)
+                    // Only mask the Player UI. This is NOT physical panel sleep.
+                    // Keep administrator maintenance accessible by remote.
+                    if (softwareScreenBlanked && !adminPrompt) {
+                        Box(Modifier.fillMaxSize().background(Color.Black))
+                    }
+                }
             }
         }
     }
@@ -198,6 +218,8 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
+        powerPreferences?.unregisterOnSharedPreferenceChangeListener(powerListener)
+        powerPreferences = null
         // The renderer outlives this Activity. Detach only what this window
         // owns: the capture hooks, and the view while it is still parented here.
         ProcessRenderer.detachPresentation(presentation)

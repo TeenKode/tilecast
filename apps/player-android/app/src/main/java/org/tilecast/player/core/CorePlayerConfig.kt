@@ -208,6 +208,8 @@ data class CoreReliabilityAndroid(
 }
 
 data class CorePowerAndroid(
+    val sleepMethod: String = "auto",
+    val wakeMethod: String = "auto",
     val keepScreenOn: Boolean = true,
     val sleepOutsideActiveHours: Boolean = false,
     val startupGraceSeconds: Long = 30,
@@ -218,6 +220,8 @@ data class CorePowerAndroid(
             root ?: return CorePowerAndroid()
             return try {
                 CorePowerAndroid(
+                    sleepMethod = root["sleepMethod"]?.jsonPrimitive?.contentOrNull?.takeIf { it in setOf("auto", "device_policy", "accessibility", "black_screen", "cvte") } ?: "auto",
+                    wakeMethod = root["wakeMethod"]?.jsonPrimitive?.contentOrNull?.takeIf { it in setOf("auto", "activity", "wake_lock", "cvte") } ?: "auto",
                     keepScreenOn = root["keepScreenOn"]?.jsonPrimitive?.booleanOrNull ?: true,
                     sleepOutsideActiveHours = root["sleepOutsideActiveHours"]?.jsonPrimitive?.booleanOrNull == true,
                     startupGraceSeconds = root["startupGraceSeconds"]?.jsonPrimitive?.longOrNull ?: 30,

@@ -43,6 +43,19 @@ class CorePlayerConfigTest {
         assertEquals(4L, config.platform.downloads.concurrentDownloads)
     }
 
+    @Test fun powerMethodsAreIndependentAndInvalidMethodsFallBack() {
+        val configured = CorePlayerConfig.parse(
+            """{"ok":true,"revision":4,"platform":{"power":{"sleepMethod":"cvte","wakeMethod":"wake_lock"}}}""",
+        )
+        assertEquals("cvte", configured.platform.power.sleepMethod)
+        assertEquals("wake_lock", configured.platform.power.wakeMethod)
+        val invalid = CorePlayerConfig.parse(
+            """{"ok":true,"revision":5,"platform":{"power":{"sleepMethod":"arbitrary_shell","wakeMethod":"arbitrary_shell"}}}""",
+        )
+        assertEquals("auto", invalid.platform.power.sleepMethod)
+        assertEquals("auto", invalid.platform.power.wakeMethod)
+    }
+
     @Test fun parseFallsBackPerSection() {
         val config = CorePlayerConfig.parse(
             """{"ok":true,"revision":3,"runtime":{"branding":42},"platform":{"power":{"keepScreenOn":"maybe"}}}""",

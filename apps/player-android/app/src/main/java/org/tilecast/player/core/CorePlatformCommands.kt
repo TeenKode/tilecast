@@ -142,6 +142,10 @@ class CorePlatformCommands(
 internal data class PowerOutcome(val performed: Boolean, val message: String)
 
 private val SLEEP_OUTCOMES = mapOf(
+    "cvte_sleep_queued" to PowerOutcome(true, "CVTE fake standby request queued; physical state is not yet confirmed."),
+    "black_screen_selected" to PowerOutcome(true, "Black screen selected; the display remains powered."),
+    "device_policy_unavailable" to PowerOutcome(false, "Device-policy sleep is unavailable on this screen."),
+    "accessibility_unavailable" to PowerOutcome(false, "Accessibility sleep is unavailable on this screen."),
     "device_policy_requested" to PowerOutcome(true, "Power Assist sleep request was sent to Android."),
     "accessibility_lock_requested" to PowerOutcome(true, "Power Assist sleep request was sent to Android."),
     "accessibility_lock_deferred" to PowerOutcome(
@@ -159,6 +163,9 @@ private val SLEEP_OUTCOMES = mapOf(
 )
 
 private val WAKE_OUTCOMES = mapOf(
+    "cvte_wake_queued" to PowerOutcome(true, "CVTE fake standby request queued; physical state is not yet confirmed."),
+    "wake_lock_requested" to PowerOutcome(true, "Android accepted the wake-lock request."),
+    "wake_lock_unsupported" to PowerOutcome(false, "Android did not accept the wake-lock request."),
     "device_wake_requested" to PowerOutcome(true, "Power Assist wake request was sent to Android."),
     "wake_launch_blocked" to PowerOutcome(false, "Android blocked the Player from starting to wake the screen."),
 )

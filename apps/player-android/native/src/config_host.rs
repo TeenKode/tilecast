@@ -293,6 +293,8 @@ impl Default for ReliabilityAndroid {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PowerAndroid {
+    pub sleep_method: String,
+    pub wake_method: String,
     pub keep_screen_on: bool,
     pub sleep_outside_active_hours: bool,
     pub startup_grace_seconds: u64,
@@ -302,6 +304,8 @@ pub struct PowerAndroid {
 impl Default for PowerAndroid {
     fn default() -> Self {
         Self {
+            sleep_method: "auto".to_owned(),
+            wake_method: "auto".to_owned(),
             keep_screen_on: true,
             sleep_outside_active_hours: false,
             startup_grace_seconds: 30,
@@ -518,6 +522,18 @@ impl AndroidPlayerConfig {
 
         let power_defaults = PowerAndroid::default();
         let power = PowerAndroid {
+            sleep_method: token(
+                power_values,
+                "androidSleepMethod",
+                &["auto", "device_policy", "accessibility", "black_screen", "cvte"],
+            )
+            .unwrap_or(power_defaults.sleep_method),
+            wake_method: token(
+                power_values,
+                "androidWakeMethod",
+                &["auto", "activity", "wake_lock", "cvte"],
+            )
+            .unwrap_or(power_defaults.wake_method),
             keep_screen_on: flag_on(power_values, "keepScreenOn"),
             sleep_outside_active_hours: flag_off(power_values, "sleepOutsideActiveHours"),
             startup_grace_seconds: count(
@@ -782,7 +798,7 @@ mod tests {
     fn android_platform_reads_with_legacy_defaults() {
         let config = AndroidPlayerConfig::parse(&document(json!({
             "reliability": {"mode": "managed_kiosk", "launchAfterBoot": false, "webviewStallSeconds": 120},
-            "power": {"keepScreenOn": false, "sleepOutsideActiveHours": true, "startupGraceSeconds": 5},
+            "power": {"keepScreenOn": false, "sleepOutsideActiveHours": true, "startupGraceSeconds": 5, "androidSleepMethod": "cvte", "androidWakeMethod": "cvte"},
             "managedKiosk": {"lockTaskEnabled": true, "blockOverlays": false, "adminSessionMinutes": 30},
             "accessibility": {"returnDelaySeconds": 20, "allowedPackages": ["com.example.a", " com.example.b "],
                 "reportForegroundPackage": true, "maximumReturns": 9},
@@ -795,6 +811,8 @@ mod tests {
         assert!(!platform.reliability.launch_after_boot);
         assert!(platform.reliability.immersive_mode);
         assert_eq!(platform.reliability.webview_stall_seconds, 120);
+        assert_eq!(platform.power.sleep_method, "cvte");
+        assert_eq!(platform.power.wake_method, "cvte");
         assert!(!platform.power.keep_screen_on);
         assert!(platform.power.sleep_outside_active_hours);
         assert_eq!(platform.power.startup_grace_seconds, 5);
@@ -810,6 +828,20 @@ mod tests {
         assert_eq!(platform.updates.channel, "beta");
         assert_eq!(platform.downloads.concurrent_downloads, 4);
         assert_eq!(platform.downloads.automatic_threshold_bytes, 1024);
+    }
+
+    #[test]
+    fn android_power_methods_default_to_auto_for_missing_or_invalid_values() {
+        for power in [
+            json!({}),
+            json!({"androidSleepMethod": "shell", "androidWakeMethod": "root"}),
+            json!({"androidSleepMethod": false, "androidWakeMethod": 26}),
+        ] {
+            let config = AndroidPlayerConfig::parse(&document(json!({"power": power})))
+                .expect("parse");
+            assert_eq!(config.platform.power.sleep_method, "auto");
+            assert_eq!(config.platform.power.wake_method, "auto");
+        }
     }
 
     #[test]

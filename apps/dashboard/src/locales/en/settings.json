@@ -314,6 +314,14 @@
         "title": "Request sleep outside active hours",
         "description": "Android Power Assist only; Linux shows its configured branded off-hours surface and does not request operating-system sleep."
       },
+      "android_sleep_method": {
+        "title": "Android sleep method",
+        "description": "Choose the Android sleep method. Automatic keeps existing behavior. CVTE fake standby requires compatible firmware and local ADB."
+      },
+      "android_wake_method": {
+        "title": "Android wake method",
+        "description": "Choose the Android wake method. For CVTE fake standby, select CVTE for both sleep and wake. Scheduled wake depends on firmware alarms."
+      },
       "outside_active_hours_display": {
         "title": "Outside active hours",
         "description": "Choose what remains visible when the player is outside active hours and the display does not sleep."
@@ -576,6 +584,13 @@
     }
   },
   "enumValues": {
+    "auto": "Automatic (stock Android behavior)",
+    "device_policy": "Device Policy (device owner)",
+    "accessibility": "Accessibility lock screen",
+    "black_screen": "Black screen (panel stays powered)",
+    "activity": "Launch Tilecast Activity",
+    "wake_lock": "Wake Lock (firmware dependent)",
+    "cvte": "CVTE fake standby (local ADB)",
     "managed_kiosk": "Managed Kiosk",
     "standard": "Standard reliability",
     "first_party": "First-party cookies",
