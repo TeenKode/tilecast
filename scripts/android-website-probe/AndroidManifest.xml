@@ -1,0 +1,5 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="org.tilecast.probe">
+  <uses-sdk android:minSdkVersion="23" android:targetSdkVersion="35" />
+  <application android:label="Tilecast temporary page probe" />
+  <instrumentation android:name="org.tilecast.probe.Probe" android:targetPackage="org.tilecast.player.test" android:functionalTest="true" />
+</manifest>
