@@ -82,10 +82,25 @@ local PIN, and select **Media cache storage**:
 - A specific USB volume (falls back to internal if it is absent).
 
 Reboot the TV or fully force-stop and reopen the Player after changing the
-selection. Moving existing cache objects is not automatic. The CAS reconciles
-its index at startup and fetches missing media again while online. Reinsert a
-missing USB drive and restart to use it again. Unplugging the drive while
-playing interrupts media hosted there. Supported storage uses regular
-filesystem paths via `getExternalFilesDirs`; SAF-only USB storage is not
-eligible. This feature requires no root or broad storage permission. The
-existing CAS limit and free-space reserve still apply.
+selection. The maintenance `Restart Tilecast` button only restarts the Activity,
+not the process-scoped native Core. The maintenance panel shows the
+**actually open CAS path from native Core status** separately from the configured
+selection, so a USB-open failure and internal fallback are visible.
+
+Existing media cache objects are not automatically migrated. When native Core
+confirms it is currently running from a mounted USB drive, maintenance offers
+**Clear inactive internal media cache**. It requires a separate irreversible
+confirmation and removes only `filesDir/player-core/cas` and
+`filesDir/player-core/partial`, never `state.db`, pairing credentials,
+configuration or the active USB CAS. Cleanup is refused when Core is still using
+internal storage, the USB has disappeared, or an unexpected filesystem layout
+or symbolic link is encountered. Clearing the old internal cache frees TV space
+but reduces offline fallback: if USB is later unavailable, content must be
+downloaded again while online.
+
+The CAS reconciles its index at startup and fetches missing media again while
+online. Reinsert a missing USB drive and fully restart to use it again.
+Unplugging the drive while playing can interrupt media hosted there.
+Supported storage uses regular filesystem paths via `getExternalFilesDirs`;
+SAF-only USB storage is not eligible. This feature requires no root or broad
+storage permission. The existing CAS limit and free-space reserve still apply.
