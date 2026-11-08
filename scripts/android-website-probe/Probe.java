@@ -22,16 +22,6 @@ public final class Probe extends Instrumentation {
             final Activity activity = waitForMonitorWithTimeout(monitor, 15000);
             if (activity == null) throw new IllegalStateException("No player activity");
             Thread.sleep(15000);
-            runOnMainSync(() -> {
-                WebView remote = find(activity.getWindow().getDecorView());
-                if (remote != null) {
-                    result.putString("beforeParams", remote.getLayoutParams().width+"x"+remote.getLayoutParams().height);
-                    remote.setLayoutParams(new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
-                    remote.requestLayout();
-                    remote.reload();
-                }
-            });
-            Thread.sleep(5000);
             final CountDownLatch done = new CountDownLatch(1);
             runOnMainSync(() -> {
                 WebView remote = find(activity.getWindow().getDecorView());
@@ -40,6 +30,7 @@ public final class Probe extends Instrumentation {
                 result.putString("nativeSize", remote.getWidth() + "x" + remote.getHeight());
                 result.putBoolean("javascript", remote.getSettings().getJavaScriptEnabled());
                 result.putFloat("alpha", remote.getAlpha());
+                result.putString("nativeParams", remote.getLayoutParams().width+"x"+remote.getLayoutParams().height);
                 result.putString("settings", "wide="+remote.getSettings().getUseWideViewPort()+",overview="+remote.getSettings().getLoadWithOverviewMode()+",layout="+remote.getSettings().getLayoutAlgorithm()+",textZoom="+remote.getSettings().getTextZoom());
                 remote.evaluateJavascript("JSON.stringify({compat:document.compatMode,root:{client:document.documentElement.clientHeight,rect:document.documentElement.getBoundingClientRect().toJSON(),style:getComputedStyle(document.documentElement).height},body:{client:document.body.clientHeight,rect:document.body.getBoundingClientRect().toJSON(),style:getComputedStyle(document.body).height},elements:Array.from(document.body.children).map(e=>({tag:e.tagName,id:e.id,height:e.getBoundingClientRect().height,style:e.getAttribute('style')})),visual:visualViewport?{height:visualViewport.height,width:visualViewport.width,scale:visualViewport.scale}:null})", value -> {result.putString("layout",value);});
                 remote.evaluateJavascript("JSON.stringify({href:location.href,width:innerWidth,height:innerHeight,dpr:devicePixelRatio,title:document.title,visibility:document.documentElement.style.visibility,ready:document.readyState,canvas:!!window.Canvas,nika:!!window.NIKA,fade:window.FadeOutScreen,redraw:window.Redraw,work:window.WORK_PERIOD,bg:document.body.style.background,scripts:Array.from(document.scripts).map(s=>s.src),main:document.getElementById('MainDiv')?document.getElementById('MainDiv').getBoundingClientRect().toJSON():null,canvasSize:window.Canvas?[Canvas.width,Canvas.height]:null})", value -> {result.putString("page",value);done.countDown();});
