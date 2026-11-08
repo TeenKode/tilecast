@@ -85,10 +85,11 @@ class MediaCacheStorage(context: Context) {
     private fun deleteCacheTree(file: File, boundary: File, stillSafe: () -> Boolean): Int? {
         if (!stillSafe()) return null
         // Canonical containment also prevents traversal through symbolic links.
-        val base = boundary.canonicalFile.toPath()
-        val path = file.canonicalFile.toPath()
-        if (!path.startsWith(base) || path == base) return null
-        if (java.nio.file.Files.isSymbolicLink(file.toPath())) return null
+        val base = boundary.canonicalFile.absolutePath
+        val path = file.canonicalFile.absolutePath
+        if (!path.startsWith(base + File.separator)) return null
+        // Reject symlinks (including a symlink to an in-boundary target).
+        if (file.absolutePath != path) return null
         var count = 0
         if (file.isDirectory) {
             for (child in file.listFiles() ?: return null) {
