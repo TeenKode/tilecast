@@ -12,7 +12,7 @@ name: Windows Player CI
 on:
   pull_request:
   push:
-    branches: [main]
+    branches: [main, ci/windows-electron-qualification]
   schedule:
     # Weekly against the current Evergreen WebView2, so runtime drift
     # shows up here before it shows up in qualification.
