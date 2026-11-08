@@ -1,17 +1,146 @@
-name: Scheduled Go race validation
+name: Player reliability focused validation
+
+# Temporary CI branch only. Checkout the exact PR revision, not this harness.
 on:
-  schedule:
-    - cron: "41 3 * * 2,5"
   workflow_dispatch:
+    inputs:
+      revision:
+        description: Exact Player reliability PR commit
+        required: true
+        type: string
+
 permissions:
-  actions: read
   contents: read
-  checks: write
+
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: player-reliability-focused-${{ inputs.revision }}
   cancel-in-progress: true
+
 jobs:
-  server_race:
-    uses: ./.github/workflows/ci-server.yml
-    with:
-      race: true
+  server:
+    name: Heartbeat and incident regressions
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: tilecast_test
+          POSTGRES_USER: tilecast
+          POSTGRES_PASSWORD: tilecast_test_password
+        ports: [5432:5432]
+        options: --health-cmd "pg_isready -U tilecast -d tilecast_test" --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.revision }}
+          persist-credentials: false
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: apps/server/go.mod
+          cache-dependency-path: apps/server/go.sum
+      - name: Relevant HTTP, socket, heartbeat and incident tests
+        working-directory: apps/server
+        env:
+          TEST_DATABASE_URL: postgres://tilecast:tilecast_test_password@localhost:5432/tilecast_test?sslmode=disable
+        run: go test -count=1 -v ./internal/httpapi -run 'TestHealthyHeartbeatRecoversStale(SafeMode|Playback)Incident|TestIncidentRecoversAutomaticallyAndReopensIfTheConditionReturns|Test.*Heartbeat|Test.*SocketStatus|Test.*Fleet'
+      - name: Build server
+        working-directory: apps/server
+        run: go build ./cmd/tilecast-server
+
+  android:
+    name: Android media and visibility regressions
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.revision }}
+          persist-credentials: false
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+      - uses: android-actions/setup-android@v4
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build --workspace @tilecast/player-runtime
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android,armv7-linux-androideabi,x86_64-linux-android
+      - uses: actions/cache/restore@v6
+        with:
+          path: |
+            target
+            ~/.cargo/registry
+            ~/.cargo/git
+            ~/.cargo/bin/cargo-ndk*
+          key: fork-android-v2-${{ runner.os }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml', 'crates/**/*.rs', 'apps/player-android/native/**/*.rs', 'plugins/**/native/**/*.rs') }}
+          restore-keys: |
+            fork-android-v2-${{ runner.os }}-
+            android-test-native-${{ runner.os }}-
+      - uses: actions/cache@v6
+        with:
+          path: ${{ env.ANDROID_HOME }}/ndk/29.0.14206865
+          key: android-ndk-29.0.14206865
+      - name: Native build prerequisites
+        run: |
+          cargo ndk --version 2>/dev/null | grep -qx 'cargo-ndk 4.1.2' || cargo install cargo-ndk --version 4.1.2 --locked
+          sdkmanager --install 'ndk;29.0.14206865' 'platforms;android-37'
+      - name: Relevant JVM tests, Android lint and APK builds
+        working-directory: apps/player-android
+        run: >-
+          ./gradlew :app:testDebugUnitTest
+          --tests org.tilecast.player.PlayerActivityVisibilityTest
+          --tests org.tilecast.player.runtime.TcMediaBridgeTest
+          --tests org.tilecast.player.runtime.MediaAuthorizationTest
+          :app:lintDebug :app:assembleDebug :app:assembleDebugAndroidTest
+          --no-daemon --max-workers=2
+      - name: Enable emulator KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: WebView range regression only
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          profile: Nexus 6
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          script: cd apps/player-android && ./gradlew :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=org.tilecast.player.conformance.MediaRangeWebViewTest --no-daemon --max-workers=2
+      - uses: actions/upload-artifact@v7
+        if: ${{ !cancelled() }}
+        with:
+          name: player-reliability-android
+          path: |
+            apps/player-android/app/build/outputs/apk/debug/*.apk
+            apps/player-android/app/build/outputs/apk/androidTest/debug/*.apk
+            apps/player-android/app/build/test-results/testDebugUnitTest/*.xml
+            apps/player-android/app/build/outputs/androidTest-results/**
+            apps/player-android/app/build/reports/lint-results-debug.*
+
+  docs:
+    name: Changed documentation and site build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.revision }}
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: bash scripts/check-docs-ste.sh
+      - run: npx prettier --check docs/activity.md docs/android-development.md apps/docs/src/content/docs/operations/overview.mdx
+      - run: npm run docs:check
+      - run: npm run docs:build
