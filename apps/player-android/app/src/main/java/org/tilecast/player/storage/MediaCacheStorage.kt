@@ -2,6 +2,8 @@ package org.tilecast.player.storage
 
 import android.content.Context
 import android.os.Environment
+import android.system.Os
+import android.system.OsConstants
 import java.io.File
 
 /**
@@ -116,6 +118,75 @@ class MediaCacheStorage(context: Context) {
             runCatching { (it.isDirectory || it.mkdirs()) && it.canWrite() }.getOrDefault(false)
         }
     }
+
+    /** The live CAS path comes from nativeStatus, NOT from the saved preference. */
+    fun activeUsbVolume(casDir: String?, volumes: List<Volume> = removableVolumes()): Volume? {
+        if (casDir.isNullOrBlank()) return null
+        val active = runCatching { File(casDir).canonicalFile }.getOrNull() ?: return null
+        return volumes.firstOrNull { volume ->
+            runCatching {
+                File(File(volume.filesDir, "tilecast-player-media"), "cas").canonicalFile == active
+            }.getOrDefault(false)
+        }
+    }
+
+    fun internalCasDir(): File = File(File(app.filesDir, "player-core"), "cas")
+
+    fun isInternalActive(casDir: String?): Boolean =
+        !casDir.isNullOrBlank() &&
+            runCatching { File(casDir).canonicalFile == internalCasDir().canonicalFile }.getOrDefault(false)
+
+    enum class CleanupResult { CLEARED, EMPTY, NOT_USING_USB, UNSAFE_LAYOUT, FAILED }
+
+    /**
+     * Only clear orphaned internal CAS + partial downloads when Core reports an
+     * actually opened CAS on a *currently mounted* Android-listed USB volume.
+     * Never touch state.db, the credentials, config, or the active CAS.
+     *
+     * Call from a worker thread after an explicit administrator confirmation.
+     */
+    fun clearInactiveInternalCache(actualCasDir: String?): CleanupResult {
+        val volume = activeUsbVolume(actualCasDir) ?: return CleanupResult.NOT_USING_USB
+        val internalCas = internalCasDir()
+        val usbCas = File(File(volume.filesDir, "tilecast-player-media"), "cas")
+        if (!canClearInactiveInternalCache(actualCasDir, internalCas, listOf(usbCas))) {
+            return CleanupResult.NOT_USING_USB
+        }
+        val coreDir = File(app.filesDir, "player-core")
+        val targets = listOf(internalCas, File(coreDir, "partial"))
+        if (targets.none { it.exists() }) return CleanupResult.EMPTY
+        // Preflight all entries before deleting anything. Reject symbolic links,
+        // special files and paths escaping the app's Core directory.
+        if (targets.any { !isSafeCacheTree(it, coreDir) }) return CleanupResult.UNSAFE_LAYOUT
+        return if (targets.all { removeSafeCacheTree(it, coreDir) }) {
+            CleanupResult.CLEARED
+        } else {
+            CleanupResult.FAILED
+        }
+    }
+
+    private fun isSafeCacheTree(node: File, coreDir: File): Boolean {
+        if (!node.exists()) return true
+        return runCatching {
+            val mode = Os.lstat(node.absolutePath).st_mode and OsConstants.S_IFMT
+            val isDirectory = mode == OsConstants.S_IFDIR
+            if (mode != OsConstants.S_IFREG && !isDirectory) return@runCatching false
+            val corePath = coreDir.canonicalPath + File.separator
+            if (!node.canonicalPath.startsWith(corePath)) return@runCatching false
+            !isDirectory || node.listFiles()?.all { isSafeCacheTree(it, coreDir) } == true
+        }.getOrDefault(false)
+    }
+
+    private fun removeSafeCacheTree(node: File, coreDir: File): Boolean {
+        if (!node.exists()) return true
+        // Validate again to reduce exposure to changes after the preflight.
+        if (!isSafeCacheTree(node, coreDir)) return false
+        if (node.isDirectory) {
+            val children = node.listFiles() ?: return false
+            if (!children.all { removeSafeCacheTree(it, coreDir) }) return false
+        }
+        return node.delete()
+    }
 }
 
 /** Pure selection logic: a vanished explicit USB is never replaced by another one. */
@@ -126,4 +197,18 @@ internal fun chooseMediaVolumeId(
     "auto" -> availableIds.firstOrNull()
     "usb" -> selection.volumeId?.takeIf { it in availableIds }
     else -> null
+}
+
+/** Extra guard: only the exact active, Android-enumerated USB CAS is eligible. */
+internal fun canClearInactiveInternalCache(
+    actualCasDir: String?,
+    internalCasDir: File,
+    eligibleUsbCasDirs: List<File>,
+): Boolean {
+    if (actualCasDir.isNullOrBlank()) return false
+    val actual = runCatching { File(actualCasDir).canonicalFile }.getOrNull() ?: return false
+    if (runCatching { actual == internalCasDir.canonicalFile }.getOrDefault(false)) return false
+    return eligibleUsbCasDirs.any { candidate ->
+        runCatching { candidate.canonicalFile == actual }.getOrDefault(false)
+    }
 }
