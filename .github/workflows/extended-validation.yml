@@ -8,6 +8,10 @@ on:
         description: Exact Player reliability PR commit
         required: true
         type: string
+      android_only:
+        description: Retest only Android after the other suites passed
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -18,6 +22,7 @@ concurrency:
 
 jobs:
   server:
+    if: ${{ !inputs.android_only }}
     name: Heartbeat and incident regressions
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -90,7 +95,7 @@ jobs:
       - name: Native build prerequisites
         run: |
           cargo ndk --version 2>/dev/null | grep -qx 'cargo-ndk 4.1.2' || cargo install cargo-ndk --version 4.1.2 --locked
-          sdkmanager --install 'ndk;29.0.14206865' 'platforms;android-37'
+          sdkmanager --install 'ndk;29.0.14206865'
       - name: Relevant JVM tests, Android lint and APK builds
         working-directory: apps/player-android
         run: >-
@@ -127,6 +132,7 @@ jobs:
             apps/player-android/app/build/reports/lint-results-debug.*
 
   docs:
+    if: ${{ !inputs.android_only }}
     name: Changed documentation and site build
     runs-on: ubuntu-latest
     timeout-minutes: 20
