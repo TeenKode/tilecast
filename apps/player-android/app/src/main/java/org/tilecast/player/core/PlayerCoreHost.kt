@@ -851,6 +851,27 @@ class PlayerCoreHost private constructor(
         }
     }
 
+    /**
+     * Serializes destructive cache maintenance with Core stop/start and all
+     * other host operations. Native status is re-read for every deletion;
+     * stale Kotlin StateFlow snapshots cannot authorize cleanup.
+     */
+    suspend fun clearInactiveInternalMediaCache(
+        storage: org.tilecast.player.storage.MediaCacheStorage,
+    ): org.tilecast.player.storage.MediaCacheStorage.CleanupResult =
+        withContext(Dispatchers.IO) {
+            mutex.withLock {
+                if (_state.value !is CoreHostState.Ready || handle == 0L) {
+                    return@withLock org.tilecast.player.storage.MediaCacheStorage.CleanupResult.NOT_USING_USB
+                }
+                storage.clearInactiveInternalCache {
+                    if (handle == 0L || _state.value !is CoreHostState.Ready) return@clearInactiveInternalCache null
+                    val status = CoreHostStatus.parse(runCatching { bridge.statusJson(handle) }.getOrNull())
+                    status.takeIf { it.ok }?.casDir
+                }
+            }
+        }
+
     /** Stops the host. Safe to call when idle or after a failed start. */
     suspend fun stop() {
         withContext(Dispatchers.IO) {
