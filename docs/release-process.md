@@ -67,7 +67,9 @@ upstream hardware qualification. It keeps the legacy version code below
 0.26.0; it must not use the unified Fork Dev version. Publication verifies the
 downloaded draft assets and never changes a published release. Dispatch the
 workflow from `main` for later releases, after advancing the Linux package
-version and its lockfile. Changing this workflow on `main` also starts it.
+version and its lockfile. Changing this workflow or the Linux package version
+on `main` also starts it. A tag copied from upstream cannot be reused for a
+fork build from another commit.
 
 | Channel     | Version form    | GitHub Release | Server image tags                                                     |
 | ----------- | --------------- | -------------- | --------------------------------------------------------------------- |

@@ -3,7 +3,9 @@ name: Fork Linux Player release
 on:
   push:
     branches: [main]
-    paths: [.github/workflows/fork-linux-player-release.yml]
+    paths:
+      - .github/workflows/fork-linux-player-release.yml
+      - apps/player-linux/package.json
   workflow_dispatch:
 
 permissions:
@@ -39,6 +41,15 @@ jobs:
           tag="player-linux-v$version"
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
           echo "version=$version" >> "$GITHUB_OUTPUT"
+          existing_tag="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$tag" --jq .object.sha 2>/dev/null || true)"
+          if [ -n "$existing_tag" ]; then
+            # Tags copied from upstream must never be moved onto fork sources.
+            tag_commit="$(git ls-remote origin "refs/tags/$tag^{}" | cut -f1)"
+            test "${tag_commit:-$existing_tag}" = "$GITHUB_SHA" || {
+              echo "Tag $tag belongs to a different commit; advance the Linux package version." >&2
+              exit 1
+            }
+          fi
           gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/releases?per_page=100" > "$RUNNER_TEMP/releases.json"
           existing="$(jq -c --arg tag "$tag" '[.[][] | select(.tag_name == $tag)] | first // empty' "$RUNNER_TEMP/releases.json")"
           if [ -n "$existing" ]; then
