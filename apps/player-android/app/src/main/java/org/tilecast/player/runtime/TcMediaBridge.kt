@@ -5,6 +5,8 @@ import java.io.File
 import java.io.FileInputStream
 import java.io.FilterInputStream
 import java.io.InputStream
+import java.io.IOException
+import java.util.concurrent.atomic.AtomicBoolean
 
 /** Serves host-authorized cached media to the trusted runtime WebView.
  *
@@ -13,6 +15,31 @@ import java.io.InputStream
  * The pure [resolve] is unit-tested; [toResponse] is a thin framework adapter.
  */
 object TcMediaBridge {
+
+    // vold may send SIGINT to processes with open descriptors on an ejected
+    // volume. Close outstanding WebView response streams before unmount.
+    private val streamLock = Any()
+    private val activeStreams = mutableSetOf<TrackedInputStream>()
+    private val ejectedRoots = mutableSetOf<String>()
+
+    /**
+     * Called synchronously for ACTION_MEDIA_EJECT, while the volume is still
+     * mounted. Refuse further opens and close all live descriptors under it.
+     * Reinsertion requires a cold Player restart to reopen/reconcile Core.
+     */
+    fun onExternalVolumeEject(volumePath: String) {
+        val root = volumePath.trimEnd('/')
+        if (!root.startsWith("/") || root.isEmpty()) return
+        val closing = synchronized(streamLock) {
+            ejectedRoots.add(root)
+            activeStreams.filter { isBelowRoot(it.filePath, root) }
+        }
+        closing.forEach { runCatching { it.close() } }
+    }
+
+    private fun isBelowRoot(path: String, root: String): Boolean =
+        path == root || path.startsWith("$root/")
+
     data class ResolvedMedia(
         val statusCode: Int,
         val reason: String,
@@ -78,13 +105,24 @@ object TcMediaBridge {
     fun openStream(resolved: ResolvedMedia): InputStream? {
         val file = resolved.file ?: return null
         return runCatching {
-            val stream = FileInputStream(file)
-            try {
-                stream.channel.position(resolved.offset)
-                BoundedInputStream(stream, resolved.contentLength)
-            } catch (error: Throwable) {
-                runCatching { stream.close() }
-                throw error
+            // Serialize FD creation with eject marking. A stream cannot open
+            // between the ejection snapshot and closing existing streams.
+            synchronized(streamLock) {
+                if (ejectedRoots.any { isBelowRoot(file.absolutePath, it) }) {
+                    null
+                } else {
+                    val input = FileInputStream(file)
+                    try {
+                        input.channel.position(resolved.offset)
+                        TrackedInputStream(
+                            BoundedInputStream(input, resolved.contentLength),
+                            file.absolutePath,
+                        ).also { activeStreams.add(it) }
+                    } catch (error: Throwable) {
+                        runCatching { input.close() }
+                        throw error
+                    }
+                }
             }
         }.getOrNull()
     }
@@ -125,6 +163,58 @@ object TcMediaBridge {
 
         override fun available(): Int =
             minOf(super.available().toLong(), remaining, Int.MAX_VALUE.toLong()).toInt()
+    }
+
+
+    /**
+     * WebView owns this response body. Ejection can close it concurrently with
+     * a Chromium read; return EOF instead of propagating an I/O failure back
+     * across the WebResourceResponse boundary.
+     */
+    private class TrackedInputStream(input: InputStream, val filePath: String) : FilterInputStream(input) {
+        private val closed = AtomicBoolean(false)
+
+        private fun safeRead(block: () -> Int): Int {
+            if (closed.get()) return -1
+            return try {
+                block().also { if (it < 0) runCatching { close() } }
+            } catch (_: IOException) {
+                runCatching { close() }
+                -1
+            }
+        }
+
+        override fun read(): Int = safeRead { super.read() }
+
+        override fun read(buffer: ByteArray, offset: Int, length: Int): Int {
+            if (length == 0) return 0
+            return safeRead { super.read(buffer, offset, length) }
+        }
+
+        override fun skip(count: Long): Long {
+            if (closed.get()) return 0
+            return try { super.skip(count) } catch (_: IOException) {
+                runCatching { close() }
+                0
+            }
+        }
+
+        override fun available(): Int {
+            if (closed.get()) return 0
+            return try { super.available() } catch (_: IOException) {
+                runCatching { close() }
+                0
+            }
+        }
+
+        override fun close() {
+            if (!closed.compareAndSet(false, true)) return
+            try {
+                super.close()
+            } finally {
+                synchronized(streamLock) { activeStreams.remove(this) }
+            }
+        }
     }
 
     fun toResponse(resolved: ResolvedMedia): WebResourceResponse? {
