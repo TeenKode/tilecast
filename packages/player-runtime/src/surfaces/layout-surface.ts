@@ -459,14 +459,25 @@ export class LayoutSurface implements MediaSurface {
           case "image":
             incoming = new ImageSurface(item);
             break;
-          case "video":
+          case "video": {
+            // Electron on Linux can drop frames when two 1080p decoders run
+            // together, even briefly. Let the media decoder loop this one
+            // untrimmed clip itself; Android keeps the prepared-frame swap.
+            const linuxElectron =
+              /Electron\/\d+/.test(navigator.userAgent) &&
+              /Linux/.test(navigator.userAgent);
             incoming =
-              selected.loop &&
-              typeof HTMLVideoElement.prototype.requestVideoFrameCallback ===
-                "function"
-                ? new SeamlessLoopVideoSurface(item, environment, epoch)
-                : new HtmlVideoSurface(item, environment, epoch);
+              selected.loop && linuxElectron
+                ? new HtmlVideoSurface(item, environment, epoch, {
+                    nativeLoop: true,
+                  })
+                : selected.loop &&
+                    typeof HTMLVideoElement.prototype
+                      .requestVideoFrameCallback === "function"
+                  ? new SeamlessLoopVideoSurface(item, environment, epoch)
+                  : new HtmlVideoSurface(item, environment, epoch);
             break;
+          }
           case "widget":
             incoming =
               "component" in entry.widget
