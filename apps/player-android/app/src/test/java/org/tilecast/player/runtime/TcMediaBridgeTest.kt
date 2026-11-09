@@ -76,6 +76,48 @@ class TcMediaBridgeTest {
         }
     }
 
+
+    @Test fun usbEjectClosesPlayingVideoAndPreventsReopeningIt() {
+        val usb = files.newFolder("usb-volume")
+        val cachedFile = java.io.File(usb, "cas/sha256/ab/video").apply {
+            parentFile!!.mkdirs()
+            writeBytes(videoBytes)
+        }
+        val media = TcMediaBridge.resolve(
+            "tcmedia:a1/v1", authorized, mapOf("v1" to cachedFile.absolutePath), mime(), null,
+        )!!
+        val stream = TcMediaBridge.openWebViewStream(media)!!
+        assertEquals(videoBytes[0].toInt() and 0xff, stream.read())
+
+        // Simulate Android ACTION_MEDIA_EJECT before vold unmounts the drive.
+        TcMediaBridge.onExternalVolumeEject(usb.absolutePath)
+        assertEquals(-1, stream.read())
+        assertEquals(0, stream.available())
+        assertNull(TcMediaBridge.openWebViewStream(media))
+        // A later/duplicate volume broadcast must be harmless.
+        TcMediaBridge.onExternalVolumeEject(usb.absolutePath)
+    }
+
+    @Test fun usbEjectDoesNotCloseOtherVolumesOrInternalMedia() {
+        val usb = files.newFolder("ejected")
+        val other = files.newFolder("ejected-other")
+        val external = java.io.File(usb, "video.mp4").apply { writeBytes(videoBytes) }
+        val retained = java.io.File(other, "video.mp4").apply { writeBytes(videoBytes) }
+        val usbStream = TcMediaBridge.openStream(
+            TcMediaBridge.resolve("tcmedia:a1/v1", authorized, mapOf("v1" to external.path), mime(), null)!!
+        )!!
+        val otherMedia = TcMediaBridge.resolve(
+            "tcmedia:a1/v1", authorized, mapOf("v1" to retained.path), mime(), null
+        )!!
+        val otherStream = TcMediaBridge.openStream(otherMedia)!!
+
+        TcMediaBridge.onExternalVolumeEject(usb.absolutePath)
+        assertEquals(-1, usbStream.read())
+        assertEquals(videoBytes[0].toInt() and 0xff, otherStream.read())
+        assertNotNull(TcMediaBridge.openStream(otherMedia)?.also { it.close() })
+        otherStream.close()
+    }
+
     @Test fun servesSuffixAndOpenRanges() {
         val suffix = TcMediaBridge.resolve("tcmedia:a1/v1", authorized, setup(), mime(), "bytes=-10")!!
         assertEquals(206, suffix.statusCode)
