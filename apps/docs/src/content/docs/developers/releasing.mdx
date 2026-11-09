@@ -22,6 +22,16 @@ latest published Dev release and pulls the server by its immutable digest.
 You can pass a verified image explicitly to select another build.
 The command backs up PostgreSQL before replacement.
 
+For Linux computers, the fork has a separate **Fork Linux Player release**
+workflow. It publishes the legacy x86_64 AppImage with a signed Linux update
+manifest under `player-linux-vX.Y.Z`. It uses the Linux package version and
+the Stable Linux update channel, independently of Android Dev releases.
+The signing key is the fork's permanent update key. In the fork's Studio,
+open **Settings > Player updates > Linux**, sync from GitHub, and download the
+release before running your server's `/install.sh`. See
+[Install the Linux Player](../../players/install-linux/) for the installation.
+This build needs a graphical session; it is not Tilecast Edge.
+
 Maintainers publish a release by dispatching one workflow. It builds every platform from one commit on `main`, assembles a draft GitHub release, verifies it, and publishes it. For the exact contract, see the [release process](https://github.com/gbyo/tilecast/blob/main/docs/release-process.md). For what users see, see [Releases and downloads](../../reference/releases/).
 
 ## Versions

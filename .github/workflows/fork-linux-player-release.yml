@@ -1,0 +1,137 @@
+name: Fork Linux Player release
+
+on:
+  push:
+    branches: [main]
+    paths: [.github/workflows/fork-linux-player-release.yml]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fork-linux-player-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    if: github.repository == 'TeenKode/tilecast' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - name: Resolve standalone Linux release
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          version="$(node -p "require('./apps/player-linux/package.json').version")"
+          # Electron keeps its pre-unified version-code rule. Do not stamp a
+          # unified Fork Dev version into this legacy Player.
+          [[ "$version" =~ ^0\.([0-9]|1[0-9]|2[0-5])\.[0-9]+$ ]]
+          tag="player-linux-v$version"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/releases?per_page=100" > "$RUNNER_TEMP/releases.json"
+          existing="$(jq -c --arg tag "$tag" '[.[][] | select(.tag_name == $tag)] | first // empty' "$RUNNER_TEMP/releases.json")"
+          if [ -n "$existing" ]; then
+            if [ "$(jq -r .draft <<< "$existing")" = false ]; then
+              echo 'Published releases are immutable; keep the existing release.'
+              echo 'published=true' >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            test "$(jq -r .target_commitish <<< "$existing")" = "$GITHUB_SHA"
+          fi
+          previous="$(jq -r '[.[][] | select(.draft == false) | .tag_name | select(test("^player-linux-v0\\.[0-9]+\\.[0-9]+$")) | ltrimstr("player-linux-v") | split(".") | map(tonumber) | .[1] * 1000 + .[2]] | max // 0' "$RUNNER_TEMP/releases.json")"
+          current="$(node -p "const [a,b,c]='$version'.split('.').map(Number); a*1000000+b*1000+c")"
+          test "$current" -gt "$previous"
+      - name: Install Linux workspace dependencies
+        if: steps.release.outputs.published != 'true'
+        run: npm ci --workspace @gibsonmb71/tilecast-player-linux
+      - name: Test the Linux Player and shared policies
+        if: steps.release.outputs.published != 'true'
+        run: |
+          set -euo pipefail
+          npm run build:node --workspace @tilecast/player-runtime
+          npm run player:linux:test
+          npm test --workspace @tilecast/player-activity
+          npm test --workspace @tilecast/player-active-hours
+      - name: Restore fork update signing key
+        if: steps.release.outputs.published != 'true'
+        env:
+          MANIFEST_KEY: ${{ secrets.TILECAST_FORK_UPDATE_PRIVATE_KEY_PEM }}
+        run: |
+          set -euo pipefail
+          test -n "$MANIFEST_KEY"
+          install -d -m 700 "$RUNNER_TEMP/fork-linux-signing"
+          printf '%s' "$MANIFEST_KEY" > "$RUNNER_TEMP/fork-linux-signing/private.pem"
+          chmod 600 "$RUNNER_TEMP/fork-linux-signing/private.pem"
+          openssl pkey -in "$RUNNER_TEMP/fork-linux-signing/private.pem" -pubout -outform DER > "$RUNNER_TEMP/fork-linux-signing/actual.der"
+          openssl pkey -pubin -in deploy/fork/update-public-key.pem -outform DER > "$RUNNER_TEMP/fork-linux-signing/expected.der"
+          cmp "$RUNNER_TEMP/fork-linux-signing/actual.der" "$RUNNER_TEMP/fork-linux-signing/expected.der"
+      - name: Build, sign, and verify AppImage
+        if: steps.release.outputs.published != 'true'
+        env:
+          TILECAST_UPDATE_MANIFEST_PRIVATE_KEY: ${{ runner.temp }}/fork-linux-signing/private.pem
+          TILECAST_UPDATE_MANIFEST_PUBLIC_KEY_FILE: ${{ github.workspace }}/deploy/fork/update-public-key.pem
+          TILECAST_RELEASE_CHANNEL: stable
+          TILECAST_RELEASE_NOTES: Standalone x86_64 Linux AppImage for the TeenKode test fork. Edge and Windows are not included.
+          TILECAST_RELEASE_OUTPUT: ${{ runner.temp }}/fork-linux-release
+        run: scripts/build-linux-player-release.sh
+      - name: Publish verified standalone release
+        if: steps.release.outputs.published != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+          RELEASE_VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          set -euo pipefail
+          output="$RUNNER_TEMP/fork-linux-release"
+          (cd "$output" && sha256sum tilecast-player* > SHA256SUMS)
+          cat > "$RUNNER_TEMP/linux-release-notes.md" <<'EOF'
+          Standalone Linux x86_64 AppImage for the TeenKode Tilecast fork.
+
+          Includes the shared Player Runtime, offline content cache, pairing,
+          and server-managed updates. The update manifest is signed with the
+          fork's permanent update key. Stable is the Linux update channel;
+          this is a test-fork build, not an upstream qualification claim.
+
+          In the fork's Studio, open Settings > Player updates > Linux, sync
+          from GitHub, and download this release. Then use your server's
+          /install.sh installer. A graphical X11 or Wayland session is required.
+
+          No Edge, Windows, Android, or Server build is included in this release.
+          EOF
+          existing_tag="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$RELEASE_TAG" --jq .object.sha 2>/dev/null || true)"
+          if [ -n "$existing_tag" ]; then
+            test "$existing_tag" = "$GITHUB_SHA"
+          else
+            gh api --method POST "repos/$GITHUB_REPOSITORY/git/refs" \
+              -f ref="refs/tags/$RELEASE_TAG" -f sha="$GITHUB_SHA" >/dev/null
+          fi
+          if ! gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release create "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" \
+              --target "$GITHUB_SHA" --draft --latest=false \
+              --title "Tilecast TEST Linux Player $RELEASE_VERSION" \
+              --notes-file "$RUNNER_TEMP/linux-release-notes.md"
+          fi
+          test "$(gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json isDraft --jq .isDraft)" = true
+          gh release upload "$RELEASE_TAG" "$output/"* --repo "$GITHUB_REPOSITORY" --clobber
+          mkdir -p "$RUNNER_TEMP/fork-linux-roundtrip"
+          gh release download "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --dir "$RUNNER_TEMP/fork-linux-roundtrip"
+          (cd "$RUNNER_TEMP/fork-linux-roundtrip" && sha256sum -c SHA256SUMS)
+          cmp "$output/tilecast-player-update-linux.json" "$RUNNER_TEMP/fork-linux-roundtrip/tilecast-player-update-linux.json"
+          openssl pkeyutl -verify -rawin -pubin -inkey deploy/fork/update-public-key.pem \
+            -in "$RUNNER_TEMP/fork-linux-roundtrip/tilecast-player-update-linux.json" \
+            -sigfile <(openssl base64 -d -A -in "$RUNNER_TEMP/fork-linux-roundtrip/tilecast-player-update-linux.json.sig")
+          gh release edit "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --draft=false --latest=false
+      - name: Remove private signing key
+        if: always()
+        run: rm -f "$RUNNER_TEMP/fork-linux-signing/private.pem"

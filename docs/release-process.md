@@ -57,6 +57,18 @@ Fork Dev releases contain the test Android APK and the server image.
 They do not claim to contain Edge or Windows builds. Existing Edge Players
 need a bridge before they can accept Dev version names.
 
+The fork also has a separate **Fork Linux Player release** workflow. It builds
+the legacy x86_64 AppImage with the version in `apps/player-linux/package.json`,
+tests the Player and shared policies, and signs the update manifest with
+`TILECAST_FORK_UPDATE_PRIVATE_KEY_PEM`. Its public key must match
+`deploy/fork/update-public-key.pem`. The release uses `player-linux-vX.Y.Z`
+and the Stable Linux update channel. It is not a coordinated release or an
+upstream hardware qualification. It keeps the legacy version code below
+0.26.0; it must not use the unified Fork Dev version. Publication verifies the
+downloaded draft assets and never changes a published release. Dispatch the
+workflow from `main` for later releases, after advancing the Linux package
+version and its lockfile. Changing this workflow on `main` also starts it.
+
 | Channel     | Version form    | GitHub Release | Server image tags                                                     |
 | ----------- | --------------- | -------------- | --------------------------------------------------------------------- |
 | Stable      | `vX.Y.Z`        | Release        | `X.Y.Z`, `stable`, `latest`, and `beta` when it is the newest release |
