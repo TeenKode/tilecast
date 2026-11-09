@@ -8,8 +8,6 @@ import type { RuntimeItem } from "../host/contract";
 import type { MediaSurface, SurfaceEnvironment, SurfaceSink } from "./surface";
 import { HtmlVideoSurface } from "./video-surface";
 
-const SWAP_LEAD_SECONDS = 0.1;
-
 export class SeamlessLoopVideoSurface implements MediaSurface {
   readonly element: HTMLDivElement;
   private readonly videos: [HtmlVideoSurface, HtmlVideoSurface];
@@ -17,10 +15,8 @@ export class SeamlessLoopVideoSurface implements MediaSurface {
   private ready = false;
   private active = false;
   private disposed = false;
-  private swapping = false;
   private preparing = false;
   private recycling = false;
-  private frame: number | null = null;
   private prepareGeneration = 0;
   private readonly audible: boolean;
 
@@ -84,14 +80,11 @@ export class SeamlessLoopVideoSurface implements MediaSurface {
     this.active = true;
     await this.videos[this.current]!.activate();
     if (!this.active || this.disposed) return;
-    this.monitor();
     if (!this.ready && !this.recycling) this.prepareSpare();
   }
 
   pause(): void {
     this.active = false;
-    this.cancelFrame();
-    this.swapping = false;
     this.videos[0].pause();
     this.videos[1].pause();
   }
@@ -131,7 +124,6 @@ export class SeamlessLoopVideoSurface implements MediaSurface {
           return;
         }
         this.ready = true;
-        this.monitor();
       },
       () => {
         this.preparing = false;
@@ -141,47 +133,10 @@ export class SeamlessLoopVideoSurface implements MediaSurface {
     );
   }
 
-  private monitor(): void {
-    if (!this.active || this.disposed || this.frame !== null) return;
-    const video = this.videos[this.current]!.element;
-    const tick = () => {
-      this.frame = null;
-      if (
-        !this.active ||
-        this.disposed ||
-        video !== this.videos[this.current]!.element
-      )
-        return;
-      const remaining = video.duration - video.currentTime;
-      if (
-        this.ready &&
-        !this.swapping &&
-        Number.isFinite(remaining) &&
-        remaining <= SWAP_LEAD_SECONDS
-      ) {
-        this.swapping = true;
-        const spare = this.videos[1 - this.current]!.element;
-        spare.muted = true;
-        // The prepared first frame remains hidden until the new decoder has
-        // actually submitted a frame after play(), not merely resolved play().
-        const nextFrame = spare.requestVideoFrameCallback(() => {
-          if (this.active && !this.disposed && this.swapping) this.swap();
-        });
-        spare.play().catch(() => {
-          spare.cancelVideoFrameCallback(nextFrame);
-          this.fallback();
-        });
-      }
-      if (!this.swapping) this.frame = video.requestVideoFrameCallback(tick);
-    };
-    this.frame = video.requestVideoFrameCallback(tick);
-  }
-
   private swap(): void {
     if (!this.ready || this.disposed || !this.active) return;
     const outgoing = this.videos[this.current]!;
     const incoming = this.videos[1 - this.current]!;
-    this.cancelFrame();
     incoming.element.loop = false;
     outgoing.element.loop = false;
     incoming.element.style.zIndex = "1";
@@ -191,10 +146,8 @@ export class SeamlessLoopVideoSurface implements MediaSurface {
     void incoming.activate();
     outgoing.pause();
     this.ready = false;
-    this.swapping = false;
     this.env.sink.ended("ended");
     this.env.sink.resumed();
-    this.monitor();
     // The outgoing decoder can seek and prepare its first frame offscreen.
     this.prepareRecycled(outgoing);
   }
@@ -225,15 +178,7 @@ export class SeamlessLoopVideoSurface implements MediaSurface {
   private fallback(): void {
     if (this.disposed) return;
     this.ready = false;
-    this.swapping = false;
     this.recycling = false;
     this.videos[this.current]!.element.loop = true;
-    this.monitor();
-  }
-
-  private cancelFrame(): void {
-    if (this.frame === null) return;
-    this.videos[this.current]!.element.cancelVideoFrameCallback(this.frame);
-    this.frame = null;
   }
 }

@@ -53,7 +53,7 @@ describe("a single looping Layout video", () => {
     ) {
       callbacks.get(this)?.delete(id);
     };
-    vi.spyOn(HTMLMediaElement.prototype, "play").mockResolvedValue();
+    const play = vi.spyOn(HTMLMediaElement.prototype, "play").mockResolvedValue();
     vi.spyOn(HTMLMediaElement.prototype, "pause").mockImplementation(() => {});
     vi.spyOn(HTMLMediaElement.prototype, "load").mockImplementation(() => {});
     const frame = (video: HTMLVideoElement) => {
@@ -100,9 +100,13 @@ describe("a single looping Layout video", () => {
     expect(second!.style.zIndex).toBe("0");
 
     first!.currentTime = 59.95;
-    frame(first!); // start the prepared decoder near the boundary
+    frame(first!);
+    // Never cut off the tail merely because the next decoder is prepared.
     expect(first!.style.zIndex).toBe("1");
-    frame(second!); // the second decoder has presented its next frame
+    expect(second!.currentTime).toBe(0);
+    expect(play.mock.contexts.filter((context) => context === second)).toHaveLength(1);
+    first!.dispatchEvent(new Event("ended"));
+    expect(play.mock.contexts.filter((context) => context === second)).toHaveLength(2);
     expect(first!.style.zIndex).toBe("0");
     expect(second!.style.zIndex).toBe("1");
     expect(surface.element.querySelectorAll("video")).toHaveLength(2);
@@ -110,7 +114,8 @@ describe("a single looping Layout video", () => {
     frame(first!); // former visible decoder is ready for the following lap
     second!.currentTime = 59.95;
     frame(second!);
-    frame(first!);
+    expect(second!.style.zIndex).toBe("1");
+    second!.dispatchEvent(new Event("ended"));
     expect(first!.style.zIndex).toBe("1");
     expect(second!.style.zIndex).toBe("0");
     expect(sink.failed).not.toHaveBeenCalled();
