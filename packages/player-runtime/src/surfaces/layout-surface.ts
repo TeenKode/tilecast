@@ -30,7 +30,6 @@ import type { MediaSurface, SurfaceEnvironment, SurfaceSink } from "./surface";
 import type { WidgetExecution } from "@tilecast/widget-sdk/executor";
 import { ImageSurface } from "./image-surface";
 import { HtmlVideoSurface } from "./video-surface";
-import { SeamlessLoopVideoSurface } from "./seamless-loop-video-surface";
 import { ComponentWidgetSurface } from "./component-widget-surface";
 import { WidgetSurface } from "./widget-surface";
 
@@ -460,22 +459,12 @@ export class LayoutSurface implements MediaSurface {
             incoming = new ImageSurface(item);
             break;
           case "video": {
-            // Electron on Linux can drop frames when two 1080p decoders run
-            // together, even briefly. Let the media decoder loop this one
-            // untrimmed clip itself; Android keeps the prepared-frame swap.
-            const linuxElectron =
-              /Electron\/\d+/.test(navigator.userAgent) &&
-              /Linux/.test(navigator.userAgent);
-            incoming =
-              selected.loop && linuxElectron
-                ? new HtmlVideoSurface(item, environment, epoch, {
-                    nativeLoop: true,
-                  })
-                : selected.loop &&
-                    typeof HTMLVideoElement.prototype
-                      .requestVideoFrameCallback === "function"
-                  ? new SeamlessLoopVideoSurface(item, environment, epoch)
-                  : new HtmlVideoSurface(item, environment, epoch);
+            // Native looping keeps one decoder across the boundary on both
+            // Android WebView and Linux Electron. A second 1080p decoder can
+            // stall older hardware even when started just before the end.
+            incoming = new HtmlVideoSurface(item, environment, epoch, {
+              nativeLoop: selected.loop,
+            });
             break;
           }
           case "widget":
