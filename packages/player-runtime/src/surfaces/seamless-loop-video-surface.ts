@@ -1,92 +1,53 @@
 /**
- * A single, untrimmed video in a looping Layout zone. Chromium's native
- * `video.loop` may hold its last frame while the decoder seeks to the start.
- * Keep another decoder paused on a decoded first frame, then start and reveal
- * it at the boundary. Only one decoder plays at a time outside the short swap.
+ * Loop a single, untrimmed Layout video without holding its last frame during
+ * a visible seek. Decode the next first frame shortly before the boundary,
+ * then release the old decoder as soon as the prepared frame is shown.
  */
 import type { RuntimeItem } from "../host/contract";
 import type { MediaSurface, SurfaceEnvironment, SurfaceSink } from "./surface";
 import { HtmlVideoSurface } from "./video-surface";
 
+const PREPARE_BEFORE_END_SECONDS = 3;
+
 export class SeamlessLoopVideoSurface implements MediaSurface {
   readonly element: HTMLDivElement;
-  private readonly videos: [HtmlVideoSurface, HtmlVideoSurface];
+  private readonly videos: [HtmlVideoSurface | null, HtmlVideoSurface | null];
   private current: 0 | 1 = 0;
   private ready = false;
+  private preparing = false;
   private active = false;
   private disposed = false;
-  private preparing = false;
-  private recycling = false;
-  private prepareGeneration = 0;
-  private readonly audible: boolean;
+  private seamless = true;
+  private generation = 0;
+  private nextMount: number;
 
   constructor(
-    item: RuntimeItem,
+    private readonly item: RuntimeItem,
     private readonly env: SurfaceEnvironment,
     mount: number,
   ) {
-    this.audible = item.audioEnabled;
+    this.nextMount = mount;
     this.element = document.createElement("div");
     this.element.style.position = "relative";
-    this.videos = [0, 1].map((index) => {
-      const sink: SurfaceSink = {
-        ...env.sink,
-        ended: (source) => {
-          if (index === this.current && !this.disposed && this.active) {
-            if (this.ready) this.swap();
-            else {
-              // A spare decoder failure must not leave a single-video zone
-              // parked forever on the last frame.
-              this.fallback();
-              this.videos[this.current]!.restart();
-            }
-          }
-        },
-        failed: (reason) => {
-          if (index === this.current) env.sink.failed(reason);
-          else this.fallback();
-        },
-        evidence: (kind, zoneId) => {
-          if (index === this.current) env.sink.evidence(kind, zoneId);
-        },
-      };
-      const surface = new HtmlVideoSurface(
-        item,
-        { ...env, sink },
-        mount + index,
-        {
-          presentFirstFrame: index === 1,
-        },
-      );
-      const video = surface.element;
-      video.style.position = "absolute";
-      video.style.inset = "0";
-      video.style.width = "100%";
-      video.style.height = "100%";
-      // Keep both layers composited. Some engines do not report presented
-      // frames for a video with CSS visibility:hidden.
-      video.style.zIndex = index === 0 ? "1" : "0";
-      this.element.append(video);
-      return surface;
-    }) as [HtmlVideoSurface, HtmlVideoSurface];
+    // The spare has no media source or decoder during most of the clip.
+    this.videos = [this.makeVideo(0), null];
   }
 
   prepare(): Promise<void> {
-    return this.videos[0].prepare();
+    return this.videos[0]!.prepare();
   }
 
   async activate(): Promise<void> {
     if (this.disposed || this.active) return;
     this.active = true;
     await this.videos[this.current]!.activate();
-    if (!this.active || this.disposed) return;
-    if (!this.ready && !this.recycling) this.prepareSpare();
+    this.maybePrepare();
   }
 
   pause(): void {
     this.active = false;
-    this.videos[0].pause();
-    this.videos[1].pause();
+    this.videos[this.current]?.pause();
+    this.releaseSpare();
   }
 
   seek(seconds: number): Promise<void> {
@@ -97,26 +58,87 @@ export class SeamlessLoopVideoSurface implements MediaSurface {
     if (this.disposed) return;
     this.disposed = true;
     this.pause();
-    this.videos[0].dispose();
-    this.videos[1].dispose();
+    const current = this.videos[this.current];
+    current?.dispose();
+    current?.element.remove();
+    this.videos[this.current] = null;
+  }
+
+  private makeVideo(index: 0 | 1): HtmlVideoSurface {
+    const sink: SurfaceSink = {
+      ...this.env.sink,
+      ended: () => {
+        if (index !== this.current || !this.active || this.disposed) return;
+        if (this.ready) this.swap();
+        else {
+          // A slow decoder must still let the screen keep playing.
+          this.fallback();
+          this.videos[this.current]!.restart();
+        }
+      },
+      failed: (reason) => {
+        if (index === this.current) this.env.sink.failed(reason);
+        else this.fallback();
+      },
+      evidence: (kind, zoneId) => {
+        if (index === this.current) this.env.sink.evidence(kind, zoneId);
+      },
+    };
+    const surface = new HtmlVideoSurface(
+      this.item,
+      { ...this.env, sink },
+      this.nextMount++,
+      { presentFirstFrame: index !== this.current },
+    );
+    const video = surface.element;
+    video.style.position = "absolute";
+    video.style.inset = "0";
+    video.style.width = "100%";
+    video.style.height = "100%";
+    // Keep the covered layer composited while it presents its first frame.
+    video.style.zIndex = index === this.current ? "1" : "0";
+    video.addEventListener("timeupdate", () => {
+      if (index === this.current) this.maybePrepare();
+    });
+    this.element.append(video);
+    return surface;
+  }
+
+  private maybePrepare(): void {
+    if (
+      !this.active ||
+      this.disposed ||
+      !this.seamless ||
+      this.ready ||
+      this.preparing
+    )
+      return;
+    const video = this.videos[this.current]!.element;
+    const remaining = video.duration - video.currentTime;
+    if (
+      Number.isFinite(remaining) &&
+      remaining > 0 &&
+      remaining <= PREPARE_BEFORE_END_SECONDS
+    )
+      this.prepareSpare();
   }
 
   private prepareSpare(): void {
-    if (this.preparing) return;
     this.preparing = true;
-    const generation = ++this.prepareGeneration;
-    const spare = this.videos[1 - this.current]!;
+    const generation = ++this.generation;
+    const index = this.current === 0 ? 1 : 0;
+    const spare = this.makeVideo(index);
+    this.videos[index] = spare;
     const video = spare.element;
     video.muted = true;
     let presented = false;
     const firstFrame = video.requestVideoFrameCallback(() => {
       presented = true;
     });
-    // prepare() presents a real decoded first frame on the hidden element.
     void spare.prepare().then(
       () => {
+        if (generation !== this.generation || this.disposed) return;
         this.preparing = false;
-        if (generation !== this.prepareGeneration || this.disposed) return;
         video.pause();
         if (!presented) {
           video.cancelVideoFrameCallback(firstFrame);
@@ -126,7 +148,7 @@ export class SeamlessLoopVideoSurface implements MediaSurface {
         this.ready = true;
       },
       () => {
-        this.preparing = false;
+        if (generation !== this.generation || this.disposed) return;
         video.cancelVideoFrameCallback(firstFrame);
         this.fallback();
       },
@@ -135,50 +157,37 @@ export class SeamlessLoopVideoSurface implements MediaSurface {
 
   private swap(): void {
     if (!this.ready || this.disposed || !this.active) return;
-    const outgoing = this.videos[this.current]!;
-    const incoming = this.videos[1 - this.current]!;
-    incoming.element.loop = false;
-    outgoing.element.loop = false;
+    const oldIndex = this.current;
+    const nextIndex = oldIndex === 0 ? 1 : 0;
+    const outgoing = this.videos[oldIndex]!;
+    const incoming = this.videos[nextIndex]!;
     incoming.element.style.zIndex = "1";
-    outgoing.element.style.zIndex = "0";
-    this.current = this.current === 0 ? 1 : 0;
-    incoming.element.muted = !this.audible;
-    void incoming.activate();
-    outgoing.pause();
+    this.current = nextIndex;
     this.ready = false;
+    incoming.element.muted = !this.item.audioEnabled;
+    void incoming.activate();
+    outgoing.dispose();
+    outgoing.element.remove();
+    this.videos[oldIndex] = null;
     this.env.sink.ended("ended");
     this.env.sink.resumed();
-    // The outgoing decoder can seek and prepare its first frame offscreen.
-    this.prepareRecycled(outgoing);
   }
 
-  private prepareRecycled(surface: HtmlVideoSurface): void {
-    this.recycling = true;
-    const generation = ++this.prepareGeneration;
-    const video = surface.element;
-    video.muted = true;
-    const seeked = () => {
-      if (generation !== this.prepareGeneration || this.disposed) return;
-      const firstFrame = video.requestVideoFrameCallback(() => {
-        video.pause();
-        if (generation === this.prepareGeneration && !this.disposed) {
-          this.ready = true;
-          this.recycling = false;
-        }
-      });
-      video.play().catch(() => {
-        video.cancelVideoFrameCallback(firstFrame);
-        this.fallback();
-      });
-    };
-    video.addEventListener("seeked", seeked, { once: true });
-    video.currentTime = 0;
+  private releaseSpare(): void {
+    this.generation++;
+    this.ready = false;
+    this.preparing = false;
+    const index = this.current === 0 ? 1 : 0;
+    const spare = this.videos[index];
+    spare?.dispose();
+    spare?.element.remove();
+    this.videos[index] = null;
   }
 
   private fallback(): void {
     if (this.disposed) return;
-    this.ready = false;
-    this.recycling = false;
+    this.seamless = false;
+    this.releaseSpare();
     this.videos[this.current]!.element.loop = true;
   }
 }
