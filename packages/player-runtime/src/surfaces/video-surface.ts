@@ -70,6 +70,8 @@ export interface HtmlVideoOptions {
    * has pixels. Layout zones run their own swap and leave it off.
    */
   presentFirstFrame?: boolean;
+  /** Native media looping avoids a blank frame from seeking a visible video. */
+  nativeLoop?: boolean;
 }
 
 export class HtmlVideoSurface implements RestartableSurface {
@@ -101,6 +103,7 @@ export class HtmlVideoSurface implements RestartableSurface {
    */
   private framesSeen = false;
   private resumePending = false;
+  private lastObservedTime: number | null = null;
   private readonly corrector = new VideoSyncCorrector((event) =>
     this.onSyncEvent(event),
   );
@@ -117,6 +120,9 @@ export class HtmlVideoSurface implements RestartableSurface {
     const video = document.createElement("video");
     video.style.objectFit = objectFit(item.fitMode);
     video.autoplay = false;
+    // WebKit can stall when a prepared video starts with looping already on.
+    // Apply it after play begins, as layout zones do.
+    video.loop = false;
     video.muted = !item.audioEnabled;
     video.volume = Math.min(Math.max(item.volume, 0), 1);
     video.playsInline = true;
@@ -183,8 +189,11 @@ export class HtmlVideoSurface implements RestartableSurface {
       this.element.muted = !this.item.audioEnabled;
     }
     this.watchFrames();
+    if (this.options.nativeLoop) this.element.loop = false;
     return this.element.play().then(
-      () => undefined,
+      () => {
+        if (this.options.nativeLoop && !this.disposed) this.element.loop = true;
+      },
       () => this.fail("video autoplay failed"),
     );
   }
@@ -192,6 +201,10 @@ export class HtmlVideoSurface implements RestartableSurface {
   restart(): void {
     // The completion guard stays closed until playback has genuinely resumed.
     this.resumePending = true;
+    // The decoder has already started the next lap. A JS seek here would
+    // discard its current frame and expose the black background underneath.
+    if (this.options.nativeLoop && this.element.loop && !this.element.ended)
+      return;
     this.element.currentTime = this.startS;
     this.element.play().catch(() => this.fail("video restart failed"));
   }
@@ -248,6 +261,7 @@ export class HtmlVideoSurface implements RestartableSurface {
     // progress is judged by media time.
     this.framesSeen = false;
     this.resumePending = false;
+    this.lastObservedTime = null;
     this.awaitingOccurrenceSeek = true;
     if (video.playbackRate !== 1) video.playbackRate = 1;
     this.corrector.expectSeek(nowMs);
@@ -497,6 +511,17 @@ export class HtmlVideoSurface implements RestartableSurface {
   private onTimeUpdate(): void {
     if (this.awaitingOccurrenceSeek) return;
     const video = this.element;
+    const previousTime = this.lastObservedTime;
+    this.lastObservedTime = video.currentTime;
+    if (
+      this.options.nativeLoop &&
+      previousTime !== null &&
+      video.currentTime < previousTime - 0.05
+    ) {
+      // `loop` suppresses the media ended event. Report the lap at the wrap
+      // so occurrence accounting and the completion arbiter still advance.
+      this.sink.ended("ended");
+    }
     const now = this.env.clock.monotonicNow();
     const due =
       this.lastReportedAt === null ||

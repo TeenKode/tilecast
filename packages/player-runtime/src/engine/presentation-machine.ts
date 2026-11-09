@@ -230,6 +230,14 @@ export const presentationMachine = setup({
         transition: transitionForSwap(item.transition, outgoing, item.id),
         phase: "preparing",
         restarts: 0,
+        ...(context.authority === "local" &&
+        context.items.length === 1 &&
+        item.kind === "video" &&
+        !positiveDurationMs(item.durationMs) &&
+        !item.videoStartOffsetMs &&
+        !item.videoEndOffsetMs
+          ? { nativeVideoLoop: true as const }
+          : {}),
         ...(context.sharedBoundary ? { sharedBoundary: true as const } : {}),
       };
       return {

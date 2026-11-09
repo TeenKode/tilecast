@@ -362,6 +362,7 @@ export class Stage {
       case "video":
         return new HtmlVideoSurface(item, env, entry.mount, {
           presentFirstFrame: true,
+          nativeLoop: entry.nativeVideoLoop === true,
         });
       case "widget":
         return widgetComponent(item)

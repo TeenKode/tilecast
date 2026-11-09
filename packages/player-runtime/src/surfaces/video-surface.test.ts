@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { ManualClock } from "../clock/scheduler";
 import type { RuntimeItem } from "../host/contract";
 import type { SurfaceSink } from "./surface";
+import { FakeMedia } from "./test-support/fake-media";
 import {
   HtmlVideoSurface,
   VIDEO_FIRST_FRAME_TIMEOUT_MS,
@@ -115,5 +116,56 @@ describe("HtmlVideoSurface first frame", () => {
     const ready = video.prepare();
     el.dispatchEvent(new Event("canplay"));
     expect(await settled(ready)).toBe(true);
+  });
+});
+
+describe("native full-video loop", () => {
+  it("keeps the decoder and reports each lap without seeking the visible element", async () => {
+    const media = FakeMedia.install();
+    const clock = new ManualClock({ wallMs: 0 });
+    const events = {
+      ended: vi.fn(),
+      resumed: vi.fn(),
+      failed: vi.fn(),
+      evidence: vi.fn(),
+    } as unknown as SurfaceSink;
+    const video = new HtmlVideoSurface(
+      {
+        id: "clip",
+        kind: "video",
+        src: "media:clip",
+        durationMs: null,
+        fitMode: "contain",
+        audioEnabled: false,
+        volume: 0,
+        videoStartOffsetMs: null,
+        videoEndOffsetMs: null,
+      },
+      { clock, sink: events, animationScale: 1 },
+      1,
+      { nativeLoop: true },
+    );
+    try {
+      const ready = video.prepare();
+      media.ready(video.element);
+      await ready;
+      await video.activate();
+      expect(video.element.loop).toBe(true);
+      media.state(video.element).currentTimeS = 59.9;
+      video.element.dispatchEvent(new Event("timeupdate"));
+      media.state(video.element).currentTimeS = 0.1;
+      video.element.dispatchEvent(new Event("timeupdate"));
+      expect(events.ended).toHaveBeenCalledOnce();
+      expect(events.ended).toHaveBeenCalledWith("ended");
+      video.restart();
+      expect(media.seeks).toHaveLength(0);
+      media.state(video.element).currentTimeS = 0.3;
+      video.element.dispatchEvent(new Event("timeupdate"));
+      expect(events.resumed).toHaveBeenCalledOnce();
+      expect(media.seeks).toHaveLength(0);
+    } finally {
+      video.dispose();
+      media.uninstall();
+    }
   });
 });

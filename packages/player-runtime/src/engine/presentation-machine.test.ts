@@ -81,6 +81,25 @@ function componentItem(
 }
 
 describe("presentation machine", () => {
+  it("uses decoder looping only for an untrimmed single local video", () => {
+    const full = item("clip", { kind: "video" });
+    expect(harness([full]).stage()!.nativeVideoLoop).toBe(true);
+    expect(harness([full], true).stage()!.nativeVideoLoop).toBeUndefined();
+    expect(
+      harness([full, item("next")]).stage()!.nativeVideoLoop,
+    ).toBeUndefined();
+    expect(
+      harness([{ ...full, durationMs: 5_000 }]).stage()!.nativeVideoLoop,
+    ).toBeUndefined();
+    expect(
+      harness([{ ...full, videoStartOffsetMs: 1_000 }]).stage()!
+        .nativeVideoLoop,
+    ).toBeUndefined();
+    expect(
+      harness([{ ...full, videoEndOffsetMs: 5_000 }]).stage()!.nativeVideoLoop,
+    ).toBeUndefined();
+  });
+
   it("rotates still images on the default duration", () => {
     const h = harness([item("a"), item("b")]);
     expect(h.log).toEqual(["item-started:a"]);

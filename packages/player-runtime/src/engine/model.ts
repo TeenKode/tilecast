@@ -77,6 +77,8 @@ export interface StageEntry {
   phase: "preparing" | "shown" | "skipping";
   /** Bumped each time a single looping video restarts in place. */
   restarts: number;
+  /** An untrimmed local video can loop in the decoder without a JS seek. */
+  nativeVideoLoop?: true;
   /**
    * Set when this occurrence is the next shared-timeline boundary of the same
    * presentation, not a replacement. The stage may then keep the video it
