@@ -41,7 +41,7 @@ jobs:
           tag="player-linux-v$version"
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
           echo "version=$version" >> "$GITHUB_OUTPUT"
-          existing_tag="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$tag" --jq .object.sha 2>/dev/null || true)"
+          existing_tag="$(git ls-remote origin "refs/tags/$tag" | cut -f1)"
           if [ -n "$existing_tag" ]; then
             # Tags copied from upstream must never be moved onto fork sources.
             tag_commit="$(git ls-remote origin "refs/tags/$tag^{}" | cut -f1)"
@@ -120,7 +120,7 @@ jobs:
 
           No Edge, Windows, Android, or Server build is included in this release.
           EOF
-          existing_tag="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$RELEASE_TAG" --jq .object.sha 2>/dev/null || true)"
+          existing_tag="$(git ls-remote origin "refs/tags/$RELEASE_TAG" | cut -f1)"
           if [ -n "$existing_tag" ]; then
             test "$existing_tag" = "$GITHUB_SHA"
           else
