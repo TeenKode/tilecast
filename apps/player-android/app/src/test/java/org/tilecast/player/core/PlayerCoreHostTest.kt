@@ -551,4 +551,31 @@ class PlayerCoreHostTest {
         handler.onPairingStatus("""{"state":"paired"}""")
         assertEquals(listOf("""{"state":"paired"}"""), seen)
     }
+
+    @Test fun nativeStatusReportsEffectiveExternalCasInsteadOfConfiguredPreference() = runTest {
+        val bridge = FakeBridge(
+            statusPayload = """{"bridge":3,"ok":true,"stateDb":"/files/player-core/state.db","casDir":"/storage/USB/Android/data/org.tilecast.player/files/tilecast-player-media/cas","paired":false}"""
+        )
+        val dir = filesDir()
+        val host = PlayerCoreHost.forTesting(dir, bridge, handlerFactory(dir))
+        host.start()
+        val ready = host.state.value as CoreHostState.Ready
+        assertEquals(
+            "/storage/USB/Android/data/org.tilecast.player/files/tilecast-player-media/cas",
+            ready.status.casDir
+        )
+        host.stop()
+    }
+
+    @Test fun nativeStatusReportsInternalFallbackEvenWhenUsbWasRequested() = runTest {
+        val bridge = FakeBridge(
+            statusPayload = """{"bridge":3,"ok":true,"stateDb":"/files/player-core/state.db","casDir":"/files/player-core/cas","paired":false}"""
+        )
+        val dir = filesDir()
+        val host = PlayerCoreHost.forTesting(dir, bridge, handlerFactory(dir))
+        host.start()
+        assertEquals("/files/player-core/cas", (host.state.value as CoreHostState.Ready).status.casDir)
+        host.stop()
+    }
+
 }

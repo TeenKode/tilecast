@@ -35,6 +35,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -78,6 +80,7 @@ import org.tilecast.player.preview.encodeCaptureFrame
 import org.tilecast.player.reliability.ReliabilityController
 import org.tilecast.player.reliability.isMaintenanceSettingsLaunchAllowed
 import org.tilecast.player.reliability.permittedMaintenanceSettings
+import org.tilecast.player.ui.MediaStorageSettings
 import org.tilecast.player.runtime.RemoteWebHostManager
 import org.tilecast.player.runtime.RemoteWebLayer
 import org.tilecast.player.ui.theme.SignalBackground
@@ -370,7 +373,7 @@ class MainActivity : ComponentActivity() {
             return@Box
         }
         val back = rememberInitialFocus()
-        Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(14.dp)) {
             Text("Tilecast maintenance", color = SignalText, style = MaterialTheme.typography.headlineMedium)
             Text("This session expires automatically. Accessibility return and off-hours sleep are paused.", color = SignalMuted, style = MaterialTheme.typography.bodyMedium)
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -389,6 +392,7 @@ class MainActivity : ComponentActivity() {
             } else {
                 Text("Android Settings are disabled during maintenance by this display's policy.", color = SignalMuted, style = MaterialTheme.typography.bodyMedium)
             }
+            MediaStorageSettings()
             SignalOutlinedButton(onClick = { model.resetServer(); dismiss() }) { Text("Forget server and pair again") }
         }
     }

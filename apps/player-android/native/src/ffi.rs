@@ -38,7 +38,7 @@ use std::sync::Arc;
 use jni::objects::{JObject, JString};
 use jni::{Env, EnvUnowned, errors};
 
-use crate::host::{close_host, open_host, with_host};
+use crate::host::{close_host, open_host_on_media, with_host};
 use crate::jvm::Jvm;
 
 /// Rejects absurd inputs before they reach the host. The app-private files
@@ -46,7 +46,14 @@ use crate::jvm::Jvm;
 const MAX_FILES_DIR_CHARS: usize = 4096;
 const MAX_URL_CHARS: usize = 2048;
 
-fn open_handle(env: &mut Env, files_dir: &str, user_agent: &str, setup_relay: &str, handler: &JObject) -> i64 {
+fn open_handle(
+    env: &mut Env,
+    files_dir: &str,
+    media_root: &str,
+    user_agent: &str,
+    setup_relay: &str,
+    handler: &JObject,
+) -> i64 {
     if files_dir.is_empty() || files_dir.len() > MAX_FILES_DIR_CHARS {
         return 0;
     }
@@ -54,7 +61,11 @@ fn open_handle(env: &mut Env, files_dir: &str, user_agent: &str, setup_relay: &s
         Ok(jvm) => Arc::new(jvm),
         Err(_) => return 0,
     };
-    open_host(Path::new(files_dir), jvm, user_agent, setup_relay).unwrap_or(0)
+    if media_root.len() > MAX_FILES_DIR_CHARS {
+        return 0;
+    }
+    let media = if media_root.is_empty() { None } else { Some(Path::new(media_root)) };
+    open_host_on_media(Path::new(files_dir), media, jvm, user_agent, setup_relay).unwrap_or(0)
 }
 
 fn status_json(handle: i64) -> String {
@@ -131,6 +142,7 @@ pub extern "system" fn Java_org_tilecast_player_core_PlayerCoreNative_nativeOpen
     mut unowned: EnvUnowned<'local>,
     _this: JObject<'local>,
     files_dir: JString<'local>,
+    media_root: JString<'local>,
     user_agent: JString<'local>,
     setup_relay: JString<'local>,
     handler: JObject<'local>,
@@ -138,9 +150,10 @@ pub extern "system" fn Java_org_tilecast_player_core_PlayerCoreNative_nativeOpen
     unowned
         .with_env(|env| -> errors::Result<i64> {
             let dir = files_dir.try_to_string(env).unwrap_or_default();
+            let media = media_root.try_to_string(env).unwrap_or_default();
             let agent = user_agent.try_to_string(env).unwrap_or_default();
             let relay = setup_relay.try_to_string(env).unwrap_or_default();
-            Ok(open_handle(env, &dir, &agent, &relay, &handler))
+            Ok(open_handle(env, &dir, &media, &agent, &relay, &handler))
         })
         .resolve::<errors::ThrowRuntimeExAndDefault>()
 }
