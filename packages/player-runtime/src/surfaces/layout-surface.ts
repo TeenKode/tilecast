@@ -30,6 +30,7 @@ import type { MediaSurface, SurfaceEnvironment, SurfaceSink } from "./surface";
 import type { WidgetExecution } from "@tilecast/widget-sdk/executor";
 import { ImageSurface } from "./image-surface";
 import { HtmlVideoSurface } from "./video-surface";
+import { SeamlessLoopVideoSurface } from "./seamless-loop-video-surface";
 import { ComponentWidgetSurface } from "./component-widget-surface";
 import { WidgetSurface } from "./widget-surface";
 
@@ -459,7 +460,12 @@ export class LayoutSurface implements MediaSurface {
             incoming = new ImageSurface(item);
             break;
           case "video":
-            incoming = new HtmlVideoSurface(item, environment, epoch);
+            incoming =
+              selected.loop &&
+              typeof HTMLVideoElement.prototype.requestVideoFrameCallback ===
+                "function"
+                ? new SeamlessLoopVideoSurface(item, environment, epoch)
+                : new HtmlVideoSurface(item, environment, epoch);
             break;
           case "widget":
             incoming =
