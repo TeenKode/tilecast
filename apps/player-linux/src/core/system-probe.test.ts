@@ -26,6 +26,34 @@ describe("default route interface", () => {
     expect(parseDefaultRouteInterface(ROUTE_TABLE)).toBe("wlp3s0");
   });
 
+  it("prefers the lowest-metric usable default route, not table order", () => {
+    const routes = [
+      "Iface Destination Gateway Flags RefCnt Use Metric Mask",
+      "wlan0 00000000 0100A8C0 0003 0 0 600 00000000",
+      "eth0 00000000 0100A8C0 0003 0 0 100 00000000",
+    ].join("\n");
+    expect(parseDefaultRouteInterface(routes)).toBe("eth0");
+  });
+
+  it("ignores down, rejected and malformed default routes", () => {
+    const routes = [
+      "Iface Destination Gateway Flags RefCnt Use Metric Mask",
+      "eth0 00000000 0100A8C0 0002 0 0 1 00000000",
+      "eth1 00000000 0100A8C0 0203 0 0 2 00000000",
+      "eth2 00000000 0100A8C0 0003 0 0 bad 00000000",
+      "wlan0 00000000 0100A8C0 0003 0 0 50 00000000",
+    ].join("\n");
+    expect(parseDefaultRouteInterface(routes)).toBe("wlan0");
+  });
+
+  it("supports a point-to-point default without a gateway flag", () => {
+    const routes = [
+      "Iface Destination Gateway Flags RefCnt Use Metric Mask",
+      "ppp0 00000000 00000000 0001 0 0 10 00000000",
+    ].join("\n");
+    expect(parseDefaultRouteInterface(routes)).toBe("ppp0");
+  });
+
   it("reports nothing when there is no default route", () => {
     const lines = ROUTE_TABLE.split("\n")
       .filter((line) => !line.includes("00000000\t0100A8C0"))
