@@ -47,6 +47,25 @@ describe("downloadVerified", () => {
     await expect(fs.stat(destination + ".part")).rejects.toThrow();
   });
 
+  it("creates a missing nested cache directory before writing a part file", async () => {
+    const destination = path.join(tempDest() + "-cache", "nested", "media");
+    await expect(fs.stat(path.dirname(destination))).rejects.toThrow();
+
+    await downloadVerified(
+      {
+        url: "https://server/x",
+        headers: {},
+        destination,
+        expectedSha256: SHA,
+        expectedSizeBytes: BODY.length,
+      },
+      fakeFetch(),
+    );
+
+    expect(readFileSync(destination)).toEqual(BODY);
+    await expect(fs.stat(destination + ".part")).rejects.toThrow();
+  });
+
   it("resumes a partial download with Range and still verifies", async () => {
     const destination = tempDest();
     await fs.writeFile(destination + ".part", BODY.subarray(0, 10));
