@@ -66,6 +66,41 @@ export function classifyDisconnectReason(
   return "unknown";
 }
 
+/**
+ * Socket messages are untrusted JSON. JSON.parse also accepts null, arrays,
+ * numbers and strings; accessing .type on null would throw from the ws event
+ * handler instead of ignoring the malformed message.
+ */
+export function parseSocketControlMessage(data: string): SocketEnvelope | null {
+  let value: unknown;
+  try {
+    value = JSON.parse(data);
+  } catch {
+    return null;
+  }
+  if (
+    value === null ||
+    typeof value !== "object" ||
+    Array.isArray(value) ||
+    typeof (value as Record<string, unknown>)["type"] !== "string"
+  ) {
+    return null;
+  }
+  return value as SocketEnvelope;
+}
+
+/** Revisions and versions are non-negative, safe integer counters. */
+export function parseSocketRevision(value: unknown): number | null {
+  if (
+    typeof value !== "number" &&
+    (typeof value !== "string" || value.trim() === "")
+  ) {
+    return null;
+  }
+  const revision = Number(value);
+  return Number.isSafeInteger(revision) && revision >= 0 ? revision : null;
+}
+
 export interface SocketEvents {
   onOpen(): void;
   /**
@@ -116,13 +151,8 @@ export class PlayerSocket {
 
     ws.on("message", (data) => {
       this.armLiveness();
-      let message: SocketEnvelope;
-      try {
-        message = JSON.parse(data.toString()) as SocketEnvelope;
-      } catch {
-        return;
-      }
-      this.handleMessage(message);
+      const message = parseSocketControlMessage(data.toString());
+      if (message) this.handleMessage(message);
     });
 
     ws.on("close", (code, reasonBuf) => {
@@ -148,15 +178,15 @@ export class PlayerSocket {
         this.send({ type: "player.pong", timestamp: new Date().toISOString() });
         break;
       case "manifest.changed": {
-        const version = Number(message["manifestVersion"]);
-        if (Number.isFinite(version)) {
+        const version = parseSocketRevision(message["manifestVersion"]);
+        if (version !== null) {
           this.events.onManifestChanged(version);
         }
         break;
       }
       case "config.changed": {
-        const revision = Number(message["configRevision"]);
-        if (Number.isFinite(revision)) {
+        const revision = parseSocketRevision(message["configRevision"]);
+        if (revision !== null) {
           this.events.onConfigChanged(revision);
         }
         break;
