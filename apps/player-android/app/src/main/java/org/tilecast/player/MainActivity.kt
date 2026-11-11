@@ -2,6 +2,7 @@ package org.tilecast.player
 
 import android.annotation.SuppressLint
 import android.os.Bundle
+import android.os.Build
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -67,6 +68,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.tilecast.player.content.LocalAdbUpdateInstaller
 import org.tilecast.player.content.UpdateUiState
 import org.tilecast.player.core.PlayerState
 import org.tilecast.player.core.ProcessRenderer
@@ -350,6 +352,9 @@ class MainActivity : ComponentActivity() {
     var unlocked by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     val activity = LocalActivity.current as? MainActivity ?: return
+    var adbUpdatesEnabled by remember { mutableStateOf(LocalAdbUpdateInstaller.enabled(activity)) }
+    var adbProbeStatus by remember { mutableStateOf("Not checked") }
+    val maintenanceScope = rememberCoroutineScope()
     val model: PlayerViewModel = viewModel()
     Box(Modifier.fillMaxSize().background(SignalBackground).padding(horizontal = SignalDimensions.ScreenHorizontal, vertical = SignalDimensions.ScreenVertical), contentAlignment = Alignment.Center) {
         if (!unlocked) {
@@ -392,13 +397,34 @@ class MainActivity : ComponentActivity() {
             } else {
                 Text("Android Settings are disabled during maintenance by this display's policy.", color = SignalMuted, style = MaterialTheme.typography.bodyMedium)
             }
+            if (LocalAdbUpdateInstaller.supported(Build.VERSION.SDK_INT)) {
+                Text("Local ADB updates (Android 11 and earlier)", color = SignalText, style = MaterialTheme.typography.titleMedium)
+                Text("Optional: allow Tilecast to install its own verified updates through 127.0.0.1:5555 without a system installer prompt. Only enable on a trusted TV where local ADB is already available. Authenticated ADB and unavailable connections fall back to normal confirmation.", color = SignalMuted, style = MaterialTheme.typography.bodyMedium)
+                SignalOutlinedButton(onClick = {
+                    val next = !adbUpdatesEnabled
+                    LocalAdbUpdateInstaller.setEnabled(activity, next)
+                    adbUpdatesEnabled = next
+                }) { Text(if (adbUpdatesEnabled) "Disable local ADB updates" else "Enable local ADB updates") }
+                SignalOutlinedButton(onClick = {
+                    adbProbeStatus = "Checking local ADB..."
+                    maintenanceScope.launch {
+                        adbProbeStatus = withContext(Dispatchers.IO) {
+                            runCatching {
+                                if (LocalAdbUpdateInstaller.probe()) "Local ADB available"
+                                else "Local ADB did not acknowledge the probe"
+                            }.getOrElse { "Local ADB unavailable: ${it.message ?: "connection failed"}" }
+                        }
+                    }
+                }) { Text("Check local ADB") }
+                Text(adbProbeStatus, color = SignalMuted, style = MaterialTheme.typography.bodySmall)
+            }
             MediaStorageSettings()
             SignalOutlinedButton(onClick = { model.resetServer(); dismiss() }) { Text("Forget server and pair again") }
         }
     }
 }
 
-@Composable private fun UpdateApproval(state: UpdateUiState, permission: () -> Unit, install: () -> Unit) { Box(Modifier.fillMaxSize().background(SignalBackground).padding(72.dp), contentAlignment = Alignment.Center) { Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(20.dp)) { TilecastBrand(); Text("Tilecast Player update", color = SignalText, fontSize = 44.sp, fontWeight = FontWeight.SemiBold); Text("${state.currentVersion} → ${state.newVersion}", color = SignalBlue, fontSize = 28.sp); Text(state.message, color = SignalMuted, fontSize = 21.sp); when { state.permissionRequired -> { val focus = rememberInitialFocus(); SignalButton(onClick = permission, modifier = Modifier.initialFocus(focus)) { Text("Open install permission settings") } }; state.installReady -> { val focus = rememberInitialFocus(); SignalButton(onClick = install, modifier = Modifier.initialFocus(focus)) { Text("Install update") } }; else -> CircularProgressIndicator() }; Text("Tilecast requests unattended self-update when Android supports it. Older system installers may still require local confirmation.", color = SignalWarning, fontSize = 16.sp) } } }
+@Composable private fun UpdateApproval(state: UpdateUiState, permission: () -> Unit, install: () -> Unit) { Box(Modifier.fillMaxSize().background(SignalBackground).padding(72.dp), contentAlignment = Alignment.Center) { Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(20.dp)) { TilecastBrand(); Text("Tilecast Player update", color = SignalText, fontSize = 44.sp, fontWeight = FontWeight.SemiBold); Text("${state.currentVersion} → ${state.newVersion}", color = SignalBlue, fontSize = 28.sp); Text(state.message, color = SignalMuted, fontSize = 21.sp); when { state.permissionRequired -> { val focus = rememberInitialFocus(); SignalButton(onClick = permission, modifier = Modifier.initialFocus(focus)) { Text("Open install permission settings") } }; state.installReady -> { val focus = rememberInitialFocus(); SignalButton(onClick = install, modifier = Modifier.initialFocus(focus)) { Text("Install update") } }; else -> CircularProgressIndicator() }; Text("Android 12+ requests unattended system updates; older versions can use optional local ADB. Otherwise installation needs local confirmation.", color = SignalWarning, fontSize = 16.sp) } } }
 
 @Composable private fun TilecastBrand() { Image(painterResource(R.drawable.tilecast_wordmark), "Tilecast", Modifier.fillMaxWidth().height(44.dp), contentScale = ContentScale.Fit) }
 

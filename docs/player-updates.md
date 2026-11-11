@@ -346,6 +346,46 @@ curl --fail-with-body \
 
 The player resumes `.part` downloads, verifies available storage, SHA-256, package name, version code, minimum SDK, signing certificate, install permission, and Takeover state, then uses Android `PackageInstaller`. For API 31 and newer it declares `UPDATE_PACKAGES_WITHOUT_USER_ACTION` and requests `USER_ACTION_NOT_REQUIRED` for its own signed update. Android can still return `STATUS_PENDING_USER_ACTION`, so the Player preserves an explicit confirmation fallback instead of claiming universal silent installation. Takeover playback delays installation but not downloading. The Player checks Takeover again when a person approves a pending update or grants the install permission. If a Takeover is active at that time, the update returns to its delayed state and asks for approval again after the Takeover ends. Pairing credentials, manifests, configuration, disabled state, and media cache live outside the APK and survive replacement. The package-replaced receiver and the already-enabled bounded Accessibility service both request a return to Tilecast after replacement; Accessibility never reads or clicks installer controls. Success is recorded after the updated Player reconnects at the expected version, remains up for at least 120 seconds or does not report uptime, is not in safe mode, and reports no update error. Healthy playback is not required, so a sleeping screen can settle the update.
 
+### Optional loopback ADB self-update on Android 6–11 (fork experimental)
+
+On Android API 23–30, an operator can explicitly enable **Local ADB updates**
+in the PIN-protected Player maintenance menu (Back, Back, Up, Down, OK).
+This is **off by default**. Only use it on a trusted Android TV whose
+`adbd` already listens on `127.0.0.1:5555` and allows loopback
+connections. In the fork, the existing CVTE/YaOS power control already uses
+this local unauthenticated transport; neither mechanism enables ADB itself.
+
+For a verified, signed self-update the Player attempts, on an I/O thread:
+
+1. Validate the selected staged APK's size and SHA-256 again (the same
+   exact release/artifact selection as the PackageInstaller path).
+2. Connect **only to loopback** port 5555, upload the APK through ADB
+   `sync:` to a fixed temporary location, and use `pm install-create -r`,
+   `pm install-write` and `pm install-commit` to replace its own package.
+3. Remove the uploaded temporary APK after `install-write` has copied
+   the bytes into the package-manager session; leave the system session to
+   survive the Player process ending during `install-commit`.
+4. Reconnect after replacement; the server must confirm the expected version
+   using the ordinary Player update health checks.
+
+If ADB refuses connection, requests RSA authentication, rejects `sync:`,
+or cannot create/write the session, the Player retains its verified APK and
+returns to the regular Android install permission/confirmation path.
+The implementation does **not** bypass ADB authentication, root the TV,
+change system settings, expose arbitrary shell commands, or connect to
+any host other than `127.0.0.1`. If the TV requires a paired ADB key, this
+experimental mode is not yet supported on that firmware.
+
+The local ADB option does not replace PackageInstaller on Android 12+.
+Takeover and maintenance-window scheduling still gate the install, and a
+cancelled deployment is never intentionally installed.
+
+Hardware qualification is required before enabling this on production TV
+screens: test opt-in/off, an unreachable/authorisation-required local daemon,
+a valid signed update, same-key enforcement, version confirmation and relaunch,
+an interrupted update, and maintenance/Takeover delays. The pure unit test
+only covers Android API gating; it does not prove the YaOS ADB transport.
+
 The Android Player writes a durable staging marker before it copies the APK into a `PackageInstaller` session.
 It removes the marker after the session is committed.
 If the Player process stops while the marker exists, no installer result can arrive.
