@@ -182,7 +182,7 @@ async function transferVerified(
     // proxies return 206 with a different offset (or no Content-Range), which
     // would splice unrelated bytes into a verified media download.
     const contentRange = response.headers.get("Content-Range");
-    const match = /^bytes (\\d+)-(\\d+)\/(\\d+)$/.exec(
+    const match = /^bytes (\d+)-(\d+)\/(\d+)$/.exec(
       contentRange ?? "",
     );
     const start = match ? Number(match[1]) : NaN;
