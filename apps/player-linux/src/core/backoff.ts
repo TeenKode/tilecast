@@ -10,6 +10,15 @@
  * is unit-testable.
  */
 
+/**
+ * Socket health is an elapsed duration, not a wall-clock timestamp. NTP/RTC
+ * corrections must not turn a short-lived connection into a "healthy" one or
+ * prevent a sustained connection from resetting its failure streak.
+ */
+export function reconnectElapsedMs(): number {
+  return performance.now();
+}
+
 export interface BackoffOptions {
   /** First retry delay in ms. */
   baseDelayMs: number;
