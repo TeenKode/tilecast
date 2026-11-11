@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { ReconnectBackoff } from "./backoff";
+import { describe, expect, it, vi } from "vitest";
+import { ReconnectBackoff, reconnectElapsedMs } from "./backoff";
 
 const options = {
   baseDelayMs: 1_000,
@@ -44,6 +44,39 @@ describe("ReconnectBackoff", () => {
     // Connection lasted only 5 seconds — still the same outage.
     const delay = backoff.onDisconnected(7_000);
     expect(delay).toBe(4_000);
+  });
+
+  it("measures reconnect health with a monotonic clock despite RTC changes", () => {
+    const monotonic = vi.spyOn(performance, "now");
+    const wallClock = vi.spyOn(Date, "now");
+    try {
+      const backoff = new ReconnectBackoff(options);
+      backoff.onDisconnected(0);
+      backoff.onDisconnected(1_000);
+      expect(backoff.failureStreak).toBe(2);
+
+      monotonic.mockReturnValue(10_000);
+      wallClock.mockReturnValue(1_000_000);
+      backoff.onConnected(reconnectElapsedMs());
+
+      // NTP jumps forward by an hour, but only 5 seconds elapsed.
+      monotonic.mockReturnValue(15_000);
+      wallClock.mockReturnValue(4_600_000);
+      expect(backoff.onDisconnected(reconnectElapsedMs())).toBe(4_000);
+      expect(backoff.failureStreak).toBe(3);
+
+      monotonic.mockReturnValue(20_000);
+      backoff.onConnected(reconnectElapsedMs());
+
+      // RTC moves backward while the socket actually remains healthy.
+      monotonic.mockReturnValue(150_000);
+      wallClock.mockReturnValue(100_000);
+      expect(backoff.onDisconnected(reconnectElapsedMs())).toBe(1_000);
+      expect(backoff.failureStreak).toBe(1);
+    } finally {
+      monotonic.mockRestore();
+      wallClock.mockRestore();
+    }
   });
 
   it("keeps a jitter floor above zero", () => {
