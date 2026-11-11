@@ -22,18 +22,18 @@ describe("StateStore.readJson", () => {
   it("returns null for missing state without creating a quarantine file", async () => {
     const state = await store();
     await expect(state.readJson("missing.json")).resolves.toBeNull();
-    await expect(readFile(state.filePath("missing.json.corrupt"))).rejects.toMatchObject({
-      code: "ENOENT",
-    });
+    await expect(
+      readFile(state.filePath("missing.json.corrupt")),
+    ).rejects.toMatchObject({ code: "ENOENT" });
   });
 
   it("quarantines malformed JSON and returns null", async () => {
     const state = await store();
     await writeFile(state.filePath("state.json"), "{broken");
     await expect(state.readJson("state.json")).resolves.toBeNull();
-    await expect(readFile(state.filePath("state.json.corrupt"), "utf8")).resolves.toBe(
-      "{broken",
-    );
+    await expect(
+      readFile(state.filePath("state.json.corrupt"), "utf8"),
+    ).resolves.toBe("{broken");
     await expect(readFile(state.filePath("state.json"))).rejects.toMatchObject({
       code: "ENOENT",
     });
@@ -47,16 +47,16 @@ describe("StateStore.readJson", () => {
     await expect(state.readJson("state.json")).rejects.toMatchObject({
       code: "EISDIR",
     });
-    await expect(readFile(state.filePath("state.json.corrupt"))).rejects.toMatchObject({
-      code: "ENOENT",
-    });
+    await expect(
+      readFile(state.filePath("state.json.corrupt")),
+    ).rejects.toMatchObject({ code: "ENOENT" });
   });
 
   it("reads valid snapshots unchanged", async () => {
     const state = await store();
     await writeFile(state.filePath("state.json"), '{"healthy":true}');
-    await expect(state.readJson<{ healthy: boolean }>("state.json")).resolves.toEqual({
-      healthy: true,
-    });
+    await expect(
+      state.readJson<{ healthy: boolean }>("state.json"),
+    ).resolves.toEqual({ healthy: true });
   });
 });
