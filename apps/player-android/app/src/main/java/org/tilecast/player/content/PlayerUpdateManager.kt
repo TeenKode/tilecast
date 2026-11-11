@@ -109,6 +109,14 @@ class PlayerUpdateManager(private val app:Application,private val api:TilecastAp
      * the session is committed. Finding it at startup means the process stopped in between.
      */
     private fun reconcileInterruptedStaging(state:UpdateUiState):UpdateUiState{
+        if(store.getBoolean("local-adb-staging",false)){
+            store.edit().remove("local-adb-staging").commit()
+            if(state.state=="installing"){
+                val recovered=interruptedStagingState(state,state.exactPath?.let{File(it).isFile}==true)
+                persist(recovered)
+                return recovered
+            }
+        }
         if(!store.getBoolean("staging",false))return state
         val sessionId=store.getInt("staging-session",-1)
         store.edit().remove("staging").remove("staging-session").commit()
@@ -279,9 +287,16 @@ class PlayerUpdateManager(private val app:Application,private val api:TilecastAp
         val apk=verifiedStagedApk(state)?:return@withContext false
         val reliability=app.getSharedPreferences("tilecast-reliability",Application.MODE_PRIVATE)
         reliability.edit().putBoolean("update-active",true).putBoolean("update-relaunch-requested",true).putInt("update-relaunch-attempts",0).apply()
-        val started=runCatching{LocalAdbUpdateInstaller.install(apk);true}.getOrElse{
-            android.util.Log.w("TilecastUpdate","Local ADB install not confirmed: ${it.javaClass.simpleName}: ${it.message}")
-            false
+        // Survives an app process being killed while ADB transfers or commits.
+        // On the same APK version, startup turns an interrupted install into a retry.
+        store.edit().putBoolean("local-adb-staging",true).commit()
+        val started=try{
+            runCatching{LocalAdbUpdateInstaller.install(apk);true}.getOrElse{
+                android.util.Log.w("TilecastUpdate","Local ADB install not confirmed: ${it.javaClass.simpleName}: ${it.message}")
+                false
+            }
+        }finally{
+            store.edit().remove("local-adb-staging").commit()
         }
         if(!started)reliability.edit().putBoolean("update-active",false).putBoolean("update-relaunch-requested",false).apply()
         started
