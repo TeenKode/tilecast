@@ -93,7 +93,7 @@ export function parseSocketControlMessage(data: string): SocketEnvelope | null {
 export function parseSocketRevision(value: unknown): number | null {
   if (
     typeof value !== "number" &&
-    (typeof value !== "string" || value.trim() === "")
+    (typeof value !== "string" || !/^\\d+$/.test(value))
   ) {
     return null;
   }
