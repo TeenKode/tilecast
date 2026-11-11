@@ -149,16 +149,11 @@ describe("power source", () => {
       capacityPercent: 42,
     };
     expect(
-      classifyPowerSource([
-        battery,
-        { type: "Mains", online: true },
-      ]).powerSource,
+      classifyPowerSource([battery, { type: "Mains", online: true }])
+        .powerSource,
     ).toBe("mains");
     expect(
-      classifyPowerSource([
-        battery,
-        { type: "UPS", online: true },
-      ]).powerSource,
+      classifyPowerSource([battery, { type: "UPS", online: true }]).powerSource,
     ).toBe("ups");
   });
 
