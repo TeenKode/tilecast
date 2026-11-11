@@ -169,6 +169,14 @@ class PlayerUpdateManager(private val app:Application,private val api:TilecastAp
             val maintenanceAt=command.payload["maintenanceWindowStart"]?.jsonPrimitive?.contentOrNull?.takeIf{it!="null"}
             if(command.payload["installationMode"]?.jsonPrimitive?.contentOrNull=="maintenance_window"&&maintenanceAt!=null&&Instant.parse(maintenanceAt).isAfter(Instant.now())){state=state.copy(state="ready",message="Installation scheduled for ${maintenanceAt}",maintenanceAt=maintenanceAt);persist(state);onState(state);api.updateStatus(server,credential,deployment,"ready",state.downloadedBytes,installerStatus="maintenance_scheduled");scheduleMaintenance(server,credential,state,takeoverActive,onState);return CommandOutcome(true,"update_maintenance_scheduled","Update verified for its maintenance window")}
             if(takeoverActive()){state=state.copy(state="ready",message="Installation delayed by takeover playback",installReady=true,maintenanceAt=Instant.now().toString());persist(state);onState(state);api.updateStatus(server,credential,deployment,"ready",state.downloadedBytes,installerStatus="delayed_by_takeover");scheduleMaintenance(server,credential,state,takeoverActive,onState);return CommandOutcome(true,"update_ready_takeover_delay","Update verified; installation is delayed by takeover playback")}
+            if(localAdbEnabled()){
+                state=state.copy(state="installing",message="Installing verified player update through local ADB",installReady=false)
+                persist(state);onState(state)
+                runCatching{api.updateStatus(server,credential,deployment,"installing",state.downloadedBytes,installerStatus="local_adb_install_requested")}
+                if(installWithLocalAdb(state))return CommandOutcome(true,"local_adb_update_started","Local ADB update was submitted")
+                // An unavailable or unauthorised daemon must never cause the deployment to fail.
+                // Preserve the already verified APK and the standard confirmation fallback.
+            }
             if(Build.VERSION.SDK_INT>=26&&!app.packageManager.canRequestPackageInstalls()){
                 state=state.copy(state="waiting_for_permission",message="Allow Tilecast Player to install updates",permissionRequired=true,installReady=true);persist(state);onState(state);api.updateStatus(server,credential,deployment,"waiting_for_permission",state.downloadedBytes,"required");return CommandOutcome(true,"update_waiting_for_permission","Update is waiting for unknown-app permission")
             }
@@ -200,6 +208,11 @@ class PlayerUpdateManager(private val app:Application,private val api:TilecastAp
             if(server!=null&&credential!=null)runCatching{api.updateStatus(server,credential,state.deploymentId,"ready",state.downloadedBytes,"granted","delayed_by_takeover")}
             return delayed
         }
+        if(localAdbEnabled()){
+            val adbState=state.copy(state="installing",message="Installing verified update through local ADB",installReady=false)
+            persist(adbState)
+            if(installWithLocalAdb(adbState))return adbState
+        }
         if(!install(state))return null
         val installing=state.copy(state="installing",message="Complete installation in the Android prompt")
         persist(installing)
@@ -227,20 +240,29 @@ class PlayerUpdateManager(private val app:Application,private val api:TilecastAp
         maintenanceJob=scope.launch{
             delay(java.time.Duration.between(Instant.now(),Instant.parse(state.maintenanceAt)).toMillis().coerceAtLeast(0))
             while(takeoverActive()){delay(30_000)}
-            val permissionRequired=Build.VERSION.SDK_INT>=26&&!app.packageManager.canRequestPackageInstalls()
-            val unattended=!permissionRequired&&PlayerUpdateInstallPolicy.canRequestUnattended(Build.VERSION.SDK_INT)
-            var next=state.copy(state=if(permissionRequired)"waiting_for_permission" else if(unattended)"installing" else "waiting_for_user",message=if(permissionRequired)"Allow Tilecast Player to install updates" else if(unattended)"Installing verified player update" else "This Android version requires local installer approval",permissionRequired=permissionRequired,installReady=!permissionRequired&&!unattended)
+            val localAdb=localAdbEnabled()
+            val permissionRequired=!localAdb&&Build.VERSION.SDK_INT>=26&&!app.packageManager.canRequestPackageInstalls()
+            val unattended=localAdb||(!permissionRequired&&PlayerUpdateInstallPolicy.canRequestUnattended(Build.VERSION.SDK_INT))
+            var next=state.copy(state=if(permissionRequired)"waiting_for_permission" else if(unattended)"installing" else "waiting_for_user",message=if(permissionRequired)"Allow Tilecast Player to install updates" else if(localAdb)"Installing verified update through local ADB" else if(unattended)"Installing verified player update" else "This Android version requires local installer approval",permissionRequired=permissionRequired,installReady=!permissionRequired&&!unattended)
             val permissionStatus=if(permissionRequired)"required" else "granted"
-            val installerStatus=if(unattended)"unattended_install_requested" else "maintenance_window_reached"
+            val installerStatus=if(localAdb)"local_adb_install_requested" else if(unattended)"unattended_install_requested" else "maintenance_window_reached"
             // The wait can outlast the deployment. The server refuses reports for a cancelled
             // target, so report first and install only if the deployment is still live.
             val gate=gateScheduledInstall{api.updateStatus(server,credential,next.deploymentId,next.state,next.downloadedBytes,permissionStatus,installerStatus)}
             if(gate==ScheduledInstallGate.Cancelled){discardCancelled(state,onState);return@launch}
             persist(next);onState(next)
-            if(unattended&&!install(next)){
-                next=next.copy(state="failed",message="Android could not start the installer",errorCode="installer_session_failed")
-                persist(next);onState(next)
-                runCatching{api.updateStatus(server,credential,next.deploymentId,next.state,next.downloadedBytes,permissionStatus,installerStatus,next.errorCode?:"")}
+            if(unattended){
+                val started=if(localAdb)installWithLocalAdb(next) else install(next)
+                if(!started){
+                    if(localAdb){
+                        val permission=Build.VERSION.SDK_INT>=26&&!app.packageManager.canRequestPackageInstalls()
+                        next=next.copy(state=if(permission)"waiting_for_permission" else "waiting_for_user",message=if(permission)"Allow Tilecast Player to install updates" else "Local ADB unavailable; confirm installation on this TV",permissionRequired=permission,installReady=true,errorCode=null)
+                    }else{
+                        next=next.copy(state="failed",message="Android could not start the installer",errorCode="installer_session_failed")
+                    }
+                    persist(next);onState(next)
+                    runCatching{api.updateStatus(server,credential,next.deploymentId,next.state,next.downloadedBytes,if(next.permissionRequired)"required" else "granted",if(localAdb)"local_adb_unavailable" else installerStatus,next.errorCode?:"")}
+                }
             }
         }
     }
@@ -251,16 +273,35 @@ class PlayerUpdateManager(private val app:Application,private val api:TilecastAp
         store.edit().clear().apply()
         onState(state.copy(state="cancelled",message="Update deployment was cancelled",installReady=false,permissionRequired=false,maintenanceAt=null))
     }
-    fun install(state:UpdateUiState):Boolean{
-        val persisted=state.exactPath?.let(::File)?:return false
+    private fun localAdbEnabled()=LocalAdbUpdateInstaller.enabled(app)
+
+    private suspend fun installWithLocalAdb(state:UpdateUiState):Boolean=withContext(Dispatchers.IO){
+        val apk=verifiedStagedApk(state)?:return@withContext false
+        val reliability=app.getSharedPreferences("tilecast-reliability",Application.MODE_PRIVATE)
+        reliability.edit().putBoolean("update-active",true).putBoolean("update-relaunch-requested",true).putInt("update-relaunch-attempts",0).apply()
+        val started=runCatching{LocalAdbUpdateInstaller.install(apk);true}.getOrElse{
+            android.util.Log.w("TilecastUpdate","Local ADB install not confirmed: ${it.javaClass.simpleName}: ${it.message}")
+            false
+        }
+        if(!started)reliability.edit().putBoolean("update-active",false).putBoolean("update-relaunch-requested",false).apply()
+        started
+    }
+
+    private fun verifiedStagedApk(state:UpdateUiState):File?{
+        val persisted=state.exactPath?.let(::File)?:return null
         val apk=if(!state.releaseId.isNullOrBlank()&&!state.artifactId.isNullOrBlank()){
-            val selected=selectExactStagedArtifact(updateDirectory(),state.releaseId,state.artifactId)?:return false
-            if(selected.canonicalPath!=persisted.canonicalPath)return false
+            val selected=selectExactStagedArtifact(updateDirectory(),state.releaseId,state.artifactId)?:return null
+            if(selected.canonicalPath!=persisted.canonicalPath)return null
             selected
         } else persisted
-        if(!apk.isFile || state.expectedSha256.isNullOrBlank() || state.expectedBytes<=0 || state.expectedVersionCode==null)return false
+        if(!apk.isFile || state.expectedSha256.isNullOrBlank() || state.expectedBytes<=0 || state.expectedVersionCode==null)return null
         quarantineStaleArtifacts(apk.absolutePath)
-        if(!verifyArtifact(apk,state.expectedSha256,state.expectedBytes))return false
+        if(!verifyArtifact(apk,state.expectedSha256,state.expectedBytes))return null
+        return apk
+    }
+
+    fun install(state:UpdateUiState):Boolean{
+        val apk=verifiedStagedApk(state)?:return false
         val reliability=app.getSharedPreferences("tilecast-reliability",Application.MODE_PRIVATE)
         store.edit().putBoolean("staging",true).remove("staging-session").commit()
         var sessionId=-1
