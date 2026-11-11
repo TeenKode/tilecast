@@ -94,7 +94,7 @@ describe("self-heal supervisor", () => {
     expect(state.ladderRunsAtMs).toEqual([]);
   });
 
-  it("recovers stall detection after persisted timestamps jump into the future", () => {
+  it("recovers stalled playback after a backward clock jump", () => {
     // An NTP correction after restart can leave the persisted progress marker
     // ahead of the wall clock. Recovery must not wait for that time to return.
     const initial = initialSupervisorState(100 * MIN);
@@ -106,7 +106,7 @@ describe("self-heal supervisor", () => {
     expect(stalled.action).toBe("reactivate_content");
   });
 
-  it("preserves ladder spacing and history when the clock moves backward", () => {
+  it("keeps ladder cooldown and history after a clock rewind", () => {
     const persisted: SupervisorState = {
       ...initialSupervisorState(100 * MIN),
       lastProgressAtMs: 95 * MIN,
@@ -123,15 +123,11 @@ describe("self-heal supervisor", () => {
 
     // The previous action gets its full cooldown rather than skipping
     // immediately or being blocked for the old future timestamp.
-    const afterSpacing = evaluate(
-      first.state,
-      config.actionSpacingMs,
-      config,
-    );
+    const afterSpacing = evaluate(first.state, config.actionSpacingMs, config);
     expect(afterSpacing.action).toBe("recreate_window");
   });
 
-  it("rebases the healthy streak when progress arrives after a clock rewind", () => {
+  it("rebases healthy progress after a backward clock jump", () => {
     const state = onProgress(initialSupervisorState(100 * MIN), 0, config);
     expect(state.lastProgressAtMs).toBe(0);
     expect(state.healthySinceMs).toBe(0);
