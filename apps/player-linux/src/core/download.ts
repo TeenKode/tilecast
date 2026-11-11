@@ -193,6 +193,9 @@ async function transferVerified(
     throw new DownloadError("empty response body", true);
   }
 
+  // A fresh cache directory may not exist yet (first boot or removable media).
+  // Create it before opening the .part file, not only before promotion.
+  await fs.mkdir(path.dirname(request.destination), { recursive: true });
   const handle = await fs.open(partPath, offset > 0 ? "r+" : "w", 0o600);
   try {
     let position = offset;
@@ -235,7 +238,6 @@ async function transferVerified(
     throw new DownloadError("sha-256 mismatch", true);
   }
 
-  await fs.mkdir(path.dirname(request.destination), { recursive: true });
   await fs.rename(partPath, request.destination);
   observer?.onBytes?.(
     request.expectedSizeBytes - offset,
