@@ -353,6 +353,8 @@ class MainActivity : ComponentActivity() {
     var error by remember { mutableStateOf<String?>(null) }
     val activity = LocalActivity.current as? MainActivity ?: return
     var adbUpdatesEnabled by remember { mutableStateOf(LocalAdbUpdateInstaller.enabled(activity)) }
+    var adbProbeStatus by remember { mutableStateOf("Not checked") }
+    val maintenanceScope = rememberCoroutineScope()
     val model: PlayerViewModel = viewModel()
     Box(Modifier.fillMaxSize().background(SignalBackground).padding(horizontal = SignalDimensions.ScreenHorizontal, vertical = SignalDimensions.ScreenVertical), contentAlignment = Alignment.Center) {
         if (!unlocked) {
@@ -403,6 +405,18 @@ class MainActivity : ComponentActivity() {
                     LocalAdbUpdateInstaller.setEnabled(activity, next)
                     adbUpdatesEnabled = next
                 }) { Text(if (adbUpdatesEnabled) "Disable local ADB updates" else "Enable local ADB updates") }
+                SignalOutlinedButton(onClick = {
+                    adbProbeStatus = "Checking local ADB..."
+                    maintenanceScope.launch {
+                        adbProbeStatus = withContext(Dispatchers.IO) {
+                            runCatching {
+                                if (LocalAdbUpdateInstaller.probe()) "Local ADB available"
+                                else "Local ADB did not acknowledge the probe"
+                            }.getOrElse { "Local ADB unavailable: ${it.message ?: "connection failed"}" }
+                        }
+                    }
+                }) { Text("Check local ADB") }
+                Text(adbProbeStatus, color = SignalMuted, style = MaterialTheme.typography.bodySmall)
             }
             MediaStorageSettings()
             SignalOutlinedButton(onClick = { model.resetServer(); dismiss() }) { Text("Forget server and pair again") }
