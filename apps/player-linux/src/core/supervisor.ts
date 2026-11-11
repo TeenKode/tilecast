@@ -85,16 +85,51 @@ export function initialSupervisorState(nowMs: number): SupervisorState {
   };
 }
 
+/**
+ * Supervisor history is persisted using wall-clock timestamps. A backward RTC
+ * correction or NTP sync can leave those timestamps in the future, preventing
+ * stall recovery until the clock catches up. Shift the complete history by the
+ * same amount to preserve elapsed intervals, action spacing and ladder counts.
+ */
+function rebaseAfterClockRewind(
+  state: SupervisorState,
+  nowMs: number,
+): SupervisorState {
+  let newest = Math.max(
+    state.lastProgressAtMs,
+    state.healthySinceMs ?? Number.NEGATIVE_INFINITY,
+    state.lastActionAtMs ?? Number.NEGATIVE_INFINITY,
+  );
+  for (const timestamp of state.ladderRunsAtMs) {
+    newest = Math.max(newest, timestamp);
+  }
+  if (newest <= nowMs) {
+    return state;
+  }
+
+  const rewindMs = newest - nowMs;
+  return {
+    ...state,
+    lastProgressAtMs: state.lastProgressAtMs - rewindMs,
+    healthySinceMs:
+      state.healthySinceMs === null ? null : state.healthySinceMs - rewindMs,
+    lastActionAtMs:
+      state.lastActionAtMs === null ? null : state.lastActionAtMs - rewindMs,
+    ladderRunsAtMs: state.ladderRunsAtMs.map((time) => time - rewindMs),
+  };
+}
+
 /** Record observed playback progress. */
 export function onProgress(
   state: SupervisorState,
   nowMs: number,
   config: SupervisorConfig,
 ): SupervisorState {
+  const adjusted = rebaseAfterClockRewind(state, nowMs);
   const next: SupervisorState = {
-    ...state,
+    ...adjusted,
     lastProgressAtMs: nowMs,
-    healthySinceMs: state.healthySinceMs ?? nowMs,
+    healthySinceMs: adjusted.healthySinceMs ?? nowMs,
   };
   if (
     next.healthySinceMs !== null &&
@@ -121,17 +156,19 @@ export function evaluate(
   nowMs: number,
   config: SupervisorConfig,
 ): HealDecision {
-  if (state.safeMode) {
-    return { action: "none", state };
+  const adjusted = rebaseAfterClockRewind(state, nowMs);
+  if (adjusted.safeMode) {
+    return { action: "none", state: adjusted };
   }
 
-  const stalled = nowMs - state.lastProgressAtMs >= config.stallThresholdMs;
+  const stalled =
+    nowMs - adjusted.lastProgressAtMs >= config.stallThresholdMs;
   if (!stalled) {
-    return { action: "none", state };
+    return { action: "none", state: adjusted };
   }
 
   // Stalled: healthy streak is broken.
-  const base: SupervisorState = { ...state, healthySinceMs: null };
+  const base: SupervisorState = { ...adjusted, healthySinceMs: null };
 
   if (
     base.lastActionAtMs !== null &&
