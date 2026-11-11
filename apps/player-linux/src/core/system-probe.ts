@@ -49,11 +49,12 @@ export function parseDefaultRouteInterface(
     const flags = Number.parseInt(fields[3]!, 16);
     const metric = Number(fields[6]);
     // The kernel may retain down/rejected routes in the table. Only consider
-    // usable gateway routes and select the lowest-metric default, as Linux does.
+    // routes that are up and not rejected; point-to-point defaults may have
+    // no gateway flag. Prefer the lowest metric, as Linux does.
     if (
       !/^[0-9a-fA-F]+$/.test(fields[3]!) ||
       !/^[0-9]+$/.test(fields[6]!) ||
-      (flags & 0x3) !== 0x3 ||
+      (flags & 0x1) === 0 ||
       (flags & 0x200) !== 0 ||
       !Number.isSafeInteger(metric)
     ) {
