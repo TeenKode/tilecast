@@ -370,12 +370,12 @@ test("publication is the commit point and needs a verified draft", () => {
     if (file === "fork-linux-player-release.yml") {
       // The fork uses a repository-isolated standalone Linux publisher.
       // It may create/upload a release, but only after draft verification.
-      assert.match(raw, /github\.repository == 'TeenKode\\/tilecast'/);
+      assert.match(raw, /github\.repository == 'TeenKode\/tilecast'/);
       assert.match(raw, /--draft --latest=false/);
       assert.match(raw, /sha256sum -c SHA256SUMS/);
       assert.match(raw, /openssl pkeyutl -verify/);
-      assert.match(raw, /gh release edit "\\$RELEASE_TAG".*--draft=false/);
-      assert.doesNotMatch(raw, /ghcr\.io\\/gbyo\\/tilecast-server/);
+      assert.match(raw, /gh release edit "\$RELEASE_TAG".*--draft=false/);
+      assert.doesNotMatch(raw, /ghcr\.io\/gbyo\/tilecast-server/);
       continue;
     }
     assert.doesNotMatch(raw, /gh release create/, file);
