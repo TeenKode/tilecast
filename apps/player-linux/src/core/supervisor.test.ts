@@ -94,6 +94,52 @@ describe("self-heal supervisor", () => {
     expect(state.ladderRunsAtMs).toEqual([]);
   });
 
+  it("recovers stall detection after persisted timestamps jump into the future", () => {
+    // An NTP correction after restart can leave the persisted progress marker
+    // ahead of the wall clock. Recovery must not wait for that time to return.
+    const initial = initialSupervisorState(100 * MIN);
+    const first = evaluate(initial, 0, config);
+    expect(first.action).toBe("none");
+    expect(first.state.lastProgressAtMs).toBe(0);
+
+    const stalled = evaluate(first.state, config.stallThresholdMs, config);
+    expect(stalled.action).toBe("reactivate_content");
+  });
+
+  it("preserves ladder spacing and history when the clock moves backward", () => {
+    const persisted: SupervisorState = {
+      ...initialSupervisorState(100 * MIN),
+      lastProgressAtMs: 95 * MIN,
+      healthySinceMs: null,
+      lastActionAtMs: 100 * MIN,
+      escalationStep: 2,
+      ladderRunsAtMs: [80 * MIN],
+    };
+
+    const first = evaluate(persisted, 0, config);
+    expect(first.action).toBe("none");
+    expect(first.state.lastActionAtMs).toBe(0);
+    expect(first.state.ladderRunsAtMs).toEqual([-20 * MIN]);
+
+    // The previous action gets its full cooldown rather than skipping
+    // immediately or being blocked for the old future timestamp.
+    const afterSpacing = evaluate(
+      first.state,
+      config.actionSpacingMs,
+      config,
+    );
+    expect(afterSpacing.action).toBe("recreate_window");
+  });
+
+  it("rebases the healthy streak when progress arrives after a clock rewind", () => {
+    const state = onProgress(initialSupervisorState(100 * MIN), 0, config);
+    expect(state.lastProgressAtMs).toBe(0);
+    expect(state.healthySinceMs).toBe(0);
+    expect(evaluate(state, config.stallThresholdMs - 1, config).action).toBe(
+      "none",
+    );
+  });
+
   it("safe mode stops heal actions until cleared", () => {
     let state: SupervisorState = {
       ...initialSupervisorState(0),
