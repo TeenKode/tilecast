@@ -122,6 +122,8 @@ describe("untrusted socket control messages", () => {
       "1.5",
       "Infinity",
       "NaN",
+      "0x10",
+      "1e2",
       Number.POSITIVE_INFINITY,
       Number.MAX_SAFE_INTEGER + 1,
       {},
