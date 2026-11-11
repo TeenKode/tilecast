@@ -161,8 +161,7 @@ export function evaluate(
     return { action: "none", state: adjusted };
   }
 
-  const stalled =
-    nowMs - adjusted.lastProgressAtMs >= config.stallThresholdMs;
+  const stalled = nowMs - adjusted.lastProgressAtMs >= config.stallThresholdMs;
   if (!stalled) {
     return { action: "none", state: adjusted };
   }
