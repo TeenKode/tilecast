@@ -126,6 +126,11 @@ public final class LocalAdbUpdateInstaller {
         }
     }
 
+    /** Checks the already-active loopback daemon without changing any settings. */
+    public static boolean probe() throws IOException {
+        return "TILECAST_ADB_OK".equals(shell("echo TILECAST_ADB_OK").trim());
+    }
+
     private static String shell(String command) throws IOException {
         try (Wire wire = new Wire()) {
             wire.open("shell:" + command);
