@@ -266,6 +266,20 @@ export function usableIpv4(value: string): boolean {
   );
 }
 
+/** Pick the first usable external IPv4 address, not merely the first IPv4. */
+export function selectUsableIpv4Address(
+  addresses: readonly NodeInterfaceInfo[],
+): string {
+  return (
+    addresses.find(
+      (address) =>
+        (address.family === "IPv4" || address.family === 4) &&
+        !address.internal &&
+        usableIpv4(address.address),
+    )?.address ?? ""
+  );
+}
+
 /** Read the wired Ethernet facts from the OS, with no subprocess. */
 export async function readWiredInterfaceStatus(
   enumerate: () => Record<string, NodeInterfaceInfo[] | undefined> = () =>
@@ -282,15 +296,11 @@ export async function readWiredInterfaceStatus(
     if (!addresses) continue;
     const wireless = await directoryExists(`/sys/class/net/${name}/wireless`);
     const linkType = classifyLinkType(name, wireless);
-    const ipv4 = addresses.find(
-      (address) =>
-        (address.family === "IPv4" || address.family === 4) &&
-        !address.internal &&
-        usableIpv4(address.address),
-    );
-    // A device can expose multiple IPv4 addresses on one NIC. Skip an
-    // unusable first address rather than discarding a later routable one.
-    candidates.push({ name, ipv4: ipv4?.address ?? "", linkType });
+    candidates.push({
+      name,
+      ipv4: selectUsableIpv4Address(addresses),
+      linkType,
+    });
   }
   return selectWiredInterface(candidates, defaultRouteInterface);
 }
