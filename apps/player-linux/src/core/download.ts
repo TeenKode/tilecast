@@ -203,14 +203,16 @@ async function transferVerified(
         break;
       }
       if (value && value.length > 0) {
-        await handle.write(value, 0, value.length, position);
-        position += value.length;
-        if (position > request.expectedSizeBytes) {
+        // Reject an oversized chunk before writing it to disk. A faulty
+        // server must not grow a partial file beyond the manifest size.
+        if (value.length > request.expectedSizeBytes - position) {
           throw new DownloadError(
             "server sent more bytes than expected",
             false,
           );
         }
+        await handle.writeFile(value);
+        position += value.length;
         request.onProgress?.(position);
       }
     }
