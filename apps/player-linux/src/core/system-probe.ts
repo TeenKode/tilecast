@@ -285,8 +285,11 @@ export async function readWiredInterfaceStatus(
     const ipv4 = addresses.find(
       (address) =>
         (address.family === "IPv4" || address.family === 4) &&
-        !address.internal,
+        !address.internal &&
+        usableIpv4(address.address),
     );
+    // A device can expose multiple IPv4 addresses on one NIC. Skip an
+    // unusable first address rather than discarding a later routable one.
     candidates.push({ name, ipv4: ipv4?.address ?? "", linkType });
   }
   return selectWiredInterface(candidates, defaultRouteInterface);
