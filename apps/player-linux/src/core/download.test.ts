@@ -105,6 +105,29 @@ describe("downloadVerified", () => {
     await expect(fs.stat(destination + ".part")).rejects.toThrow();
   });
 
+  it("rejects an oversized response chunk before writing it to the part file", async () => {
+    const destination = tempDest();
+    const oversized = (async () =>
+      new Response(new Uint8Array(Buffer.alloc(BODY.length + 1024, 0x61)), {
+        status: 200,
+      })) as unknown as typeof fetch;
+    await expect(
+      downloadVerified(
+        {
+          url: "https://server/x",
+          headers: {},
+          destination,
+          expectedSha256: SHA,
+          expectedSizeBytes: BODY.length,
+        },
+        oversized,
+      ),
+    ).rejects.toThrow(/more bytes than expected/);
+    const stat = await fs.stat(destination + ".part");
+    expect(stat.size).toBe(0);
+    await expect(fs.stat(destination)).rejects.toThrow();
+  });
+
   it("keeps the part file on a short read so the next attempt resumes", async () => {
     const destination = tempDest();
     const truncated = (async () =>
