@@ -7,6 +7,7 @@ import {
   parseWirelessSignalDbm,
   readWiredInterfaceStatus,
   selectWiredInterface,
+  selectUsableIpv4Address,
   usableIpv4,
 } from "./system-probe";
 import { validIpv4 } from "./presentation-network";
@@ -126,6 +127,28 @@ describe("power source", () => {
     // The common case for fixed-install signage. "mains" here would be an
     // assumption indistinguishable from a real reading.
     expect(classifyPowerSource([]).powerSource).toBeUndefined();
+  });
+});
+
+describe("usable IPv4 selection on multi-address interfaces", () => {
+  it("skips loopback, link-local, and malformed addresses before a valid IPv4", () => {
+    expect(
+      selectUsableIpv4Address([
+        { address: "169.254.20.1", family: "IPv4", internal: false },
+        { address: "127.0.0.1", family: 4, internal: true },
+        { address: "not-an-ip", family: "IPv4", internal: false },
+        { address: "10.20.30.40", family: 4, internal: false },
+      ]),
+    ).toBe("10.20.30.40");
+  });
+
+  it("does not fall back to an unusable address", () => {
+    expect(
+      selectUsableIpv4Address([
+        { address: "fe80::1", family: "IPv6", internal: false },
+        { address: "169.254.20.1", family: "IPv4", internal: false },
+      ]),
+    ).toBe("");
   });
 });
 
