@@ -93,9 +93,12 @@ export function parseWirelessSignalDbm(
 
 /** Link speed in Mbit/s from a sysfs `speed` file. */
 export function parseLinkSpeedMbps(value: string): number | undefined {
-  const speed = Number.parseInt(value.trim(), 10);
-  // The kernel writes -1 when the speed is unknown, which is not a speed.
-  return Number.isFinite(speed) && speed > 0 ? speed : undefined;
+  const raw = value.trim();
+  // sysfs reports a complete decimal integer, or -1 when speed is unknown.
+  // parseInt accepts truncated values like "1000garbage" and "100.5".
+  if (!/^[0-9]+$/.test(raw)) return undefined;
+  const speed = Number(raw);
+  return Number.isSafeInteger(speed) && speed > 0 ? speed : undefined;
 }
 
 export interface PowerSupplyReading {
