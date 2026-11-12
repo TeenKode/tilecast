@@ -211,8 +211,23 @@ async function transferVerified(
             false,
           );
         }
-        await handle.writeFile(value);
-        position += value.length;
+        // FileHandle.write can complete with fewer bytes than requested.
+        // Keep the explicit offset so resumed downloads never overwrite
+        // the already-verified prefix.
+        let written = 0;
+        while (written < value.length) {
+          const { bytesWritten } = await handle.write(
+            value,
+            written,
+            value.length - written,
+            position,
+          );
+          if (bytesWritten <= 0) {
+            throw new DownloadError("media write made no progress", true);
+          }
+          written += bytesWritten;
+          position += bytesWritten;
+        }
         request.onProgress?.(position);
       }
     }
