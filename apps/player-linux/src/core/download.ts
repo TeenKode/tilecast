@@ -227,13 +227,30 @@ async function transferVerified(
         break;
       }
       if (value && value.length > 0) {
-        await handle.write(value, 0, value.length, position);
-        position += value.length;
-        if (position > request.expectedSizeBytes) {
+        // Reject an oversized chunk before writing it to disk. A faulty
+        // server must not grow a partial file beyond the manifest size.
+        if (value.length > request.expectedSizeBytes - position) {
           throw new DownloadError(
             "server sent more bytes than expected",
             false,
           );
+        }
+        // FileHandle.write can complete with fewer bytes than requested.
+        // Keep the explicit offset so resumed downloads never overwrite
+        // the already-verified prefix.
+        let written = 0;
+        while (written < value.length) {
+          const { bytesWritten } = await handle.write(
+            value,
+            written,
+            value.length - written,
+            position,
+          );
+          if (bytesWritten <= 0) {
+            throw new DownloadError("media write made no progress", true);
+          }
+          written += bytesWritten;
+          position += bytesWritten;
         }
         request.onProgress?.(position);
       }
