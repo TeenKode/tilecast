@@ -591,7 +591,9 @@ mod tests {
         // local bounds, never TCLS version 2.
         let old = active(serde_json::json!({}));
         assert!(old.active);
-        assert!(matches!(old.mode(), StreamMode::Mjpeg { max_width: MAX_WIDTH, max_height: MAX_HEIGHT, .. }));
+        // An older server advertises 1280 × 720. Clamp the width to the
+        // local 960-pixel bound without inflating the supplied height.
+        assert!(matches!(old.mode(), StreamMode::Mjpeg { max_width: MAX_WIDTH, max_height: 720, .. }));
         let unknown = active(serde_json::json!({"profile": "av1-1080p30", "transport": "av1"}));
         assert!(unknown.active && matches!(unknown.mode(), StreamMode::Mjpeg { .. }));
         for inconsistent in [
