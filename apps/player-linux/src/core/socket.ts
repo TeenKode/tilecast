@@ -282,8 +282,29 @@ export function encodeLiveStreamFrame(
   height: number,
   jpeg: Buffer,
 ): Buffer {
+  // Buffer.from(value, "hex") silently truncates at invalid characters.
+  // Validate the entire UUID before encoding it into the binary wire header.
+  if (
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+      sessionId,
+    )
+  ) {
+    throw new Error("invalid live stream session id");
+  }
+  if (
+    !Number.isInteger(width) ||
+    !Number.isInteger(height) ||
+    width < 1 ||
+    height < 1 ||
+    width > 65_535 ||
+    height > 65_535
+  ) {
+    throw new RangeError("invalid live stream frame dimensions");
+  }
+  if (!Number.isSafeInteger(capturedAtMs)) {
+    throw new RangeError("invalid live stream capture timestamp");
+  }
   const id = Buffer.from(sessionId.replaceAll("-", ""), "hex");
-  if (id.length !== 16) throw new Error("invalid live stream session id");
   const header = Buffer.alloc(33);
   header.write("TCLS", 0, "ascii");
   header.writeUInt8(1, 4);
