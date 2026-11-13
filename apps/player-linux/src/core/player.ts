@@ -52,7 +52,7 @@ import {
   type ProgressSignal,
   type RenderProgressState,
 } from "./render-progress";
-import { ReconnectBackoff } from "./backoff";
+import { ReconnectBackoff, reconnectElapsedMs } from "./backoff";
 import {
   heartbeatItemId,
   layoutItemKey,
@@ -998,7 +998,7 @@ export class PlayerRuntime {
         onOpen: () => {
           const wasDown = !this.socketOpen && this.backoff.failureStreak > 0;
           this.socketOpen = true;
-          this.backoff.onConnected(Date.now());
+          this.backoff.onConnected(reconnectElapsedMs());
           log.info("connected");
           if (wasDown) {
             void this.activity?.record({
@@ -1019,7 +1019,7 @@ export class PlayerRuntime {
         onClose: (reason, policyViolation, category) => {
           const wasOpen = this.socketOpen;
           this.socketOpen = false;
-          const delay = this.backoff.onDisconnected(Date.now());
+          const delay = this.backoff.onDisconnected(reconnectElapsedMs());
           // The category is safe to report; the text stays in this log.
           this.lastDisconnectReason = category;
           if (wasOpen) {
