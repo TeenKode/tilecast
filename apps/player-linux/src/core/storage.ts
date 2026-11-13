@@ -45,19 +45,28 @@ export class StateStore {
   }
 
   async readJson<T>(name: string): Promise<T | null> {
+    let raw: string;
     try {
-      const raw = await fs.readFile(this.filePath(name), "utf8");
-      return JSON.parse(raw) as T;
+      raw = await fs.readFile(this.filePath(name), "utf8");
     } catch (err: unknown) {
       if ((err as NodeJS.ErrnoException).code === "ENOENT") {
         return null;
       }
-      // A corrupt state file (torn write predating this player, disk fault)
-      // must not brick startup. Quarantine it and start from empty state.
+      // Permissions, I/O faults and transient filesystem errors do not mean
+      // the JSON is corrupt. Surface them rather than hiding or moving state.
+      throw err;
+    }
+
+    try {
+      return JSON.parse(raw) as T;
+    } catch (err: unknown) {
+      if (!(err instanceof SyntaxError)) throw err;
+      // A malformed JSON snapshot (for example from an older torn write)
+      // must not brick startup. Quarantine only confirmed parse failures.
       try {
         await fs.rename(this.filePath(name), this.filePath(name + ".corrupt"));
       } catch {
-        // Nothing else to do; treat as missing.
+        // Best effort: the invalid snapshot is still treated as missing.
       }
       return null;
     }
