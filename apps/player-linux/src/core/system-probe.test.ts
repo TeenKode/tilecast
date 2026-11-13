@@ -150,6 +150,41 @@ describe("power source", () => {
     ).toBe("ups");
   });
 
+  it("reports battery when BAT0 is discharging without an AC entry", () => {
+    // Some embedded/laptop drivers only expose BAT0. Explicit discharge is
+    // evidence of battery power even when no adapter device is enumerable.
+    expect(
+      classifyPowerSource([
+        { type: "Battery", status: "Discharging", capacityPercent: 35 },
+      ]),
+    ).toEqual({ powerSource: "battery", batteryPercent: 35 });
+  });
+
+  it("does not assume a battery-only listing means discharging", () => {
+    for (const status of ["Charging", "Full", "Unknown"]) {
+      expect(
+        classifyPowerSource([
+          { type: "Battery", status, capacityPercent: 95 },
+        ]).powerSource,
+      ).toBe("unknown");
+    }
+  });
+
+  it("keeps confirmed mains and UPS precedence over battery status", () => {
+    const battery = {
+      type: "Battery",
+      status: "Discharging",
+      capacityPercent: 42,
+    };
+    expect(
+      classifyPowerSource([battery, { type: "Mains", online: true }])
+        .powerSource,
+    ).toBe("mains");
+    expect(
+      classifyPowerSource([battery, { type: "UPS", online: true }]).powerSource,
+    ).toBe("ups");
+  });
+
   it("reports nothing at all when sysfs exposes no supply", () => {
     // The common case for fixed-install signage. "mains" here would be an
     // assumption indistinguishable from a real reading.

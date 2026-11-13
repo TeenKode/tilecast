@@ -120,6 +120,8 @@ export interface PowerSupplyReading {
   type: string;
   online?: boolean;
   capacityPercent?: number;
+  /** Kernel battery status, when the power_supply driver exposes it. */
+  status?: string;
 }
 
 /**
@@ -140,6 +142,12 @@ export function classifyPowerSource(supplies: PowerSupplyReading[]): {
   if (ups?.online === true) return { powerSource: "ups", batteryPercent };
   if (mains?.online === true) return { powerSource: "mains", batteryPercent };
   if (mains?.online === false && battery) {
+    return { powerSource: "battery", batteryPercent };
+  }
+  // Many laptop and embedded drivers expose BAT0 but no AC adapter entry.
+  // An explicit Discharging state is still sufficient evidence of battery
+  // operation; merely having a battery is not.
+  if (!mains && battery?.status === "Discharging") {
     return { powerSource: "battery", batteryPercent };
   }
   // No supply is visible at all: most fixed-install signage boxes report
@@ -344,10 +352,12 @@ export async function readPowerStatus(): Promise<{
     if (!type) continue;
     const online = (await readFile(`${base}/online`))?.trim();
     const capacity = (await readFile(`${base}/capacity`))?.trim();
+    const status = (await readFile(`${base}/status`))?.trim();
     const percent =
       capacity === undefined ? NaN : Number.parseInt(capacity, 10);
     supplies.push({
       type,
+      status,
       online: online === undefined ? undefined : online === "1",
       capacityPercent:
         Number.isFinite(percent) && percent >= 0 && percent <= 100
