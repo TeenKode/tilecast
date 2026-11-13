@@ -178,8 +178,29 @@ async function transferVerified(
     await fs.rm(partPath, { force: true });
     offset = 0;
   } else if (response.status === 206) {
-    // Server honored the resume. Counted because a screen resuming constantly
-    // has an unreliable link, which nothing else in telemetry would show.
+    // A partial response is valid only for the exact range requested. Some
+    // proxies return 206 with a different offset (or no Content-Range), which
+    // would splice unrelated bytes into a verified media download.
+    const contentRange = response.headers.get("Content-Range");
+    const match = /^bytes (\d+)-(\d+)\/(\d+)$/.exec(
+      contentRange ?? "",
+    );
+    const start = match ? Number(match[1]) : NaN;
+    const end = match ? Number(match[2]) : NaN;
+    const total = match ? Number(match[3]) : NaN;
+    if (
+      offset === 0 ||
+      !Number.isSafeInteger(start) ||
+      !Number.isSafeInteger(end) ||
+      !Number.isSafeInteger(total) ||
+      start !== offset ||
+      end < start ||
+      end >= total ||
+      total !== request.expectedSizeBytes
+    ) {
+      throw new DownloadError("invalid resumed download Content-Range", true);
+    }
+    // Only count a resume after validating the server's range response.
     observer?.onResumed?.();
   } else if (response.status === 401 || response.status === 403) {
     throw new DownloadError(`download unauthorized: ${response.status}`, false);

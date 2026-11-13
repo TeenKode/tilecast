@@ -23,6 +23,9 @@ function fakeFetch(options: { failIfRange?: boolean } = {}): typeof fetch {
       const offset = Number(/bytes=(\d+)-/.exec(range)?.[1] ?? 0);
       return new Response(new Uint8Array(BODY.subarray(offset)), {
         status: 206,
+        headers: {
+          "Content-Range": `bytes ${offset}-${BODY.length - 1}/${BODY.length}`,
+        },
       });
     }
     return new Response(new Uint8Array(BODY), { status: 200 });
@@ -87,6 +90,68 @@ describe("downloadVerified", () => {
     );
     expect(sawRange).toBe("bytes=10-");
     expect(readFileSync(destination)).toEqual(BODY);
+  });
+
+  it("rejects a partial response without a matching Content-Range", async () => {
+    for (const contentRange of [
+      null,
+      `bytes 0-${BODY.length - 1}/${BODY.length}`,
+      `bytes 11-${BODY.length - 1}/${BODY.length}`,
+      `bytes 10-${BODY.length - 1}/${BODY.length + 1}`,
+      "bytes */100",
+    ]) {
+      const destination = tempDest();
+      await fs.writeFile(destination + ".part", BODY.subarray(0, 10));
+      const fetchImpl = (async () =>
+        new Response(new Uint8Array(BODY.subarray(10)), {
+          status: 206,
+          headers: contentRange
+            ? { "Content-Range": contentRange }
+            : undefined,
+        })) as unknown as typeof fetch;
+
+      await expect(
+        downloadVerified(
+          {
+            url: "https://server/x",
+            headers: {},
+            destination,
+            expectedSha256: SHA,
+            expectedSizeBytes: BODY.length,
+            etag: `"${SHA}"`,
+          },
+          fetchImpl,
+        ),
+      ).rejects.toThrow("invalid resumed download Content-Range");
+      expect(readFileSync(destination + ".part")).toEqual(
+        BODY.subarray(0, 10),
+      );
+      await expect(fs.stat(destination)).rejects.toThrow();
+    }
+  });
+
+  it("rejects unsolicited partial responses for fresh downloads", async () => {
+    const destination = tempDest();
+    const fetchImpl = (async () =>
+      new Response(new Uint8Array(BODY), {
+        status: 206,
+        headers: {
+          "Content-Range": `bytes 0-${BODY.length - 1}/${BODY.length}`,
+        },
+      })) as unknown as typeof fetch;
+    await expect(
+      downloadVerified(
+        {
+          url: "https://server/x",
+          headers: {},
+          destination,
+          expectedSha256: SHA,
+          expectedSizeBytes: BODY.length,
+        },
+        fetchImpl,
+      ),
+    ).rejects.toThrow("invalid resumed download Content-Range");
+    await expect(fs.stat(destination)).rejects.toThrow();
   });
 
   it("restarts cleanly when If-Range misses (variant changed)", async () => {
