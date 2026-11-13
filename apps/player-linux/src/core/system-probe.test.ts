@@ -120,6 +120,22 @@ describe("link speed", () => {
   });
 });
 
+describe("strict sysfs link speed parsing", () => {
+  it("rejects truncated, fractional, and unsafe numeric values", () => {
+    for (const value of [
+      "1000Mbps",
+      "100.5",
+      "12 34",
+      "1e3",
+      "Infinity",
+      "9007199254740993",
+    ]) {
+      expect(parseLinkSpeedMbps(value), value).toBeUndefined();
+    }
+    expect(parseLinkSpeedMbps(" 2500\n")).toBe(2500);
+  });
+});
+
 describe("power source", () => {
   it("reports mains when the adapter is online, even with a battery present", () => {
     // Otherwise every laptop-class device on a wall socket reads as running on
