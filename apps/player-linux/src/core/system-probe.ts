@@ -40,14 +40,32 @@ type LinkType = NonNullable<TelemetryGauges["networkLinkType"]>;
 export function parseDefaultRouteInterface(
   procNetRoute: string,
 ): string | undefined {
+  let selected: string | undefined;
+  let bestMetric = Number.POSITIVE_INFINITY;
   for (const line of procNetRoute.split("\n").slice(1)) {
     const fields = line.trim().split(/\s+/);
     // Iface Destination Gateway Flags RefCnt Use Metric Mask ...
-    if (fields.length < 3) continue;
-    // A destination of all zeroes is the default route.
-    if (fields[1] === "00000000") return fields[0];
+    if (fields.length < 7 || fields[1] !== "00000000") continue;
+    const flags = Number.parseInt(fields[3]!, 16);
+    const metric = Number(fields[6]);
+    // The kernel may retain down/rejected routes in the table. Only consider
+    // routes that are up and not rejected; point-to-point defaults may have
+    // no gateway flag. Prefer the lowest metric, as Linux does.
+    if (
+      !/^[0-9a-fA-F]+$/.test(fields[3]!) ||
+      !/^[0-9]+$/.test(fields[6]!) ||
+      (flags & 0x1) === 0 ||
+      (flags & 0x200) !== 0 ||
+      !Number.isSafeInteger(metric)
+    ) {
+      continue;
+    }
+    if (metric < bestMetric) {
+      bestMetric = metric;
+      selected = fields[0];
+    }
   }
-  return undefined;
+  return selected;
 }
 
 /**
