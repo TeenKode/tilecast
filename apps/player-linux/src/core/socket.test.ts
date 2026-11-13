@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { classifyDisconnectReason } from "./socket";
+import {
+  classifyDisconnectReason,
+  parseSocketControlMessage,
+  parseSocketRevision,
+} from "./socket";
 
 // The category is what telemetry reports; the underlying text stays in the log.
 // These are the exact strings the socket produces.
@@ -70,5 +74,62 @@ describe("disconnect classification", () => {
     expect(
       classifyDisconnectReason("error Error: something new", false, false),
     ).toBe("unknown");
+  });
+});
+
+describe("untrusted socket control messages", () => {
+  it("rejects malformed JSON and non-object envelopes", () => {
+    for (const input of [
+      "{",
+      "null",
+      "42",
+      "true",
+      '"manifest.changed"',
+      "[]",
+      '{"type":null}',
+      '{"type":3}',
+      '{"manifestVersion":5}',
+    ]) {
+      expect(parseSocketControlMessage(input)).toBeNull();
+    }
+  });
+
+  it("accepts an object with a string message type", () => {
+    expect(
+      parseSocketControlMessage(
+        '{"type":"manifest.changed","manifestVersion":7}',
+      ),
+    ).toMatchObject({ type: "manifest.changed", manifestVersion: 7 });
+  });
+
+  it("accepts non-negative safe integer revisions, including numeric strings", () => {
+    expect(parseSocketRevision(0)).toBe(0);
+    expect(parseSocketRevision(12)).toBe(12);
+    expect(parseSocketRevision("12")).toBe(12);
+  });
+
+  it("rejects invalid or ambiguous revision values", () => {
+    for (const value of [
+      null,
+      undefined,
+      "",
+      " ",
+      true,
+      false,
+      -1,
+      -0.5,
+      1.5,
+      "1.5",
+      "Infinity",
+      "NaN",
+      "0x10",
+      "1e2",
+      Number.POSITIVE_INFINITY,
+      Number.MAX_SAFE_INTEGER + 1,
+      {},
+      [],
+    ]) {
+      expect(parseSocketRevision(value)).toBeNull();
+    }
   });
 });
