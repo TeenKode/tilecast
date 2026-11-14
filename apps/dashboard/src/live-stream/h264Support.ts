@@ -36,17 +36,22 @@ export async function detectAcceptedProfiles(
     environment.isSecureContext &&
     typeof decoder?.isConfigSupported === "function"
   ) {
-    for (const profile of WATCH_LIVE_PROFILES) {
-      if (profile.transport !== "h264") continue;
-      try {
-        const support = await decoder.isConfigSupported(
-          h264DecoderConfig(profile.maxWidth, profile.maxHeight),
-        );
-        if (support.supported) accepted.push(profile.id);
-      } catch {
-        // An engine that rejects the question cannot decode the stream.
-      }
-    }
+    const supportedProfiles = await Promise.all(
+      WATCH_LIVE_PROFILES.filter((profile) => profile.transport === "h264").map(
+        async (profile) => {
+          try {
+            const support = await decoder.isConfigSupported(
+              h264DecoderConfig(profile.maxWidth, profile.maxHeight),
+            );
+            return support.supported ? profile.id : null;
+          } catch {
+            // An engine that rejects the question cannot decode the stream.
+            return null;
+          }
+        },
+      ),
+    );
+    accepted.push(...supportedProfiles.filter((id): id is string => id !== null));
   }
   return [...accepted, ...MJPEG_PROFILE_IDS];
 }
