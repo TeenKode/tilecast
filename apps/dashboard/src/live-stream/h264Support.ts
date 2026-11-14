@@ -52,7 +52,9 @@ export async function detectAcceptedProfiles(
         }
       }),
     );
-    accepted.push(...supportedProfiles.filter((id): id is string => id !== null));
+    accepted.push(
+      ...supportedProfiles.filter((id): id is string => id !== null),
+    );
   }
   return [...accepted, ...MJPEG_PROFILE_IDS];
 }
