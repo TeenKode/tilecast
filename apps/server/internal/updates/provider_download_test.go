@@ -43,7 +43,7 @@ func TestGitHubAssetDownloadOutlivesMetadataTimeout(t *testing.T) {
 	provider.client.Timeout = 50 * time.Millisecond
 	provider.apiBase = server.URL
 
-	response, err := provider.Open(t.Context(), "https://api.github.com/repos/gbyo/tilecast/releases/assets/1")
+	response, err := provider.Open(t.Context(), "https://api.github.com/repos/" + GitHubOwner + "/" + GitHubRepo + "/releases/assets/1")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -75,7 +75,7 @@ func TestGitHubAssetDownloadHonorsCallerCancellation(t *testing.T) {
 	provider.client.Transport = releaseAssetTestTransport{base: server.Client().Transport, endpoint: endpoint}
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
-	response, err := provider.Open(ctx, "https://api.github.com/repos/gbyo/tilecast/releases/assets/1")
+	response, err := provider.Open(ctx, "https://api.github.com/repos/" + GitHubOwner + "/" + GitHubRepo + "/releases/assets/1")
 	if err != nil {
 		t.Fatal(err)
 	}
