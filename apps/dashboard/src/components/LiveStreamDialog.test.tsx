@@ -539,5 +539,4 @@ describe("LiveStreamDialog", () => {
     expect(frame?.style.aspectRatio).toBe("540 / 960");
     expect(screen.getByText("Live")).toBeTruthy();
   });
-
 });

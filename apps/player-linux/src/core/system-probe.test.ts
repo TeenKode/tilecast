@@ -180,9 +180,8 @@ describe("power source", () => {
   it("does not assume a battery-only listing means discharging", () => {
     for (const status of ["Charging", "Full", "Unknown"]) {
       expect(
-        classifyPowerSource([
-          { type: "Battery", status, capacityPercent: 95 },
-        ]).powerSource,
+        classifyPowerSource([{ type: "Battery", status, capacityPercent: 95 }])
+          .powerSource,
       ).toBe("unknown");
     }
   });
