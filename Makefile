@@ -6,7 +6,8 @@ bootstrap:
 	cd apps/cli && go mod download
 
 gofmt-check:
-	cd apps/server && test -z "$$(gofmt -l . ../../plugins ../../packages/plugin-sdk/go ../../packages/package-sdk/go ../../apps/cli ../../widgets ../../packages/api-client ../../data-sources)"
+	@cd apps/server && files="$$(gofmt -l . ../../plugins ../../packages/plugin-sdk/go ../../packages/package-sdk/go ../../apps/cli ../../widgets ../../packages/api-client ../../data-sources)"; \
+	if [ -n "$$files" ]; then printf "Go files requiring gofmt:\n%s\n" "$$files"; exit 1; fi
 
 build:
 	npm run build:all

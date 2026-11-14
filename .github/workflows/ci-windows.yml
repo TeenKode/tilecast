@@ -165,6 +165,8 @@ jobs:
             --windows-runner "$PWD/target/debug/tilecast-runtime-conformance.exe"
       - name: Electron reference engine
         run: |
+          # Direct execution bypasses the Electron CLI's binary installation.
+          node node_modules/electron/install.js
           node packages/player-runtime/conformance/run.mjs --engine electron \
             --out "$RUNNER_TEMP/conformance"
       - name: Compare the engines

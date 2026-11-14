@@ -105,9 +105,7 @@ describe("downloadVerified", () => {
       const fetchImpl = (async () =>
         new Response(new Uint8Array(BODY.subarray(10)), {
           status: 206,
-          headers: contentRange
-            ? { "Content-Range": contentRange }
-            : undefined,
+          headers: contentRange ? { "Content-Range": contentRange } : undefined,
         })) as unknown as typeof fetch;
 
       await expect(
@@ -123,9 +121,7 @@ describe("downloadVerified", () => {
           fetchImpl,
         ),
       ).rejects.toThrow("invalid resumed download Content-Range");
-      expect(readFileSync(destination + ".part")).toEqual(
-        BODY.subarray(0, 10),
-      );
+      expect(readFileSync(destination + ".part")).toEqual(BODY.subarray(0, 10));
       await expect(fs.stat(destination)).rejects.toThrow();
     }
   });
