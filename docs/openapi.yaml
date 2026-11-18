@@ -16049,6 +16049,11 @@ components:
         reloadPolicy:
           { type: string, enum: [load_once, on_each_activation, interval] }
         refreshIntervalSeconds: { type: integer, minimum: 1 }
+        retryIntervalSeconds:
+          type: integer
+          minimum: 0
+          maximum: 3600
+          description: Seconds to wait after a load failure. Zero disables retries. The default is 30 seconds.
         loadTimeoutSeconds: { type: integer }
         zoomPercent: { type: integer }
         scrollX: { type: integer }
@@ -17952,6 +17957,11 @@ components:
         reloadPolicy:
           { type: string, enum: [load_once, on_each_activation, interval] }
         refreshIntervalSeconds: { type: integer, minimum: 1 }
+        retryIntervalSeconds:
+          type: integer
+          minimum: 0
+          maximum: 3600
+          description: Seconds to wait after a load failure. Zero disables retries. The default is 30 seconds.
         loadTimeoutSeconds: { type: integer }
         zoomPercent: { type: integer }
         scrollX: { type: integer }

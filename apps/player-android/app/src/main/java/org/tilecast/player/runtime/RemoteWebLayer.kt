@@ -1,6 +1,7 @@
 package org.tilecast.player.runtime
 
 import android.annotation.SuppressLint
+import android.graphics.Bitmap
 import android.net.http.SslError
 import android.os.Handler
 import android.os.Looper
@@ -217,12 +218,19 @@ private fun PageView(
                     }
                 }
                 webViewClient = object : WebViewClient() {
+                    private var mainFrameFailed = false
+
+                    override fun onPageStarted(view: WebView, url: String, favicon: Bitmap?) {
+                        mainFrameFailed = false
+                    }
+
                     // The allowlist covers main-frame documents, per the remote-web
                     // contract; frames inside an allowed page are the page's own.
                     private fun blocked(request: WebResourceRequest): Boolean {
                         if (!request.isForMainFrame) return false
                         val target = request.url?.toString()
                         if (RemoteWebNavigationPolicy.allows(target, page)) return false
+                        mainFrameFailed = true
                         emit("navigation-blocked", RemoteWebNavigationPolicy.blockedHost(target))
                         return true
                     }
@@ -231,10 +239,13 @@ private fun PageView(
                         blocked(request)
 
                     override fun onPageCommitVisible(view: WebView, url: String) {
-                        emit("stream-ready", null)
+                        if (!mainFrameFailed && RemoteWebNavigationPolicy.allows(url, page)) {
+                            emit("stream-ready", null)
+                        }
                     }
 
                     override fun onPageFinished(view: WebView, url: String) {
+                        if (mainFrameFailed || !RemoteWebNavigationPolicy.allows(url, page)) return
                         view.post { view.scrollTo(page.scrollX, page.scrollY) }
                         val current = latestSurface.value
                         setPageAudioMuted(view, current.muted || !current.visible)
@@ -246,7 +257,10 @@ private fun PageView(
                         request: WebResourceRequest,
                         error: WebResourceError,
                     ) {
-                        if (request.isForMainFrame) emit("failed", RemoteWebFailure.forLoadError(error.errorCode))
+                        if (request.isForMainFrame) {
+                            mainFrameFailed = true
+                            emit("failed", RemoteWebFailure.forLoadError(error.errorCode))
+                        }
                     }
 
                     override fun onReceivedHttpError(
@@ -255,12 +269,14 @@ private fun PageView(
                         response: WebResourceResponse,
                     ) {
                         if (request.isForMainFrame && RemoteWebFailure.isMainFrameHttpFailure(response.statusCode)) {
+                            mainFrameFailed = true
                             emit("failed", RemoteWebFailure.HTTP_ERROR)
                         }
                     }
 
                     override fun onReceivedSslError(view: WebView, handler: SslErrorHandler, error: SslError) {
                         handler.cancel()
+                        mainFrameFailed = true
                         emit("failed", RemoteWebFailure.TLS_FAILURE)
                     }
 

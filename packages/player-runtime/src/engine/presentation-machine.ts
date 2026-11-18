@@ -82,7 +82,7 @@ type OnMount<T extends string, E = object> = { type: T; mount: number } & E;
 
 /** Events a surface sends about the occurrence it renders. */
 export type SurfaceEvent =
-  | OnMount<"SURFACE_READY", { empty?: boolean }>
+  | OnMount<"SURFACE_READY", { empty?: boolean; websiteFallback?: boolean }>
   | OnMount<"WIDGET_EMPTY">
   | OnMount<"SURFACE_ENDED", { source: "ended" | "end-offset" }>
   | OnMount<"SURFACE_FAILED", { message: string }>
@@ -335,7 +335,7 @@ export const presentationMachine = setup({
         : null,
     })),
     /** Evidence, heartbeats and completion once an occurrence is visible. */
-    onShown: ({ context, self }) => {
+    onShown: ({ context, event, self }) => {
       const stage = context.stage!;
       const item = stage.item;
       const report = context.reporter;
@@ -370,6 +370,7 @@ export const presentationMachine = setup({
           break;
         case "website":
         case "youtube":
+          if (event.type === "SURFACE_READY" && event.websiteFallback) break;
           report.evidence("website-loaded", item.id);
           alive("website-alive");
           break;

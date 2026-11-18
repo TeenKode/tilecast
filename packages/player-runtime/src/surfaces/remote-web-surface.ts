@@ -23,12 +23,27 @@ import type {
 import { TimerGroup } from "../clock/scheduler";
 import type { RemoteWebPort } from "../remote-web/port";
 import { YOUTUBE_MIN_EDGE, normalizeFailureBehavior } from "../remote-web/spec";
-import type { MediaSurface, SurfaceEnvironment } from "./surface";
+import type {
+  MediaSurface,
+  SurfaceEnvironment,
+  SurfaceReadiness,
+} from "./surface";
 import { showFallbackImage, showWebsitePlaceholder } from "./website-failure";
 
 /** A media-URI stream that shows no frame this long has stalled. The host
  * repeats the last frame of a still page every second. */
 export const STREAM_STALL_MS = 5_000;
+const DEFAULT_WEBSITE_RETRY_SECONDS = 30;
+const MAX_WEBSITE_RETRY_SECONDS = 3600;
+const WEBSITE_ACCESS_ERRORS = new Set([
+  "connection_failure",
+  "dns_failure",
+  "http_error",
+  "load_failed",
+  "load_timeout",
+  "offline",
+  "unknown_webview_error",
+]);
 const MAX_EDGE = 3840;
 const MIN_EDGE = 16;
 
@@ -47,6 +62,8 @@ export class HostRemoteWebSurface implements MediaSurface {
   private readonly audioEnabled: boolean;
   private readonly timers: TimerGroup;
   private readonly loadTimer: TimerGroup;
+  private readonly retryTimer: TimerGroup;
+  private readonly retryIntervalMs: number;
   private readonly key: string;
   private surfaceId: string | null = null;
   private video: HTMLVideoElement | null = null;
@@ -63,8 +80,10 @@ export class HostRemoteWebSurface implements MediaSurface {
   private hasVisibleContent = false;
   private shown = false;
   private failed = false;
+  private attempt = 0;
+  private retryFallback: HTMLDivElement | null = null;
   private disposed = false;
-  private resolveReady: (() => void) | null = null;
+  private resolveReady: ((state?: SurfaceReadiness) => void) | null = null;
   private rejectReady: ((reason: Error) => void) | null = null;
 
   constructor(options: RemoteWebSurfaceOptions) {
@@ -74,6 +93,15 @@ export class HostRemoteWebSurface implements MediaSurface {
     this.audioEnabled = options.audioEnabled;
     this.timers = new TimerGroup(this.env.clock);
     this.loadTimer = new TimerGroup(this.env.clock);
+    this.retryTimer = new TimerGroup(this.env.clock);
+    const interval = this.spec.presentation.retryIntervalSeconds;
+    this.retryIntervalMs =
+      1_000 *
+      (typeof interval === "number" &&
+      Number.isInteger(interval) &&
+      interval >= 0
+        ? Math.min(interval, MAX_WEBSITE_RETRY_SECONDS)
+        : DEFAULT_WEBSITE_RETRY_SECONDS);
     this.key = JSON.stringify(this.spec.content);
     const container = document.createElement("div");
     container.className = "tc-remote-web";
@@ -88,33 +116,40 @@ export class HostRemoteWebSurface implements MediaSurface {
     this.element = container;
   }
 
-  prepare(): Promise<void> {
-    const ready = new Promise<void>((resolve, reject) => {
+  prepare(): Promise<void | SurfaceReadiness> {
+    const ready = new Promise<void | SurfaceReadiness>((resolve, reject) => {
       this.resolveReady = resolve;
       this.rejectReady = reject;
     });
-    const presentation = this.spec.presentation;
-    this.loadTimer.after(presentation.loadTimeoutSeconds * 1_000, () =>
-      this.fail("load timeout"),
-    );
-    void this.open();
+    this.startLoad();
     return ready;
   }
 
+  private startLoad(): void {
+    this.attempt++;
+    this.failed = false;
+    this.loadTimer.after(
+      this.spec.presentation.loadTimeoutSeconds * 1_000,
+      () => this.fail("load timeout", true),
+    );
+    void this.open();
+  }
+
   /** Settle a still-pending prepare: content shows, or it never can. */
-  private settleReady(error: Error | null): void {
+  private settleReady(error: Error | null, state?: SurfaceReadiness): void {
     const resolve = this.resolveReady;
     const reject = this.rejectReady;
     this.resolveReady = null;
     this.rejectReady = null;
     if (!resolve || !reject) return;
     if (error) reject(error);
-    else resolve();
+    else resolve(state);
   }
 
   activate(): Promise<void> {
     this.shown = true;
-    if (this.surfaceId !== null) {
+    if (this.retryFallback && this.failed) this.scheduleRetry();
+    if (this.surfaceId !== null && !this.retryFallback) {
       this.port.setVisible(this.surfaceId, true);
       this.port.setMuted(this.surfaceId, !this.audioEnabled || this.failed);
     }
@@ -124,6 +159,7 @@ export class HostRemoteWebSurface implements MediaSurface {
   /** Hidden or leaving: silent at once. */
   pause(): void {
     this.shown = false;
+    this.retryTimer.cancelAll();
     if (this.surfaceId !== null) {
       this.port.setMuted(this.surfaceId, true);
       this.port.setVisible(this.surfaceId, false);
@@ -139,8 +175,10 @@ export class HostRemoteWebSurface implements MediaSurface {
     this.disposed = true;
     this.timers.cancelAll();
     this.loadTimer.cancelAll();
+    this.retryTimer.cancelAll();
     this.resize?.disconnect();
     this.releaseVideo();
+    this.clearRetryFallback();
     if (this.surfaceId !== null) {
       const presentation = this.spec.presentation;
       this.port.release(
@@ -183,7 +221,12 @@ export class HostRemoteWebSurface implements MediaSurface {
   }
 
   private async open(): Promise<void> {
-    const listener = (event: RemoteWebEventV1) => this.onEvent(event);
+    const attempt = this.attempt;
+    const listener = (event: RemoteWebEventV1) => {
+      // The port records events that arrive before the create reply.
+      if (attempt === this.attempt && event.surfaceId === this.surfaceId)
+        this.onEvent(event);
+    };
     const adopted = this.port.adopt(this.key, listener);
     if (adopted) {
       this.surfaceId = adopted.surfaceId;
@@ -205,24 +248,35 @@ export class HostRemoteWebSurface implements MediaSurface {
       return;
     }
     const { state, result } = await this.port.create(
-      { content, viewport, muted: true, visible: this.shown },
+      {
+        content,
+        viewport,
+        muted: true,
+        visible: this.shown && !this.retryFallback,
+      },
       listener,
     );
-    if (this.disposed) {
+    if (this.disposed || this.failed || attempt !== this.attempt) {
       if (result.ok) this.port.release(state.surfaceId, null);
       return;
     }
     if (!result.ok) {
-      this.fail(result.code);
+      this.fail(
+        result.code,
+        this.retryFallback !== null && result.code === "unavailable",
+      );
       return;
     }
     this.surfaceId = state.surfaceId;
     this.lastViewport = JSON.stringify(viewport);
+    if (state.failed) {
+      this.fail(state.failed, WEBSITE_ACCESS_ERRORS.has(state.failed));
+      return;
+    }
     this.sourceReady = this.sourceReady || state.streamReady;
     this.setTarget(result.target);
     // Events that arrived before the create reply resolved.
     this.loaded = this.loaded || state.loaded;
-    if (state.failed) this.fail(state.failed);
     this.maybeReady();
   }
 
@@ -251,9 +305,11 @@ export class HostRemoteWebSurface implements MediaSurface {
       video.style.height = "100%";
       video.style.objectFit = "fill";
       video.style.display = "block";
-      video.addEventListener("error", () => this.fail("stream_failed"));
+      video.addEventListener("error", () => {
+        if (this.video === video) this.fail("stream_failed");
+      });
       video.src = uri;
-      this.element.replaceChildren(video);
+      this.element.prepend(video);
       this.video = video;
       this.watchFrames();
       void video.play().catch(() => undefined);
@@ -277,7 +333,7 @@ export class HostRemoteWebSurface implements MediaSurface {
     const video = this.video;
     if (!video) return;
     const onFrame = () => {
-      if (this.disposed || this.video !== video) return;
+      if (this.disposed || this.video !== video || this.failed) return;
       this.lastFrameAt = this.env.clock.monotonicNow();
       // A usable frame reached this element: `last_success` must keep it.
       this.hasVisibleContent = true;
@@ -317,14 +373,16 @@ export class HostRemoteWebSurface implements MediaSurface {
     video.pause();
     video.removeAttribute("src");
     video.load();
+    video.remove();
     this.video = null;
+    this.frameCallback = null;
   }
 
   private onEvent(event: RemoteWebEventV1): void {
     if (this.disposed) return;
     switch (event.kind) {
       case "loaded":
-        if (this.loaded && this.shown && !this.failed) {
+        if (this.loaded && this.shown && !this.failed && !this.retryFallback) {
           // A later load of the same surface (an interval reload): the
           // reference player reports it as a website recovery.
           this.env.sink.websiteRecovered();
@@ -350,9 +408,14 @@ export class HostRemoteWebSurface implements MediaSurface {
         }
         return;
       case "navigation-blocked":
-      case "failed":
       case "process-terminated":
         this.fail(event.code ?? event.kind);
+        return;
+      case "failed":
+        this.fail(
+          event.code ?? event.kind,
+          WEBSITE_ACCESS_ERRORS.has(event.code ?? ""),
+        );
         return;
       case "recovered":
         return;
@@ -362,9 +425,16 @@ export class HostRemoteWebSurface implements MediaSurface {
   private maybeReady(): void {
     if (!this.loaded || !this.streamReady || this.failed || this.disposed)
       return;
-    if (!this.resolveReady) return;
+    if (!this.resolveReady && !this.retryFallback) return;
     this.loadTimer.cancelAll();
-    if (this.port.takeRecovery()) this.env.sink.websiteRecovered();
+    const retryRecovered = this.retryFallback !== null;
+    this.clearRetryFallback();
+    if (retryRecovered && this.shown && this.surfaceId !== null) {
+      this.port.setVisible(this.surfaceId, true);
+      this.port.setMuted(this.surfaceId, !this.audioEnabled);
+    }
+    if (this.port.takeRecovery() || retryRecovered)
+      this.env.sink.websiteRecovered();
     this.scheduleReload();
     this.settleReady(null);
   }
@@ -378,13 +448,23 @@ export class HostRemoteWebSurface implements MediaSurface {
     });
   }
 
-  private fail(reason: string): void {
+  private fail(reason: string, retryable = false): void {
     if (this.failed || this.disposed) return;
     this.failed = true;
     this.loadTimer.cancelAll();
     this.timers.cancelAll();
     const presentation = this.spec.presentation;
     const behavior = normalizeFailureBehavior(presentation.failureBehavior);
+    if (
+      retryable &&
+      this.retryIntervalMs > 0 &&
+      this.spec.content.kind === "page" &&
+      behavior !== "skip"
+    ) {
+      this.showRetryFallback(reason, behavior);
+      return;
+    }
+    this.clearRetryFallback();
     if (behavior === "last_success" && this.hasVisibleContent) {
       // The last rendered frame stays on screen, as on Android: report the
       // failure without finishing the item, and never release the video
@@ -421,5 +501,74 @@ export class HostRemoteWebSurface implements MediaSurface {
     }
     this.env.sink.websiteFailed(reason, false);
     this.settleReady(new Error(reason));
+  }
+
+  private showRetryFallback(
+    reason: string,
+    behavior: ReturnType<typeof normalizeFailureBehavior>,
+  ): void {
+    if (!this.retryFallback) {
+      const fallback = document.createElement("div");
+      fallback.style.position = "absolute";
+      fallback.style.inset = "0";
+      fallback.style.background = this.element.style.background;
+      this.retryFallback = fallback;
+      this.element.appendChild(fallback);
+      if (behavior === "last_success" && this.hasVisibleContent && this.video) {
+        this.video.pause();
+        if (this.frameCallback !== null)
+          this.video.cancelVideoFrameCallback?.(this.frameCallback);
+        fallback.appendChild(this.video);
+        this.video = null;
+        this.frameCallback = null;
+      } else if (
+        behavior === "fallback_image" &&
+        this.spec.presentation.fallbackSrc
+      ) {
+        const image = showFallbackImage(
+          fallback,
+          this.spec.presentation.fallbackSrc,
+        );
+        image.onload = () => {
+          if (this.retryFallback === fallback && !this.disposed)
+            this.env.sink.fallbackShown();
+        };
+        image.onerror = () => {
+          if (this.retryFallback === fallback && !this.disposed)
+            showWebsitePlaceholder(fallback);
+        };
+      } else {
+        showWebsitePlaceholder(fallback);
+      }
+      this.env.sink.websiteFailed(reason, true);
+    }
+    this.releaseVideo();
+    if (this.surfaceId !== null) this.port.release(this.surfaceId, null);
+    this.surfaceId = null;
+    this.targetUri = null;
+    this.sourceReady = false;
+    this.hostLayer = false;
+    this.loaded = false;
+    this.streamReady = false;
+    this.hasVisibleContent = false;
+    this.settleReady(null, { websiteFallback: true });
+    if (this.shown) this.scheduleRetry();
+  }
+
+  private scheduleRetry(): void {
+    this.retryTimer.cancelAll();
+    this.retryTimer.after(this.retryIntervalMs, () => this.startLoad());
+  }
+
+  private clearRetryFallback(): void {
+    const fallback = this.retryFallback;
+    if (!fallback) return;
+    this.retryFallback = null;
+    const video = fallback.querySelector("video");
+    if (video) {
+      video.removeAttribute("src");
+      video.load();
+    }
+    fallback.remove();
   }
 }

@@ -195,6 +195,10 @@
       "fallbackImageAssetId": {
         "label": "Imagen alternativa"
       },
+      "retryIntervalSeconds": {
+        "label": "Reintentar tras un error (segundos)",
+        "description": "Tiempo de espera tras un error de carga antes de volver a abrir el sitio. Introduce 0 para desactivar los reintentos. Omitir siempre avanza la lista de reproducción de inmediato."
+      },
       "loadTimeoutSeconds": {
         "label": "Tiempo de espera de carga (segundos)"
       },

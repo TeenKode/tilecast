@@ -129,6 +129,8 @@ The host reports surface events as `remote-web` messages: `stream-ready`, `loade
 
 The runtime owns the load timers and the reload policy. The host owns the allowlist, the failure codes, and the browsing data. The host never navigates a main frame outside the approved hosts. When the remote process is not ready, the host must answer `{ok: false}`. The host must not queue the create.
 
+For a remote page, the runtime retries access errors and load timeouts after the configured interval. The default is 30 seconds. A value of zero disables retries. It opens a new host surface with the same content policy and uses the configured load timeout for each attempt. The runtime shows the fallback during retries. The `skip` policy still advances the item. The runtime stops scheduling retries when the page recovers, the surface is paused, or the surface is disposed. A blocked navigation or TLS failure uses the terminal failure path.
+
 ## 3. Playback engine
 
 The playback lifecycle is explicit XState 5 state machines (`src/engine`). They never touch the DOM.

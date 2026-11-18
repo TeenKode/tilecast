@@ -15,6 +15,7 @@ import {
   type TilecastRuntimeHostV1,
 } from "../host/contract";
 import { createProjector } from "../compat/projector";
+import { remoteWebForWidget } from "../compat/projection/web-widget";
 import { RemoteWebPort } from "./port";
 import {
   remoteWebSpecOf,
@@ -88,6 +89,12 @@ describe("remote web spec", () => {
     expect(spec.presentation.loadTimeoutSeconds).toBe(120);
     expect(spec.presentation.reloadIntervalSeconds).toBe(30);
     expect(spec.presentation.fallbackSrc).toBe(website.fallbackSrc);
+    expect(
+      specFromWebsite("https://menu.example.org", {
+        ...website,
+        retryIntervalSeconds: 75,
+      })?.presentation.retryIntervalSeconds,
+    ).toBe(75);
   });
 
   it("refuses URLs a host must never load", () => {
@@ -109,6 +116,7 @@ describe("remote web spec", () => {
       url: "https://news.example.net/",
       allowedHosts: ["news.example.net"],
       loadTimeoutSeconds: 15,
+      retryIntervalSeconds: 0,
       lifecycle: "keep_warm",
       warmSeconds: 900,
       reload: { mode: "periodic", intervalSeconds: 120 },
@@ -118,6 +126,7 @@ describe("remote web spec", () => {
     expect(spec.content.kind).toBe("page");
     expect(spec.presentation).toMatchObject({
       loadTimeoutSeconds: 15,
+      retryIntervalSeconds: 0,
       lifecycle: "keep_warm",
       warmSeconds: 300,
       reloadIntervalSeconds: 120,
@@ -127,6 +136,26 @@ describe("remote web spec", () => {
     expect(
       specFromWebDescriptor({ mode: "bundle", url: "https://x.example/" }),
     ).toBeNull();
+  });
+
+  it("reads the Website retry interval from the saved widget configuration", () => {
+    const spec = remoteWebForWidget(
+      {
+        assetId: "website",
+        name: "Schedule",
+        provider: "website",
+        configVersion: 1,
+        configuration: { retryIntervalSeconds: 0 },
+        presentation: {
+          schemaVersion: 1,
+          kind: "web",
+          web: { mode: "remote", url: "https://example.org/schedule" },
+        },
+      },
+      [],
+      new Date(0),
+    );
+    expect(spec?.presentation.retryIntervalSeconds).toBe(0);
   });
 
   it("carries the documented YouTube settings and completion", () => {

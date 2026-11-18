@@ -96,6 +96,24 @@ func TestWebsiteSettingsLimits(t *testing.T) {
 	}
 }
 
+func TestWebsiteRetryInterval(t *testing.T) {
+	s := websiteService(false)
+	for _, interval := range []int{-1, 0, 30, 3600, 3601} {
+		in := validWebsite()
+		in.RetryIntervalSeconds = &interval
+		normalized, err := s.normalizeWebsite(context.Background(), in)
+		if interval < 0 || interval > 3600 {
+			if err == nil {
+				t.Fatalf("accepted retry interval %d", interval)
+			}
+			continue
+		}
+		if err != nil || normalized.RetryIntervalSeconds == nil || *normalized.RetryIntervalSeconds != interval {
+			t.Fatalf("did not preserve retry interval %d: %v", interval, err)
+		}
+	}
+}
+
 func TestWebsiteQueryVariableAndDataSourceValidation(t *testing.T) {
 	s := websiteService(false)
 	in := validWebsite()

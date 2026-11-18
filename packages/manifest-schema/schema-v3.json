@@ -126,6 +126,11 @@
           "enum": ["load_once", "on_each_activation", "interval"]
         },
         "refreshIntervalSeconds": { "type": "integer", "minimum": 30 },
+        "retryIntervalSeconds": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 3600
+        },
         "loadTimeoutSeconds": {
           "type": "integer",
           "minimum": 1,

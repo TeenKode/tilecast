@@ -157,6 +157,18 @@
             }
           },
           {
+            "key": "retryIntervalSeconds",
+            "label": "Retry after an error (seconds)",
+            "labelKey": "definitions:website.fields.retryIntervalSeconds.label",
+            "description": "Wait this long after a load error before opening the site again. Enter 0 to turn retries off. Skip always advances the playlist immediately.",
+            "descriptionKey": "definitions:website.fields.retryIntervalSeconds.description",
+            "control": "integer",
+            "default": 30,
+            "minimum": 0,
+            "maximum": 3600,
+            "ui": { "section": "behavior", "order": 5 }
+          },
+          {
             "key": "loadTimeoutSeconds",
             "label": "Load timeout (seconds)",
             "labelKey": "definitions:website.fields.loadTimeoutSeconds.label",
@@ -240,6 +252,7 @@
         "scrollY": 0,
         "reloadPolicy": "on_each_activation",
         "refreshIntervalSeconds": 300,
+        "retryIntervalSeconds": 30,
         "failureBehavior": "placeholder",
         "loadTimeoutSeconds": 20,
         "allowedHosts": [],

@@ -132,6 +132,7 @@ export interface RuntimeViewport {
 export interface RuntimeWebsiteConfig {
   loadTimeoutSeconds: number;
   refreshIntervalSeconds: number | null;
+  retryIntervalSeconds?: number | null;
   zoomPercent: number;
   javascriptEnabled: boolean;
   domStorageEnabled: boolean;
@@ -257,6 +258,7 @@ export interface RemoteWebEventV1 {
 export interface RemoteWebPresentationV1 {
   loadTimeoutSeconds: number;
   reloadIntervalSeconds: number | null;
+  retryIntervalSeconds?: number | null;
   lifecycle: "destroy_on_hide" | "keep_warm";
   warmSeconds: number;
   onlineOnly: boolean;

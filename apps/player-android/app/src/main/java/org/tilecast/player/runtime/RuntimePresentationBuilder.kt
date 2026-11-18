@@ -271,6 +271,7 @@ object RuntimePresentationBuilder {
                 scrollY = config.scrollY,
                 backgroundColor = config.backgroundColor,
                 loadTimeoutSeconds = config.loadTimeoutSeconds,
+                retryIntervalSeconds = config.retryIntervalSeconds,
                 reloadIntervalSeconds = config.refreshIntervalSeconds
                     .takeIf { config.reloadPolicy == "interval" },
                 lifecycle = "destroy_on_hide",
@@ -302,6 +303,7 @@ object RuntimePresentationBuilder {
                 scrollY = website.scrollY,
                 backgroundColor = website.backgroundColor,
                 loadTimeoutSeconds = website.loadTimeoutSeconds,
+                retryIntervalSeconds = website.retryIntervalSeconds,
                 reloadIntervalSeconds = website.refreshIntervalSeconds
                     .takeIf { website.reloadPolicy == "interval" },
                 lifecycle = "destroy_on_hide",
@@ -387,6 +389,7 @@ object RuntimePresentationBuilder {
         backgroundColor: String,
         loadTimeoutSeconds: Int,
         reloadIntervalSeconds: Int?,
+        retryIntervalSeconds: Int? = null,
         lifecycle: String,
         warmSeconds: Int,
         onlineOnly: Boolean,
@@ -410,6 +413,7 @@ object RuntimePresentationBuilder {
         putJsonObject("presentation") {
             put("loadTimeoutSeconds", loadTimeoutSeconds.coerceIn(1, 120))
             reloadIntervalSeconds?.let { put("reloadIntervalSeconds", it.coerceAtLeast(30)) }
+            retryIntervalSeconds?.let { put("retryIntervalSeconds", it) }
             put("lifecycle", lifecycle.take(32))
             put("warmSeconds", warmSeconds.coerceIn(0, 300))
             put("onlineOnly", onlineOnly)

@@ -257,7 +257,11 @@ export class LayoutSurface implements MediaSurface {
         if (!this.disposed) sink.evidence(kind, zone.id);
       },
       websiteFailed: (reason) => zoneFailed("website failed: " + reason),
-      websiteRecovered: () => sink.websiteRecovered(),
+      websiteRecovered: () => {
+        if (this.disposed) return;
+        sink.evidence("website-loaded", zone.id);
+        sink.websiteRecovered();
+      },
       fallbackShown: rendered,
       zoneFailed: (id, message) => sink.zoneFailed(id, message),
       // Empty Widget state inside a zone must not advance the containing
@@ -288,9 +292,10 @@ export class LayoutSurface implements MediaSurface {
     this.nested.push(surface);
     container.appendChild(surface.element);
     surface.prepare().then(
-      () => {
+      (readiness) => {
         if (this.disposed) return;
-        sink.evidence("website-loaded", zone.id);
+        if (!readiness?.websiteFallback)
+          sink.evidence("website-loaded", zone.id);
         rendered();
         if (this.active) void surface.activate();
       },
@@ -404,7 +409,10 @@ export class LayoutSurface implements MediaSurface {
       const zoneSink: SurfaceSink = {
         ...this.env.sink,
         failed,
-        websiteFailed: (reason) => failed(`website failed: ${reason}`),
+        websiteFailed: (reason, fallback) => {
+          if (!fallback) failed(`website failed: ${reason}`);
+          else if (isCurrent()) zoneFailed(`website failed: ${reason}`);
+        },
         websiteRecovered: () => {
           if (isCurrent()) this.env.sink.websiteRecovered();
         },

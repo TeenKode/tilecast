@@ -138,6 +138,7 @@ export function projectManifestItems(
               defaults.website?.["defaultFailureBehavior"] ?? "placeholder",
             ),
           refreshIntervalSeconds: website.refreshIntervalSeconds ?? null,
+          retryIntervalSeconds: website.retryIntervalSeconds ?? null,
           customUserAgent: website.customUserAgent ?? "",
           fallbackSrc: fallback
             ? resolve(fallback.assetId, fallback.variantId)

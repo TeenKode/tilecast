@@ -2730,6 +2730,7 @@ export type WebsiteConfig = {
   cookiePolicy: "disabled" | "first_party" | "first_and_third_party";
   reloadPolicy: "load_once" | "on_each_activation" | "interval";
   refreshIntervalSeconds?: number;
+  retryIntervalSeconds?: number;
   loadTimeoutSeconds: number;
   zoomPercent: number;
   scrollX: number;
@@ -2752,6 +2753,7 @@ export type WebsiteInput = {
   cookiePolicy?: WebsiteConfig["cookiePolicy"];
   reloadPolicy?: WebsiteConfig["reloadPolicy"];
   refreshIntervalSeconds?: number;
+  retryIntervalSeconds?: number;
   loadTimeoutSeconds?: number;
   zoomPercent?: number;
   scrollX: number;
