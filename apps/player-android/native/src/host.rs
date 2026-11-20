@@ -934,10 +934,9 @@ pub fn open_host_with_media(
     // or traversing paths even at this internal JNI boundary.
     if media_root.is_some_and(|path| {
         !path.is_absolute()
-            || path.components().any(|part| matches!(
-                part,
-                std::path::Component::ParentDir | std::path::Component::CurDir
-            ))
+            || path
+                .components()
+                .any(|part| matches!(part, std::path::Component::ParentDir | std::path::Component::CurDir))
     }) {
         return Err(HostError::FilesDir);
     }
@@ -946,7 +945,16 @@ pub fn open_host_with_media(
     if live.is_some() {
         return Err(HostError::AlreadyLive);
     }
-    let host = AndroidHost::open(core_paths_with_media(files_dir, media_root), calls, meta, platform, renderer, user_agent, jvm, phone_setup)?;
+    let host = AndroidHost::open(
+        core_paths_with_media(files_dir, media_root),
+        calls,
+        meta,
+        platform,
+        renderer,
+        user_agent,
+        jvm,
+        phone_setup,
+    )?;
     *live = Some(Arc::new(host));
     Ok(LIVE_HANDLE)
 }
