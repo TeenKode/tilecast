@@ -228,6 +228,7 @@ export interface ManifestWebsite {
   cookiePolicy: string;
   reloadPolicy: string;
   refreshIntervalSeconds?: number | null;
+  retryIntervalSeconds?: number | null;
   loadTimeoutSeconds: number;
   zoomPercent: number;
   scrollX: number;

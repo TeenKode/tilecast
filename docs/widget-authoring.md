@@ -344,7 +344,7 @@ Player behavior do not change.
 
 | Provider  | Settings                                                                                                                                                                                                                                                              |
 | --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `website` | `url`, `backgroundColor`, `zoomPercent`, `scrollX`, `scrollY`, `reloadPolicy`, `refreshIntervalSeconds`, `failureBehavior`, `fallbackImageAssetId`, `loadTimeoutSeconds`, `allowedHosts`, `javascriptEnabled`, `domStorageEnabled`, `cookiePolicy`, `customUserAgent` |
+| `website` | `url`, `backgroundColor`, `zoomPercent`, `scrollX`, `scrollY`, `reloadPolicy`, `refreshIntervalSeconds`, `retryIntervalSeconds`, `failureBehavior`, `fallbackImageAssetId`, `loadTimeoutSeconds`, `allowedHosts`, `javascriptEnabled`, `domStorageEnabled`, `cookiePolicy`, `customUserAgent` |
 | `youtube` | `url`, `startSeconds`, `endSeconds`, `captions`, `captionLanguage`, `muted`, `volume`, `loop`, `controls`, `playlistPlaybackMode`, `fixedDurationSeconds`, `failureBehavior`, `fallbackImageAssetId`                                                                  |
 
 The definitions declare a translation key for every label, description, and

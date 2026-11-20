@@ -717,6 +717,7 @@ type WebsiteConfig struct {
 	CookiePolicy           string     `json:"cookiePolicy"`
 	ReloadPolicy           string     `json:"reloadPolicy"`
 	RefreshIntervalSeconds *int       `json:"refreshIntervalSeconds,omitempty"`
+	RetryIntervalSeconds   *int       `json:"retryIntervalSeconds,omitempty"`
 	LoadTimeoutSeconds     int        `json:"loadTimeoutSeconds"`
 	ZoomPercent            int        `json:"zoomPercent"`
 	ScrollX                int        `json:"scrollX"`

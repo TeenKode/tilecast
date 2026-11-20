@@ -106,7 +106,7 @@ interface Harness {
     failures: string[];
   };
   settled: () => string;
-  preparePromise: Promise<void>;
+  preparePromise: ReturnType<HostRemoteWebSurface["prepare"]>;
 }
 
 function harness(
@@ -339,9 +339,9 @@ describe("Website failure policies", () => {
     expect(placeholder).not.toBeNull();
     expect(placeholder!.textContent).toContain("Website unavailable");
     expect(h.sink.websiteFailures).toEqual([
-      { reason: "load_failed", fallback: false },
+      { reason: "load_failed", fallback: true },
     ]);
-    expect(h.settled()).toBe("rejected");
+    await expect(h.preparePromise).resolves.toEqual({ websiteFallback: true });
   });
 
   it("last_success before the first frame shows a placeholder, not emptiness", async () => {
@@ -354,14 +354,15 @@ describe("Website failure policies", () => {
       h.surface.element.querySelector(".tc-website-placeholder"),
     ).not.toBeNull();
     expect(h.sink.websiteFailures).toEqual([
-      { reason: "load_failed", fallback: false },
+      { reason: "load_failed", fallback: true },
     ]);
-    expect(h.settled()).toBe("rejected");
+    await expect(h.preparePromise).resolves.toEqual({ websiteFallback: true });
   });
 
   it("last_success after a frame keeps the video and stays on the item", async () => {
     const h = harness("last_success");
     const id = await loadWithFrame(h);
+    const oldVideo = h.surface.element.querySelector("video")!;
     h.port.receive({ surfaceId: id, kind: "failed", code: "http_error" });
     await flush();
     // The only retained image is not destroyed.
@@ -371,6 +372,15 @@ describe("Website failure policies", () => {
     ]);
     expect(h.settled()).toBe("resolved");
     await h.preparePromise;
+    await h.surface.activate();
+    h.clock.advance(30_000);
+    await flush();
+    oldVideo.dispatchEvent(new Event("error"));
+    const recoveredId = await loadWithFrame(h);
+    expect(recoveredId).not.toBe(id);
+    expect(h.sink.recovered).toBe(1);
+    expect(h.surface.element.contains(oldVideo)).toBe(false);
+    h.surface.dispose();
   });
 
   it("reload failure after a load follows the configured policy", async () => {
@@ -430,20 +440,149 @@ describe("Website failure policies", () => {
     ]);
   });
 
-  it("load timeout fails through the policy without stalling", async () => {
+  it("load timeout shows the fallback and gives each retry its own timeout", async () => {
     const h = harness("placeholder");
     await flush();
     surfaceIdOf(h);
     h.clock.advance(20_000);
     await flush(10);
     expect(h.sink.websiteFailures).toEqual([
-      { reason: "load timeout", fallback: false },
+      { reason: "load timeout", fallback: true },
     ]);
     expect(
       h.surface.element.querySelector(".tc-website-placeholder"),
     ).not.toBeNull();
-    expect(h.settled()).toBe("rejected");
-    await expect(h.preparePromise).rejects.toThrow("load timeout");
+    await expect(h.preparePromise).resolves.toEqual({ websiteFallback: true });
+    await h.surface.activate();
+    h.clock.advance(30_000);
+    await flush();
+    const retryId = surfaceIdOf(h);
+    h.clock.advance(20_000);
+    expect(h.host.state.destroyed).toContain(retryId);
+    h.clock.advance(30_000);
+    await flush();
+    expect(surfaceIdOf(h)).not.toBe(retryId);
+    expect(h.sink.websiteFailures).toHaveLength(1);
+    h.surface.dispose();
+  });
+
+  it("reopens an inaccessible Android page until it loads and stops retrying", async () => {
+    const h = harness("placeholder", null, () =>
+      Promise.resolve({ ok: true, target: { kind: "host-layer" } }),
+    );
+    const create = vi.spyOn(h.host.remoteWeb, "create");
+    const visible = vi.spyOn(h.host.remoteWeb, "setVisible");
+    await flush();
+    const initialId = surfaceIdOf(h);
+    h.port.receive({
+      surfaceId: initialId,
+      kind: "failed",
+      code: "connection_failure",
+    });
+    // Android can finish dispatching callbacks from the released view.
+    h.port.receive({ surfaceId: initialId, kind: "loaded" });
+    await h.preparePromise;
+    await h.surface.activate();
+    h.clock.advance(29_999);
+    expect(create).not.toHaveBeenCalled();
+    h.clock.advance(1);
+    await flush();
+    const retryId = surfaceIdOf(h);
+    expect(retryId).not.toBe(initialId);
+    expect(create).toHaveBeenLastCalledWith(
+      expect.objectContaining({ visible: false }),
+    );
+    h.port.receive({ surfaceId: retryId, kind: "failed", code: "dns_failure" });
+    h.clock.advance(30_000);
+    await flush();
+    const recoveredId = surfaceIdOf(h);
+    h.port.receive({ surfaceId: recoveredId, kind: "loaded" });
+    expect(h.sink.recovered).toBe(0);
+    h.port.receive({ surfaceId: recoveredId, kind: "stream-ready" });
+    expect(h.sink.recovered).toBe(1);
+    expect(h.sink.websiteFailures).toHaveLength(1);
+    expect(
+      h.surface.element.querySelector(".tc-website-placeholder"),
+    ).toBeNull();
+    expect(visible).toHaveBeenLastCalledWith(recoveredId, true);
+    h.clock.advance(60_000);
+    expect(create).toHaveBeenCalledTimes(2);
+    h.surface.dispose();
+  });
+
+  it("uses the configured delay after a load failure", async () => {
+    const site = spec("placeholder");
+    site.presentation.retryIntervalSeconds = 7;
+    const h = harness("placeholder", null, undefined, site);
+    const create = vi.spyOn(h.host.remoteWeb, "create");
+    await flush();
+    h.port.receive({
+      surfaceId: surfaceIdOf(h),
+      kind: "failed",
+      code: "connection_failure",
+    });
+    await h.surface.activate();
+    h.clock.advance(6_999);
+    expect(create).not.toHaveBeenCalled();
+    h.clock.advance(1);
+    await flush();
+    expect(create).toHaveBeenCalledTimes(1);
+    h.surface.dispose();
+  });
+
+  it("applies the configured fallback without scheduling a retry at zero", async () => {
+    const site = spec("last_success");
+    site.presentation.retryIntervalSeconds = 0;
+    const h = harness("last_success", null, undefined, site);
+    const create = vi.spyOn(h.host.remoteWeb, "create");
+    const id = await loadWithFrame(h);
+    await h.surface.activate();
+    h.port.receive({
+      surfaceId: id,
+      kind: "failed",
+      code: "connection_failure",
+    });
+    h.clock.advance(120_000);
+    expect(create).not.toHaveBeenCalled();
+    expect(h.surface.element.querySelector("video")).not.toBeNull();
+    h.surface.dispose();
+  });
+
+  it("cancels pending retries while hidden and after disposal", async () => {
+    const h = harness("placeholder");
+    const create = vi.spyOn(h.host.remoteWeb, "create");
+    await flush();
+    h.port.receive({
+      surfaceId: surfaceIdOf(h),
+      kind: "failed",
+      code: "dns_failure",
+    });
+    await h.surface.activate();
+    h.surface.pause();
+    h.clock.advance(60_000);
+    expect(create).not.toHaveBeenCalled();
+    await h.surface.activate();
+    h.surface.dispose();
+    h.clock.advance(60_000);
+    expect(create).not.toHaveBeenCalled();
+  });
+
+  it("keeps skip and navigation blocks on the terminal failure path", async () => {
+    for (const [behavior, kind, code] of [
+      ["skip", "failed", "connection_failure"],
+      ["placeholder", "navigation-blocked", "blocked_navigation"],
+      ["placeholder", "failed", "tls_failure"],
+    ] as const) {
+      const h = harness(behavior);
+      const create = vi.spyOn(h.host.remoteWeb, "create");
+      await flush();
+      h.port.receive({ surfaceId: surfaceIdOf(h), kind, code });
+      await expect(h.preparePromise).rejects.toThrow(code);
+      await h.surface.activate();
+      h.clock.advance(60_000);
+      expect(create).not.toHaveBeenCalled();
+      h.surface.dispose();
+    }
   });
 
   it("a successful load resolves prepare with the stream showing", async () => {

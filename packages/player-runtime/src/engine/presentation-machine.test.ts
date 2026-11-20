@@ -439,8 +439,10 @@ describe("presentation machine", () => {
     expect(h.log).not.toContain("widget-empty:layout");
   });
 
-  it("bounds a website from mount and falls back or advances on failure", () => {
-    const website = {
+  const websiteItem = item("site", {
+    kind: "website",
+    src: "https://example.org",
+    website: {
       loadTimeoutSeconds: 10,
       refreshIntervalSeconds: null,
       zoomPercent: 100,
@@ -455,11 +457,11 @@ describe("presentation machine", () => {
       failureBehavior: "fallback",
       fallbackSrc: "tcmedia://cap/fallback",
       allowedHosts: [],
-    };
-    const h = harness([
-      item("site", { kind: "website", src: "https://example.org", website }),
-      item("b"),
-    ]);
+    },
+  });
+
+  it("bounds a website from mount and falls back or advances on failure", () => {
+    const h = harness([websiteItem, item("b")]);
     h.actor.send({
       type: "WEBSITE_FAILED",
       mount: h.mount(),
@@ -474,6 +476,19 @@ describe("presentation machine", () => {
     h.clock.advance(60_000);
     h.clock.flush();
     expect(h.stage()!.item.id).toBe("b");
+  });
+
+  it("shows a retry fallback without reporting the website loaded", () => {
+    const h = harness([websiteItem, item("next")]);
+    const mount = h.mount();
+    h.actor.send({ type: "SURFACE_READY", mount, websiteFallback: true });
+    expect(h.stage()!.phase).toBe("shown");
+    expect(h.log).not.toContain("website-loaded:site");
+    h.actor.send({ type: "WEBSITE_RECOVERED", mount });
+    expect(h.log).toContain("website-loaded:site");
+    h.clock.advance(60_000);
+    h.clock.flush();
+    expect(h.stage()!.item.id).toBe("next");
   });
 
   it("never changes the occurrence on its own under a shared timeline", () => {

@@ -259,6 +259,9 @@ export class Stage {
             type: "SURFACE_READY",
             mount: entry.mount,
             ...(readiness?.empty === true ? { empty: true } : {}),
+            ...(readiness?.websiteFallback === true
+              ? { websiteFallback: true }
+              : {}),
           });
         }
       },

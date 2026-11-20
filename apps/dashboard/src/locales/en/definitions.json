@@ -192,6 +192,10 @@
       "fallbackImageAssetId": {
         "label": "Fallback image"
       },
+      "retryIntervalSeconds": {
+        "label": "Retry after an error (seconds)",
+        "description": "Wait this long after a load error before opening the site again. Enter 0 to turn retries off. Skip always advances the playlist immediately."
+      },
       "loadTimeoutSeconds": {
         "label": "Load timeout (seconds)"
       },

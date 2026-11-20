@@ -29,6 +29,8 @@ export interface MediaSurface {
 export interface SurfaceReadiness {
   /** The fullscreen Widget rendered its declared empty state. */
   empty?: boolean;
+  /** A Website fallback is visible while the page is unavailable. */
+  websiteFallback?: boolean;
 }
 
 /** Surfaces that loop in place (a single-video playlist). */

@@ -109,6 +109,8 @@ If an Android Player shows only a Website's background, update the Player before
 
 Website playback needs a network connection from the Player. If the site cannot load, choose what **If the page cannot load** does: keep the last page that loaded, show a fallback image, show the Tilecast placeholder, or skip the item. Set the **Load timeout (seconds)** and **Reload** to match the site. The Playlist item duration controls how long the website plays.
 
+On Players that use an isolated website view, set **Behavior** > **Retry after an error (seconds)** to choose how long the Player waits after a network error, HTTP error, or load timeout. The default is 30 seconds. Enter 0 to turn retries off. The fallback stays on screen while the Player retries. **Skip** advances the playlist immediately. The periodic **Reload** setting also refreshes pages that are working.
+
 Check that the exact display can reach the site. A page can work in your browser but fail on a TV or Linux Player because of DNS, network filtering, unsupported site behavior, or a site that blocks embedded browsers.
 
 ## Next steps

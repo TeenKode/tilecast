@@ -119,6 +119,9 @@ function presentation(
       reload == null || !Number.isFinite(Number(reload)) || Number(reload) <= 0
         ? null
         : clamp(reload, MIN_RELOAD_SECONDS, MAX_RELOAD_SECONDS, 60),
+    ...(partial.retryIntervalSeconds == null
+      ? {}
+      : { retryIntervalSeconds: partial.retryIntervalSeconds }),
     lifecycle:
       partial.lifecycle === "keep_warm" ? "keep_warm" : "destroy_on_hide",
     warmSeconds: clamp(partial.warmSeconds, 0, MAX_WARM_SECONDS, 0),
@@ -156,6 +159,7 @@ export function specFromWebsite(
     content,
     presentation: presentation({
       loadTimeoutSeconds: config.loadTimeoutSeconds,
+      retryIntervalSeconds: config.retryIntervalSeconds,
       reloadIntervalSeconds:
         config.reloadPolicy === "interval"
           ? config.refreshIntervalSeconds
@@ -174,6 +178,7 @@ export interface WebDescriptor {
   onlineOnly?: boolean;
   fallbackBehavior?: string;
   loadTimeoutSeconds?: number;
+  retryIntervalSeconds?: number | null;
   lifecycle?: string;
   warmSeconds?: number;
   reload?: { mode?: string; intervalSeconds?: number } | null;
@@ -202,6 +207,7 @@ export function specFromWebDescriptor(
     },
     presentation: presentation({
       loadTimeoutSeconds: web.loadTimeoutSeconds,
+      retryIntervalSeconds: web.retryIntervalSeconds,
       reloadIntervalSeconds:
         web.reload?.mode === "periodic" ? web.reload.intervalSeconds : null,
       lifecycle: web.lifecycle as RemoteWebPresentationV1["lifecycle"],

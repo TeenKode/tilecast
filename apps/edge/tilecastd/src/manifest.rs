@@ -680,6 +680,7 @@ impl Candidate {
         built.website = Some(serde_json::json!({
             "loadTimeoutSeconds": website.timeout_seconds.or(positive("loadTimeoutSeconds")).unwrap_or(20),
             "refreshIntervalSeconds": site.get("refreshIntervalSeconds").and_then(Value::as_u64),
+            "retryIntervalSeconds": site.get("retryIntervalSeconds").and_then(Value::as_u64),
             "zoomPercent": positive("zoomPercent").or(website.default_zoom_percent).unwrap_or(100),
             "javascriptEnabled": site.get("javascriptEnabled").and_then(Value::as_bool).unwrap_or(true),
             "domStorageEnabled": site.get("domStorageEnabled").and_then(Value::as_bool).unwrap_or(true),

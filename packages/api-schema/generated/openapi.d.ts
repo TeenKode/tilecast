@@ -10319,6 +10319,8 @@ export interface components {
       /** @enum {string} */
       reloadPolicy?: "load_once" | "on_each_activation" | "interval";
       refreshIntervalSeconds?: number;
+      /** @description Seconds to wait after a load failure. Zero disables retries. The default is 30 seconds. */
+      retryIntervalSeconds?: number;
       loadTimeoutSeconds?: number;
       zoomPercent?: number;
       scrollX?: number;
@@ -11681,6 +11683,8 @@ export interface components {
       /** @enum {string} */
       reloadPolicy: "load_once" | "on_each_activation" | "interval";
       refreshIntervalSeconds?: number;
+      /** @description Seconds to wait after a load failure. Zero disables retries. The default is 30 seconds. */
+      retryIntervalSeconds?: number;
       loadTimeoutSeconds: number;
       zoomPercent: number;
       scrollX: number;

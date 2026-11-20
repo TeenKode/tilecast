@@ -240,6 +240,9 @@ func (s *Service) normalizeWebsite(ctx context.Context, in WebsiteInput) (Websit
 	} else {
 		in.RefreshIntervalSeconds = nil
 	}
+	if in.RetryIntervalSeconds != nil && (*in.RetryIntervalSeconds < 0 || *in.RetryIntervalSeconds > 3600) {
+		return in, errors.New("website retry interval must be between 0 and 3600 seconds")
+	}
 	if in.FailureBehavior == "" {
 		in.FailureBehavior = defaults.failureBehavior
 	}
