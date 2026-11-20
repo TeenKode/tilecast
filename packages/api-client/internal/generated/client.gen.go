@@ -12762,11 +12762,14 @@ type WebsiteConfig struct {
 	LoadTimeoutSeconds     int                          `json:"loadTimeoutSeconds"`
 	RefreshIntervalSeconds *int                         `json:"refreshIntervalSeconds,omitempty"`
 	ReloadPolicy           WebsiteConfigReloadPolicy    `json:"reloadPolicy"`
-	ScrollX                int                          `json:"scrollX"`
-	ScrollY                int                          `json:"scrollY"`
-	UpdatedAt              time.Time                    `json:"updatedAt"`
-	Url                    string                       `json:"url"`
-	ZoomPercent            int                          `json:"zoomPercent"`
+
+	// RetryIntervalSeconds Seconds to wait after a load failure. Zero disables retries. The default is 30 seconds.
+	RetryIntervalSeconds *int      `json:"retryIntervalSeconds,omitempty"`
+	ScrollX              int       `json:"scrollX"`
+	ScrollY              int       `json:"scrollY"`
+	UpdatedAt            time.Time `json:"updatedAt"`
+	Url                  string    `json:"url"`
+	ZoomPercent          int       `json:"zoomPercent"`
 }
 
 // WebsiteConfigCookiePolicy defines model for WebsiteConfig.CookiePolicy.
@@ -12805,10 +12808,13 @@ type WebsiteInput struct {
 	Name                   string                       `json:"name"`
 	RefreshIntervalSeconds *int                         `json:"refreshIntervalSeconds,omitempty"`
 	ReloadPolicy           *WebsiteInputReloadPolicy    `json:"reloadPolicy,omitempty"`
-	ScrollX                *int                         `json:"scrollX,omitempty"`
-	ScrollY                *int                         `json:"scrollY,omitempty"`
-	Url                    string                       `json:"url"`
-	ZoomPercent            *int                         `json:"zoomPercent,omitempty"`
+
+	// RetryIntervalSeconds Seconds to wait after a load failure. Zero disables retries. The default is 30 seconds.
+	RetryIntervalSeconds *int   `json:"retryIntervalSeconds,omitempty"`
+	ScrollX              *int   `json:"scrollX,omitempty"`
+	ScrollY              *int   `json:"scrollY,omitempty"`
+	Url                  string `json:"url"`
+	ZoomPercent          *int   `json:"zoomPercent,omitempty"`
 }
 
 // WebsiteInputCookiePolicy defines model for WebsiteInput.CookiePolicy.
