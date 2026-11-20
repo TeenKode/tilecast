@@ -348,10 +348,10 @@ other Widget. The Server still validates them with `websiteWidgetProvider` and
 `youtubeWidgetProvider`. Their saved configurations, manifest projection, and
 Player behavior do not change.
 
-| Provider  | Settings                                                                                                                                                                                                                                                              |
-| --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Provider  | Settings                                                                                                                                                                                                                                                                                      |
+| --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `website` | `url`, `backgroundColor`, `zoomPercent`, `scrollX`, `scrollY`, `reloadPolicy`, `refreshIntervalSeconds`, `retryIntervalSeconds`, `failureBehavior`, `fallbackImageAssetId`, `loadTimeoutSeconds`, `allowedHosts`, `javascriptEnabled`, `domStorageEnabled`, `cookiePolicy`, `customUserAgent` |
-| `youtube` | `url`, `startSeconds`, `endSeconds`, `captions`, `captionLanguage`, `muted`, `volume`, `loop`, `controls`, `playlistPlaybackMode`, `fixedDurationSeconds`, `failureBehavior`, `fallbackImageAssetId`                                                                  |
+| `youtube` | `url`, `startSeconds`, `endSeconds`, `captions`, `captionLanguage`, `muted`, `volume`, `loop`, `controls`, `playlistPlaybackMode`, `fixedDurationSeconds`, `failureBehavior`, `fallbackImageAssetId`                                                                                          |
 
 The definitions declare a translation key for every label, description, and
 select option. The inspector shows them in English, Spanish, and Russian through
