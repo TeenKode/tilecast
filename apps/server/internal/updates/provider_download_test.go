@@ -61,12 +61,15 @@ func TestGitHubAssetDownloadOutlivesMetadataTimeout(t *testing.T) {
 }
 
 func TestGitHubAssetDownloadHonorsCallerCancellation(t *testing.T) {
-	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	finishResponse := make(chan struct{})
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = io.WriteString(w, "[")
 		w.(http.Flusher).Flush()
-		<-r.Context().Done()
+		// Keep the body open until the client observes its cancellation.
+		<-finishResponse
 	}))
 	defer server.Close()
+	defer close(finishResponse)
 	endpoint, err := url.Parse(server.URL)
 	if err != nil {
 		t.Fatal(err)
