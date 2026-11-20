@@ -36,25 +36,35 @@ export async function detectAcceptedProfiles(
     environment.isSecureContext &&
     typeof decoder?.isConfigSupported === "function"
   ) {
-    const h264Profiles = WATCH_LIVE_PROFILES.filter(
+    // The decoder configuration has no frame rate: 720p30 and 720p15 ask the
+    // same question, so each distinct size is asked once and answers every
+    // profile that shares it.
+    const answers = new Map<string, Promise<boolean>>();
+    const supports = (width: number, height: number) => {
+      const key = `${H264_CODEC}/${width}x${height}`;
+      let answer = answers.get(key);
+      if (!answer) {
+        // The call runs inside a promise so a synchronous throw is caught too.
+        answer = Promise.resolve()
+          .then(() =>
+            decoder.isConfigSupported(h264DecoderConfig(width, height)),
+          )
+          .then((support) => support.supported === true)
+          // An engine that rejects the question cannot decode the stream.
+          .catch(() => false);
+        answers.set(key, answer);
+      }
+      return answer;
+    };
+    const h264 = WATCH_LIVE_PROFILES.filter(
       (profile) => profile.transport === "h264",
     );
-    const supportedProfiles = await Promise.all(
-      h264Profiles.map(async (profile) => {
-        try {
-          const support = await decoder.isConfigSupported(
-            h264DecoderConfig(profile.maxWidth, profile.maxHeight),
-          );
-          return support.supported ? profile.id : null;
-        } catch {
-          // An engine that rejects the question cannot decode the stream.
-          return null;
-        }
-      }),
+    const results = await Promise.all(
+      h264.map((profile) => supports(profile.maxWidth, profile.maxHeight)),
     );
-    accepted.push(
-      ...supportedProfiles.filter((id): id is string => id !== null),
-    );
+    h264.forEach((profile, index) => {
+      if (results[index]) accepted.push(profile.id);
+    });
   }
   return [...accepted, ...MJPEG_PROFILE_IDS];
 }
