@@ -100,7 +100,7 @@ downloaded again while online.
 
 The CAS reconciles its index at startup and fetches missing media again while
 online. Reinsert a missing USB drive and fully restart to use it again.
-Unplugging the drive while playing can interrupt media hosted there.
+Unplugging the drive while playing can interrupt media hosted there. The Player listens for Android's early `MEDIA_EJECT` broadcast and promptly closes open WebView media streams before `vold` unmounts the volume, avoiding the system's SIGINT of processes still holding USB descriptors on affected TVs. Abrupt removal without an early broadcast, or other native readers holding descriptors, still requires device validation.
 Supported storage uses regular filesystem paths via `getExternalFilesDirs`;
 SAF-only USB storage is not eligible. This feature requires no root or broad
 storage permission. The existing CAS limit and free-space reserve still apply.
