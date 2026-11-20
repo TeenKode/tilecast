@@ -43,7 +43,7 @@ func TestGitHubAssetDownloadOutlivesMetadataTimeout(t *testing.T) {
 	provider.client.Timeout = 50 * time.Millisecond
 	provider.apiBase = server.URL
 
-	response, err := provider.Open(t.Context(), "https://api.github.com/repos/TeenKode/tilecast/releases/assets/1")
+	response, err := provider.Open(t.Context(), "https://api.github.com/repos/"+GitHubOwner+"/"+GitHubRepo+"/releases/assets/1")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -61,12 +61,15 @@ func TestGitHubAssetDownloadOutlivesMetadataTimeout(t *testing.T) {
 }
 
 func TestGitHubAssetDownloadHonorsCallerCancellation(t *testing.T) {
-	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	finishResponse := make(chan struct{})
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = io.WriteString(w, "[")
 		w.(http.Flusher).Flush()
-		<-r.Context().Done()
+		// Keep the body open until the client observes its cancellation.
+		<-finishResponse
 	}))
 	defer server.Close()
+	defer close(finishResponse)
 	endpoint, err := url.Parse(server.URL)
 	if err != nil {
 		t.Fatal(err)
@@ -75,7 +78,7 @@ func TestGitHubAssetDownloadHonorsCallerCancellation(t *testing.T) {
 	provider.client.Transport = releaseAssetTestTransport{base: server.Client().Transport, endpoint: endpoint}
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
-	response, err := provider.Open(ctx, "https://api.github.com/repos/TeenKode/tilecast/releases/assets/1")
+	response, err := provider.Open(ctx, "https://api.github.com/repos/"+GitHubOwner+"/"+GitHubRepo+"/releases/assets/1")
 	if err != nil {
 		t.Fatal(err)
 	}

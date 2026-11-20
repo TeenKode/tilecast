@@ -92,10 +92,16 @@ The inspector renders each field from its `control`:
 | `media_asset`       | Selected-asset row and the Media picker                                                  |
 | `repeating_group`   | Accordion with one item for each row                                                     |
 | `string_list`       | List of short text entries                                                               |
+| `font`              | Organization font library choice with **Add fonts**, and the Widget's own face           |
 
 `string_list` stores an array of strings. It must declare `maximumItems` from 1
 to 100. `maxLength` and `minLength` apply to each entry. The Server trims each
 entry and removes empty entries. Website `allowedHosts` uses this control.
+
+`font` stores a library family ID, or `""` for the Widget's own face. A schema
+may declare at most four font fields, only at the top level, and each must
+default to `""`. The Server records the families a Widget uses, so the font
+library refuses to remove one that is still chosen. See `docs/fonts.md`.
 
 ### Authoring hints
 
@@ -342,10 +348,10 @@ other Widget. The Server still validates them with `websiteWidgetProvider` and
 `youtubeWidgetProvider`. Their saved configurations, manifest projection, and
 Player behavior do not change.
 
-| Provider  | Settings                                                                                                                                                                                                                                                              |
-| --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Provider  | Settings                                                                                                                                                                                                                                                                                      |
+| --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `website` | `url`, `backgroundColor`, `zoomPercent`, `scrollX`, `scrollY`, `reloadPolicy`, `refreshIntervalSeconds`, `retryIntervalSeconds`, `failureBehavior`, `fallbackImageAssetId`, `loadTimeoutSeconds`, `allowedHosts`, `javascriptEnabled`, `domStorageEnabled`, `cookiePolicy`, `customUserAgent` |
-| `youtube` | `url`, `startSeconds`, `endSeconds`, `captions`, `captionLanguage`, `muted`, `volume`, `loop`, `controls`, `playlistPlaybackMode`, `fixedDurationSeconds`, `failureBehavior`, `fallbackImageAssetId`                                                                  |
+| `youtube` | `url`, `startSeconds`, `endSeconds`, `captions`, `captionLanguage`, `muted`, `volume`, `loop`, `controls`, `playlistPlaybackMode`, `fixedDurationSeconds`, `failureBehavior`, `fallbackImageAssetId`                                                                                          |
 
 The definitions declare a translation key for every label, description, and
 select option. The inspector shows them in English, Spanish, and Russian through

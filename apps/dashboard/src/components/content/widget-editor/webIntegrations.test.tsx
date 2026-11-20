@@ -42,6 +42,7 @@ const website = {
   cookiePolicy: "disabled",
   reloadPolicy: "interval",
   refreshIntervalSeconds: 600,
+  retryIntervalSeconds: 75,
   loadTimeoutSeconds: 45,
   zoomPercent: 125,
   scrollX: 10,
@@ -142,6 +143,11 @@ describe("Website", () => {
       within(panel).getByRole("spinbutton", { name: "Reload every (seconds)" }),
     ).toHaveValue(600);
     expect(
+      within(panel).getByRole("spinbutton", {
+        name: "Retry after an error (seconds)",
+      }),
+    ).toHaveValue(75);
+    expect(
       within(panel).getByRole("combobox", { name: "If the page cannot load" }),
     ).toHaveTextContent("Keep the last page that loaded");
     await userEvent.click(
@@ -193,6 +199,13 @@ describe("Website", () => {
         target: { value: "150" },
       },
     );
+    const behavior = await tab("Behavior");
+    fireEvent.change(
+      within(behavior).getByRole("spinbutton", {
+        name: "Retry after an error (seconds)",
+      }),
+      { target: { value: "0" } },
+    );
     await userEvent.click(save);
     await waitFor(() => expect(update).toHaveBeenCalledTimes(1));
     expect(update.mock.calls[0]![1]).toEqual({
@@ -208,6 +221,7 @@ describe("Website", () => {
         cookiePolicy: "disabled",
         reloadPolicy: "interval",
         refreshIntervalSeconds: 600,
+        retryIntervalSeconds: 0,
         loadTimeoutSeconds: 45,
         zoomPercent: 150,
         scrollX: 10,
@@ -219,7 +233,7 @@ describe("Website", () => {
     });
   });
 
-  it("creates with the same defaults the old Website editor sent", async () => {
+  it("creates with the Website defaults", async () => {
     mockEditorApi();
     const create = vi
       .spyOn(api, "createWidget")
@@ -246,6 +260,7 @@ describe("Website", () => {
       cookiePolicy: "first_party",
       reloadPolicy: "on_each_activation",
       refreshIntervalSeconds: 300,
+      retryIntervalSeconds: 30,
       loadTimeoutSeconds: 20,
       zoomPercent: 100,
       scrollX: 0,

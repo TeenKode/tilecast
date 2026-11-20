@@ -20,6 +20,7 @@ WebKit 2.54 inverts `WPE_SETTING_REDUCED_MOTION`: with the default (`FALSE`) pag
 
 - `tilecast://runtime/<name>` and `tilecast://runtime/fonts/<name>`: the shared Player Runtime artifact (`packages/player-runtime/dist/runtime`), the same files the Electron player serves. `assemble-runtime.sh` copies it and verifies every file against the artifact's `runtime-manifest.json`. Names are validated against a fixed grammar (`src/validate.c`).
 - `tcmedia://cap/<opaque>`: a daemon-issued capability scoped to the current renderer and presentation generation. Reads use the bounded media socket; the renderer has no CAS path or direct CAS permission.
+- `tcpresent://cap/<opaque>`: an AirPlay session's stream (`docs/tilecast-edge-airplay.md` §5). The web process has its own network namespace, so the main process relays the loopback RTP (`src/present-relay.c`) for the `sourceId` of the current activation, after `tilecastd` answers the media socket's `present` request. `tcpresentsrc` (`src/gst-tcmedia.c`) reads the relay's Unix sockets in a private directory. While the relay runs, preview is refused (`external_presentation`) and Watch Live gets black frames.
 
 ## Bridge
 
@@ -41,6 +42,15 @@ The host copies only known, bounded fields into IPC events. Host-to-page deliver
 - **Formats.** A DMA-BUF buffer is accepted as `DRM_FORMAT_XRGB8888` (`BGRx`) or `DRM_FORMAT_ARGB8888` (`BGRA`); a shared-memory buffer as ARGB8888 (`BGRA`). The release architectures are little-endian. A DMA-BUF import reports no stride, so the stride is the returned size divided by the height. The size must divide evenly and the stride must hold a full row. `tests/test_preview_pixels.c` checks this with truncated, malformed and overflowing sizes.
 - **Fallback: WebKit snapshot.** `webkit_web_view_get_snapshot()` is used for a request only when the presented buffer cannot be read: no buffer yet, import not supported, unknown format, a GBM mapping failure, or an invalid size or stride. A WebKit snapshot can leave out a hardware-decoded video layer, so it is a compatibility path. The two paths never run together, and a capture problem never changes playback.
 - **Logs.** The backend is logged when it changes: `preview: using presented WPE buffer 1920x1080 dmabuf XRGB8888 modifier 0x0`, or `preview: WPE buffer import unavailable (<reason>); falling back to WebKit snapshot`. Per-capture lines are debug level (`G_MESSAGES_DEBUG=all`). A log line never contains pixels, content URLs or credentials.
+
+### Watch Live H.264 (`src/live-encoder.c`)
+
+For an H.264 Watch Live lease, `tilecastd` sends `live_encoder.start` and the renderer runs one persistent GStreamer pipeline of the same presented buffer (`appsrc ! videoconvert ! videoscale ! <encoder> ! h264parse ! appsink`), replacing the one-shot JPEG capture for those frames. The renderer never starts it on its own, and `live_encoder.stop` frees it at once.
+
+- **Probe.** At startup, on a worker thread, each installed candidate (`vah264lpenc`, `vah264enc`, `openh264enc`, in that order) must encode real frames into a Constrained Baseline keyframe with SPS, PPS and an IDR. The first output must also be Constrained Baseline at level 3.1 or lower. A hardware encoder tries 1280×720@30 (advertising `h264-720p30` and below), then 1280×720@15 (`h264-720p15` and below), then 960×540@15, each at the profile's frame rate and initial bitrate. Software tries 960×540@15 only, so 720p30 is hardware-only. `src/live-profiles.c` holds this ladder (`tests/test_live_profiles.c` tests it with a fake probe). The probe does not prove sustained throughput: Player Core's runtime monitor degrades 720p30 to 720p15 and lower. The result is sent as `renderer.live_capabilities`, and logged as `live-encoder: H.264 Watch Live uses <element> (...)`. No element is assumed from its package.
+- **Playback isolation.** The main loop only copies the presented buffer (reusing the last copy when nothing was presented) at the profile frame rate (a timer of the nearest whole millisecond, never zero: 33 ms at 30 fps). At most two raw frames wait for the encoder; more are dropped and counted. A slow copy skips the next frames. Conversion and encoding run on GStreamer threads.
+- **Keyframes.** `h264parse config-interval=-1` puts SPS and PPS before every IDR; the encoder makes one about each second; `live_encoder.keyframe` asks for one sooner. A unit over 512 KiB is dropped and a keyframe requested.
+- **Privacy.** Pixels and access units are never logged or stored. Every chunk is `renderer.live_chunk` to `tilecastd`, which checks the protected state before it reaches the socket.
 
 The headless end-to-end test runs this path with SHM buffers. The DMA-BUF import on a physical DRM display has no CI coverage; the release canary checks it.
 

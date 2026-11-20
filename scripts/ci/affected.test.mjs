@@ -175,6 +175,12 @@ test("the Windows host selects only Windows validation", () => {
     assert.deepEqual(selected([path]), ["windows"], path);
   assert.equal(affected(["apps/player-windows/src/main.rs"]).edge_rust, false);
 });
+test("the shared WebView host selects the Windows lane and the shared Rust matrix", () => {
+  const result = affected(["crates/webview-host/src/link.rs"]);
+  assert.equal(result.windows, true);
+  assert.equal(result.player_core, true);
+  assert.equal(result.dashboard, false);
+});
 test("the Presentation Model selects Studio and production runtime consumers", () => {
   assert.deepEqual(
     selected(["packages/presentation-model/src/availability.ts"]),
@@ -710,6 +716,14 @@ test("the phone setup relay has its own lane", () => {
   ]);
   assert.equal(vectors.player_core, true);
   assert.equal(vectors.setup_relay, true);
+});
+
+test("the Watch Live fixture selects the server, Studio and Player Core", () => {
+  const result = affected([
+    "packages/player-contracts/fixtures/watch-live.json",
+  ]);
+  for (const area of ["server", "dashboard", "player_core"])
+    assert.equal(result[area], true, area);
 });
 
 test("Browser Player has its own lane and follows the Runtime and the server code it uses", () => {

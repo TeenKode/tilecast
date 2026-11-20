@@ -151,6 +151,11 @@ impl IpcHandler for DaemonIpc {
                 tracing::debug!(component = "renderer", event = "health", state = ?health.state, terminations = health.web_process_terminations);
                 let capability_changed = engine.renderer_health(session, &health);
                 drop(engine);
+                if health.reason_code.as_ref().map(ShortToken::as_str)
+                    == Some(edge_protocol::ipc::HEALTH_EXTERNAL_PRESENTATION_UNAVAILABLE)
+                {
+                    self.context.airplay.relay_failed();
+                }
                 if capability_changed {
                     crate::capabilities::refresh(&self.context).await;
                     // A helper reconnect reports health, not `renderer.ready`; a
@@ -163,6 +168,9 @@ impl IpcHandler for DaemonIpc {
             Event::RendererCommandResult(result) => {
                 self.context.renderer_commands.complete(result);
             }
+            Event::LiveChunk(chunk) => self.context.live_encoders.chunk(chunk),
+            Event::LiveEncoderState(state) => self.context.live_encoders.state(&state),
+            Event::LiveCapabilities(report) => self.context.live_encoders.set_capabilities(&report),
             Event::PreviewResult(result) => {
                 if result.within_limits() {
                     self.context.capture.complete(result.request_id, result.result);
@@ -256,6 +264,7 @@ impl IpcHandler for DaemonIpc {
             }
             self.context.presentation.lock().await.renderer_disconnected(session.id());
             self.context.renderer_commands.renderer_disconnected();
+            self.context.live_encoders.renderer_disconnected();
             crate::capabilities::refresh(&self.context).await;
         }
     }

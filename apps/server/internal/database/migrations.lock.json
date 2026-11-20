@@ -802,5 +802,11 @@
     "file": "00135_fork_test_android_releases.sql",
     "owner": "core",
     "sha256": "cd7ba44e513696d84c62be23516bd72919a0c6209cc40b64a3c003f2a748b811"
+  },
+  {
+    "version": 136,
+    "file": "00136_widget_font_references.sql",
+    "owner": "core",
+    "sha256": "9e129d4141b87eb69b6fd4b076ea006559ce87dc0641d43a572e02800172a234"
   }
 ]

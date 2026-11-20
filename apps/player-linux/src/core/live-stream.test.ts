@@ -55,9 +55,9 @@ describe("live stream binary protocol", () => {
     const id = "bffef4b1-f9b5-4b25-9d4f-864fba88d86d";
     const jpeg = Buffer.from([0xff, 0xd8, 0xff, 0xd9]);
     for (const timestamp of [Number.NaN, Infinity, 1.5, 2 ** 53]) {
-      expect(() => encodeLiveStreamFrame(id, timestamp, 640, 360, jpeg)).toThrow(
-        "invalid live stream capture timestamp",
-      );
+      expect(() =>
+        encodeLiveStreamFrame(id, timestamp, 640, 360, jpeg),
+      ).toThrow("invalid live stream capture timestamp");
     }
   });
 });

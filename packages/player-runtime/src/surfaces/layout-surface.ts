@@ -30,6 +30,11 @@ import type { MediaSurface, SurfaceEnvironment, SurfaceSink } from "./surface";
 import type { WidgetExecution } from "@tilecast/widget-sdk/executor";
 import { ImageSurface } from "./image-surface";
 import { HtmlVideoSurface } from "./video-surface";
+import {
+  CROSSFADE_MS,
+  fadeIn,
+  type RunningTransition,
+} from "../transitions/crossfade";
 import { ComponentWidgetSurface } from "./component-widget-surface";
 import { WidgetSurface } from "./widget-surface";
 
@@ -326,15 +331,15 @@ export class LayoutSurface implements MediaSurface {
     let visible: MediaSurface | null = null;
     let current: { activate(): void; pause(): void } | null = null;
     let mounted = -1;
-    let transition: Animation[] = [];
+    let transition: RunningTransition | null = null;
     let transitionToken = 0;
     const frames = new Set<number>();
     const cancelTransition = () => {
       transitionToken += 1;
       for (const frame of frames) cancelAnimationFrame(frame);
       frames.clear();
-      for (const animation of transition) animation.cancel();
-      transition = [];
+      transition?.cancel();
+      transition = null;
     };
     const release = (surface: MediaSurface) => {
       surface.dispose();
@@ -466,15 +471,14 @@ export class LayoutSurface implements MediaSurface {
           case "image":
             incoming = new ImageSurface(item);
             break;
-          case "video": {
-            // Native looping keeps one decoder across the boundary on both
-            // Android WebView and Linux Electron. A second 1080p decoder can
-            // stall older hardware even when started just before the end.
+          case "video":
+            // Keep the outgoing item visible until the incoming video presents
+            // a frame. Native looping reuses the decoder for a repeating item.
             incoming = new HtmlVideoSurface(item, environment, epoch, {
               nativeLoop: selected.loop,
+              presentFirstFrame: true,
             });
             break;
-          }
           case "widget":
             incoming =
               "component" in entry.widget
@@ -504,7 +508,14 @@ export class LayoutSurface implements MediaSurface {
       element.style.width = "100%";
       element.style.height = "100%";
       element.style.borderRadius = `${entry.radius ?? 0}px`;
-      element.style.visibility = "hidden";
+      // Staged transparent until show() fades it in (or cuts to it). Media
+      // stays visible while staged: an engine need not present a hidden
+      // video's frames, and the first-frame wait needs one. Other content is
+      // also hidden until it is activated, as before.
+      element.style.opacity = "0";
+      if (entry.kind !== "image" && entry.kind !== "video") {
+        element.style.visibility = "hidden";
+      }
       owned.add(incoming);
       if (
         entry.kind === "remote-web" &&
@@ -516,31 +527,31 @@ export class LayoutSurface implements MediaSurface {
       const show = () => {
         const outgoing = visible;
         visible = incoming;
-        if (!outgoing || outgoing === incoming) return;
+        const replacing = outgoing !== null && outgoing !== incoming;
         if (
+          replacing &&
           (entry.transition === "fade" || entry.transition === "crossfade") &&
           this.env.animationScale > 0 &&
           typeof element.animate === "function"
         ) {
-          const options: KeyframeAnimationOptions = {
-            duration: 300 * this.env.animationScale,
-            easing: "ease",
-            fill: "both",
-          };
-          transition = [
-            element.animate([{ opacity: 0 }, { opacity: 1 }], options),
-            outgoing.element.animate([{ opacity: 1 }, { opacity: 0 }], options),
-          ];
-          const running = transition;
+          // Only the incoming item fades, above the outgoing one, which stays
+          // opaque until the fade ends. Fading both exposes the zone behind
+          // them and dips the picture in the middle of every dissolve.
+          const running = fadeIn(
+            element,
+            CROSSFADE_MS * this.env.animationScale,
+          );
+          transition = running;
           const token = transitionToken;
-          void Promise.all(running.map((animation) => animation.finished))
-            .catch(() => undefined)
-            .then(() => {
-              if (token !== transitionToken) return;
-              release(outgoing);
-              if (transition === running) transition = [];
-            });
-        } else release(outgoing);
+          void running.finished.then(() => {
+            if (token !== transitionToken) return;
+            release(outgoing);
+            if (transition === running) transition = null;
+          });
+          return;
+        }
+        element.style.removeProperty("opacity");
+        if (replacing) release(outgoing);
       };
       const activate = () => {
         if (!isCurrent() || !this.active || !prepared || activating) return;

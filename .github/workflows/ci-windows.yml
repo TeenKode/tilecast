@@ -85,13 +85,13 @@ jobs:
             target
           key: player-windows-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}
       - run: python3 scripts/ci/check-player-architecture.py
-      - run: cargo fmt -p tilecast-windows -- --check
-      - run: cargo clippy --locked -p tilecast-windows --all-targets --all-features -- -D warnings
+      - run: cargo fmt -p tilecast-windows -p webview-host -- --check
+      - run: cargo clippy --locked -p tilecast-windows -p webview-host --all-targets --all-features -- -D warnings
       # The runtime artifact proof loads the real built bundle; requiring it
       # keeps that test from passing without one.
       - run: npm ci
       - run: npm run build --workspace @tilecast/player-runtime
-      - run: cargo test --locked -p tilecast-windows --all-features
+      - run: cargo test --locked -p tilecast-windows -p webview-host --all-features
         env:
           TILECAST_REQUIRE_BUILT_RUNTIME: "1"
       - name: MSIX version-mapping smoke test
@@ -165,6 +165,8 @@ jobs:
             --windows-runner "$PWD/target/debug/tilecast-runtime-conformance.exe"
       - name: Electron reference engine
         run: |
+          # Direct execution bypasses the Electron CLI's binary installation.
+          node node_modules/electron/install.js
           node packages/player-runtime/conformance/run.mjs --engine electron \
             --out "$RUNNER_TEMP/conformance"
       - name: Compare the engines

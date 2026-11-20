@@ -97,6 +97,8 @@ static struct {
   gulong released_handler;
   /* The one buffer the view presented last; a strong reference. */
   WPEBuffer *buffer;
+  /* Presentations so far; see tc_preview_presented_generation(). */
+  guint64 rendered;
   CaptureBackend logged_backend;
   const char *logged_reason;
   char logged_description[96];
@@ -113,6 +115,9 @@ on_buffer_rendered (WPEView *view, WPEBuffer *buffer, gpointer user_data)
 {
   (void) view;
   (void) user_data;
+  /* Every presentation counts, even of a recycled buffer object: Watch Live
+   * reuses its last copy only while this does not change. */
+  presented.rendered++;
   if (presented.buffer == buffer)
     return;
   WPEBuffer *previous = presented.buffer;
@@ -481,6 +486,52 @@ copy_presented_buffer (PreviewRequest *request, char description[96])
   return NULL;
 }
 
+guint64
+tc_preview_presented_generation (TcHost *host)
+{
+  (void) host;
+  return presented.rendered;
+}
+
+/* While the AirPlay relay runs, Watch Live gets black frames of the
+ * presented size, and the presented pixels are never read: mirrored frames
+ * belong to the presenter (docs/tilecast-edge-airplay-threat-review.md §8). */
+static GBytes *
+excluded_frame (TcPixelFormat *format, guint *width, guint *height)
+{
+  if (presented.buffer == NULL)
+    return NULL;
+  int w = wpe_buffer_get_width (presented.buffer), h = wpe_buffer_get_height (presented.buffer);
+  if (w <= 0 || h <= 0 || w > 8192 || h > 8192)
+    return NULL;
+  *format = TC_PIXEL_FORMAT_BGRX;
+  *width = (guint) w;
+  *height = (guint) h;
+  return g_bytes_new_take (g_malloc0 ((gsize) w * (gsize) h * 4), (gsize) w * (gsize) h * 4);
+}
+
+GBytes *
+tc_preview_copy_presented (TcHost *host, TcPixelFormat *format, guint *width, guint *height, gint64 *elapsed_us)
+{
+  if (tc_present_relay_active (host->present)) {
+    if (elapsed_us != NULL)
+      *elapsed_us = 0;
+    return excluded_frame (format, width, height);
+  }
+  PreviewRequest scratch = { 0 };
+  char description[96] = "";
+  gint64 started = g_get_monotonic_time ();
+  const char *reason = copy_presented_buffer (&scratch, description);
+  if (elapsed_us != NULL)
+    *elapsed_us = g_get_monotonic_time () - started;
+  if (reason != NULL)
+    return NULL;
+  *format = scratch.format;
+  *width = scratch.width;
+  *height = scratch.height;
+  return scratch.pixels;
+}
+
 /* --- WebKit snapshot (compatibility fallback) --------------------------- */
 
 static gboolean
@@ -555,6 +606,10 @@ tc_preview_capture (TcHost *host, JsonObject *data)
   }
   if (host->view == NULL) {
     send_result (host, request_id, NULL, 0, 0, "renderer_not_ready");
+    return;
+  }
+  if (tc_present_relay_active (host->present)) {
+    send_result (host, request_id, NULL, 0, 0, "external_presentation");
     return;
   }
   /* WebKit initializes GStreamer in its web processes, not in this one; the
