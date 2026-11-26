@@ -4,12 +4,14 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"io/fs"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/pressly/goose/v3"
+	"github.com/pressly/goose/v3/lock"
 )
 
 func Open(ctx context.Context, databaseURL string) (*pgxpool.Pool, error) {
@@ -54,10 +56,14 @@ func Migrate(ctx context.Context, databaseURL string) error {
 	if err := ensurePlaybackParentIndex(ctx, db); err != nil {
 		return err
 	}
-	if err := useCatalog(); err != nil {
+	if err := prepareBranchMigrations(ctx, db); err != nil {
 		return err
 	}
-	if err := goose.UpContext(ctx, db, migrationDir); err != nil {
+	provider, err := migrationProvider(db)
+	if err != nil {
+		return err
+	}
+	if _, err := provider.Up(ctx); err != nil {
 		return fmt.Errorf("apply migrations: %w", err)
 	}
 	if err := ensurePlaybackParentIndex(ctx, db); err != nil {
@@ -90,35 +96,36 @@ func MigrateTo(ctx context.Context, databaseURL string, version int64) error {
 	}
 	defer db.Close()
 
-	if err := useCatalog(); err != nil {
+	provider, err := migrationProvider(db)
+	if err != nil {
 		return err
 	}
-	if err := goose.UpToContext(ctx, db, migrationDir, version); err != nil {
+	if _, err := provider.UpTo(ctx, version); err != nil {
 		return fmt.Errorf("apply migrations to version %d: %w", version, err)
 	}
 	return nil
 }
 
-// useCatalog points Goose at the combined core and plugin migrations.
-func useCatalog() error {
+func migrationProvider(db *sql.DB) (*goose.Provider, error) {
 	fsys, err := migrationFS()
 	if err != nil {
-		return fmt.Errorf("assemble migrations: %w", err)
+		return nil, fmt.Errorf("assemble migrations: %w", err)
 	}
-	goose.SetBaseFS(fsys)
-	if err := goose.SetDialect("postgres"); err != nil {
-		return fmt.Errorf("set migration dialect: %w", err)
+	root, err := fs.Sub(fsys, migrationDir)
+	if err != nil {
+		return nil, fmt.Errorf("open migrations: %w", err)
 	}
-	return nil
+	locker, err := lock.NewPostgresSessionLocker()
+	if err != nil {
+		return nil, fmt.Errorf("create migration lock: %w", err)
+	}
+	return goose.NewProvider(goose.DialectPostgres, db, root, goose.WithSessionLocker(locker))
 }
 
 // LatestMigrationVersion reports the newest migration version embedded in
 // this binary, core and plugin migrations alike.
 func LatestMigrationVersion() (int64, error) {
-	if err := useCatalog(); err != nil {
-		return 0, err
-	}
-	files, err := goose.CollectMigrations(migrationDir, 0, goose.MaxVersion)
+	files, err := Catalog()
 	if err != nil {
 		return 0, fmt.Errorf("collect migrations: %w", err)
 	}

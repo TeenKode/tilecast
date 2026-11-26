@@ -99,6 +99,20 @@ jobs:
           set -euo pipefail
           test "$(./target/debug/tilecast-msix-version.exe 0.2.0 stable)" = "0.2.0.2"
           test "$(./target/debug/tilecast-msix-version.exe 0.2.0 beta)" = "0.2.0.1"
+      - name: Build the fork Windows Player
+        if: github.repository == 'TeenKode/tilecast' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          set -euo pipefail
+          cargo build --locked --release -p tilecast-windows --bin tilecast-windows
+          mkdir -p windows-player
+          cp target/release/tilecast-windows.exe windows-player/
+          cp -R packages/player-runtime/dist/runtime windows-player/
+      - uses: actions/upload-artifact@v7
+        if: github.repository == 'TeenKode/tilecast' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        with:
+          name: fork-windows-player-${{ runner.arch }}
+          path: windows-player/
+          if-no-files-found: error
 
   gnu:
     needs: changes

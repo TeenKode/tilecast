@@ -92,7 +92,7 @@ function stubViewport(next: Partial<typeof viewport>) {
   viewport = { ...viewport, ...next };
   vi.stubGlobal("matchMedia", (query: string) => ({
     matches:
-      (query === "(max-width: 639px)" && viewport.compact) ||
+      (query === "(max-width: 1023px)" && viewport.compact) ||
       (query === "(min-width: 1280px)" && viewport.wide),
     media: query,
     onchange: null,
@@ -1391,6 +1391,30 @@ describe("Update review", () => {
       expect(
         screen.queryByRole("button", { name: "Review update" }),
       ).toBeNull(),
+    );
+  });
+
+  it("remounts the package interface when an update changes the installed digest", async () => {
+    const installed = installedPackage({
+      capabilities: { studioUI: { entry: "./studio/index.html" } },
+    });
+    packages["acme.kiosk"] = installed;
+    check = updateCheck({
+      installed,
+      available: true,
+      upToDate: false,
+      latest: latest(),
+    });
+    const user = userEvent.setup();
+    const dialog = await openUpdateReview(user);
+    const before = screen.getByTitle("Package interface");
+
+    await user.click(
+      within(dialog).getByRole("button", { name: "Update to 1.3.0" }),
+    );
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    await waitFor(() =>
+      expect(screen.getByTitle("Package interface")).not.toBe(before),
     );
   });
 

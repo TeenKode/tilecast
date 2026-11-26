@@ -187,3 +187,21 @@ func TestLegacyPlayersKeepTheirMJPEGBounds(t *testing.T) {
 		t.Fatalf("unnegotiated high resolution accepted: %v", err)
 	}
 }
+
+// Portrait bounds are independent of landscape orientation.
+func TestPortraitMjpegProfilesPreserveFullFrame(t *testing.T) {
+	screenID := uuid.New()
+	service := NewService(nil)
+	session := service.Start(screenID, nil)
+	jpeg := []byte{0xff, 0xd8, 0xff, 0xd9}
+	if session.MaxWidth != 640 || session.MaxHeight != 640 {
+		t.Fatalf("unexpected legacy bounds: %dx%d", session.MaxWidth, session.MaxHeight)
+	}
+	if err := service.Publish(screenID, session.ID, Frame{CapturedAt: time.Now(), Width: 360, Height: 640, JPEG: jpeg}); err != nil {
+		t.Fatalf("portrait frame rejected: %v", err)
+	}
+	service.SelectProfile(screenID, LegacyEdgeProfiles(), nil)
+	if err := service.Publish(screenID, session.ID, Frame{CapturedAt: time.Now(), Width: 540, Height: 960, JPEG: jpeg}); err != nil {
+		t.Fatalf("higher resolution portrait frame rejected: %v", err)
+	}
+}

@@ -72,10 +72,76 @@ class WebsiteUrlVariablesTest {
     }
 
     @Test fun staticUrlIsUnchangedAndUnknownValuesFailClosed() {
+        val encodedJson = "https://example.org/?payload=%7B%22room%22%3A%22101%22%7D"
+        assertEquals(encodedJson, WebsiteUrlVariables.resolve(encodedJson, "screen-1"))
         val static = "https://example.org/x?q=1&room=%26"
         assertEquals(static, WebsiteUrlVariables.resolve(static, "screen-1"))
         assertNull(WebsiteUrlVariables.resolve("https://example.org/?x={missing}", "s"))
         assertNull(WebsiteUrlVariables.resolve("https://example.org/{date}", "s"))
         assertNull(WebsiteUrlVariables.resolve("https://{screen.id}.org/?x=1", "s"))
+    }
+
+    @Test fun encodedLiteralsSurviveAuthoredTokensInTheSameValue() {
+        val result = WebsiteUrlVariables.resolve(
+            "https://example.org/?literal=%7Btime%7D&payload=%7B%22room%22%3A101%7D:{screen.id}",
+            "screen-1",
+        )
+        requireNotNull(result)
+        assertEquals("{time}", param(result, "literal"))
+        assertEquals("{\"room\":101}:screen-1", param(result, "payload"))
+    }
+
+    @Test fun encodingMatchesEncodeUriComponent() {
+        val spaced = ManifestDataSource(
+            id = "s", name = "S", provider = "manual",
+            configuration = buildJsonObject {
+                putJsonArray("records") {
+                    addJsonObject { putJsonObject("values") { put("room", "Room 3 (A)!~'*") } }
+                }
+            },
+        )
+        val raw = requireNotNull(
+            WebsiteUrlVariables.resolve("https://example.org/?r={data.room}", "id", dataSourceId = "s", sources = listOf(spaced)),
+        )
+        assertEquals("https://example.org/?r=Room%203%20(A)!~'*", raw)
+    }
+
+    @Test fun allRecordsAreAvailableBeyondOneHundred() {
+        val big = ManifestDataSource(
+            id = "big", name = "Big", provider = "manual",
+            configuration = buildJsonObject {
+                putJsonArray("records") {
+                    repeat(150) { n -> addJsonObject { putJsonObject("values") { put("n", "r$n") } } }
+                }
+            },
+        )
+        val result = WebsiteUrlVariables.resolve(
+            "https://example.org/?x={data.n:120}", "id", dataSourceId = "big", sources = listOf(big),
+        )
+        assertEquals("https://example.org/?x=r120", result)
+    }
+
+    @Test fun malformedPercentInAStaticNameIsNotAnError() {
+        val result = WebsiteUrlVariables.resolve("https://example.org/?100%=x&s={screen.id}", "id")
+        assertEquals("https://example.org/?100%=x&s=id", result)
+        assertNull(WebsiteUrlVariables.resolve("https://example.org/?%7Bdate%7D={date}", "id"))
+    }
+
+    @Test fun aSourceWithDateSelectionFailsClosedForDataValues() {
+        val selecting = ManifestDataSource(
+            id = "sel", name = "Sel", provider = "manual",
+            configuration = buildJsonObject {
+                putJsonObject("data") {
+                    putJsonObject("dateSelection") { put("enabled", true) }
+                }
+            },
+        )
+        assertNull(
+            WebsiteUrlVariables.resolve("https://example.org/?x={data.room}", "id", dataSourceId = "sel", sources = listOf(selecting)),
+        )
+        assertEquals(
+            "https://example.org/?s=id",
+            WebsiteUrlVariables.resolve("https://example.org/?s={screen.id}", "id", dataSourceId = "sel", sources = listOf(selecting)),
+        )
     }
 }

@@ -135,8 +135,9 @@ impl WatchLiveProfile {
     pub fn max_dimensions(self) -> (u32, u32) {
         match self {
             Self::H264_720p30 | Self::H264_720p15 => (1280, 720),
-            Self::H264_540p15 | Self::H264_540p10 | Self::Mjpeg540p10 => (960, 540),
-            Self::Mjpeg360p8 => (640, 360),
+            Self::H264_540p15 | Self::H264_540p10 => (960, 540),
+            Self::Mjpeg540p10 => (960, 960),
+            Self::Mjpeg360p8 => (640, 640),
         }
     }
 

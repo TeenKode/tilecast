@@ -57,6 +57,11 @@ Fork Dev releases contain the test Android APK and the server image.
 They do not claim to contain Edge or Windows builds. Existing Edge Players
 need a bridge before they can accept Dev version names.
 
+When a change affects the Windows Player, **Windows Player CI** builds the
+fork's x64 and ARM64 executables on `main`. Each Actions artifact includes
+the matching runtime directory for testing. Signed MSIX packages use the
+coordinated release workflow.
+
 The fork also has a separate **Fork Linux Player release** workflow. It builds
 the legacy x86_64 AppImage with the version in `apps/player-linux/package.json`,
 tests the Player and shared policies, and signs the update manifest with

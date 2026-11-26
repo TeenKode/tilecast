@@ -27,7 +27,10 @@ function copyWithSelection(value: string): boolean {
   try {
     input.focus();
     input.select();
+    input.setSelectionRange(0, value.length);
     return document.execCommand("copy");
+  } catch {
+    return false;
   } finally {
     input.remove();
     if (focusedElement instanceof HTMLElement) {
@@ -40,25 +43,26 @@ function copyWithSelection(value: string): boolean {
   }
 }
 
+/** Use the secure Clipboard API or copy synchronously on plain HTTP. */
+export async function writeTextToClipboard(value: string): Promise<boolean> {
+  const clipboard = globalThis.navigator?.clipboard;
+  if (typeof clipboard?.writeText === "function") {
+    try {
+      await clipboard.writeText(value);
+      return true;
+    } catch {
+      // The legacy command can still work when the async API denies access.
+    }
+  }
+  return copyWithSelection(value);
+}
+
 /** Copy in the browser or Studio shell; callers supply localized feedback. */
 export async function copyText(
   value: string,
   feedback: { success: string; failure: string },
 ): Promise<boolean> {
-  let copied = false;
-  try {
-    if (typeof navigator.clipboard?.writeText === "function") {
-      try {
-        await navigator.clipboard.writeText(value);
-        copied = true;
-      } catch {
-        // Some browsers expose the API but deny it on this origin.
-      }
-    }
-    if (!copied) copied = copyWithSelection(value);
-  } catch {
-    copied = false;
-  }
+  const copied = await writeTextToClipboard(value);
   toast.add({
     title: copied ? feedback.success : feedback.failure,
     type: copied ? "success" : "error",

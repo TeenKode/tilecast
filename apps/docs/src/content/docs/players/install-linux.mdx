@@ -48,7 +48,16 @@ The installer checks the downloaded release checksum, installs the AppImage and 
 
 On Debian-family hosts, the installed service passes the system CA bundle to Electron's Node HTTP client. A CA added with `update-ca-certificates` is therefore trusted by both `curl` and the Player after the service restarts. A manually launched AppImage can use `NODE_EXTRA_CA_CERTS=/etc/ssl/certs/ca-certificates.crt` in its launch environment. This does not bypass certificate verification or trust a new self-signed certificate automatically.
 
-A full-screen playlist containing one untrimmed video with no custom duration loops in the video decoder. For a seamless picture, also check that the video file itself has no black frames at its beginning or end. Video trim points and custom durations use the configured playlist boundaries.
+If an older installation still fails to connect after trusting the CA, run `systemctl --user edit tilecast-player.service` as the kiosk user. Add this drop-in and save it.
+
+```ini
+[Service]
+Environment=NODE_EXTRA_CA_CERTS=/etc/ssl/certs/ca-certificates.crt
+```
+
+Run `systemctl --user restart tilecast-player.service` to apply the change.
+
+A full-screen playlist with one untrimmed video and no custom duration loops in the video decoder. Check that the video has no black frames at the beginning or end. Trim points and custom durations set the playlist boundaries.
 
 If you do not need these capabilities, skip them when running the installer.
 
