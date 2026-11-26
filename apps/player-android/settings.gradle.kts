@@ -2,7 +2,13 @@ pluginManagement {
     repositories {
         google()
         mavenCentral()
-        gradlePluginPortal()
+        gradlePluginPortal {
+            // Maven Central serves the marker covered by Gradle verification.
+            // The Plugin Portal publishes a different POM for this marker.
+            content {
+                excludeModule("org.jetbrains.kotlin.plugin.compose", "org.jetbrains.kotlin.plugin.compose.gradle.plugin")
+            }
+        }
     }
 }
 dependencyResolutionManagement {
