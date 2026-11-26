@@ -56,7 +56,13 @@ export function AuthPage({ mode }: { mode: "setup" | "login" }) {
   // the sign-in screen without a dimming overlay or card backdrop.
   const isLogin = mode === "login";
   return (
-    <main className={isLogin ? "auth-page--login relative isolate flex min-h-svh flex-col items-center justify-center overflow-hidden bg-[#080f25] p-6 text-white sm:p-10 md:items-start md:px-[clamp(3rem,9vw,10rem)]" : "relative isolate flex min-h-svh flex-col items-center justify-center gap-6 overflow-hidden bg-muted p-6 md:p-10"}>
+    <main
+      className={
+        isLogin
+          ? "auth-page--login relative isolate flex min-h-svh flex-col items-center justify-center overflow-hidden bg-[#080f25] p-6 text-white sm:p-10 md:items-start md:px-[clamp(3rem,9vw,10rem)]"
+          : "relative isolate flex min-h-svh flex-col items-center justify-center gap-6 overflow-hidden bg-muted p-6 md:p-10"
+      }
+    >
       {!backgroundFailed && (
         <>
           <img
@@ -75,20 +81,30 @@ export function AuthPage({ mode }: { mode: "setup" | "login" }) {
         <div className={isLogin ? "flex justify-start" : "flex justify-center"}>
           <div
             className={
-              isLogin || backgroundFailed ? "" : "rounded-md bg-card/90 px-3 py-1.5"
+              isLogin || backgroundFailed
+                ? ""
+                : "rounded-md bg-card/90 px-3 py-1.5"
             }
           >
             <Brand compact />
           </div>
         </div>
-        <Card className={isLogin ? "gap-5 overflow-visible bg-transparent py-0 text-white ring-0 shadow-none" : ""}>
+        <Card
+          className={
+            isLogin
+              ? "gap-5 overflow-visible bg-transparent py-0 text-white ring-0 shadow-none"
+              : ""
+          }
+        >
           {mode === "setup" ? (
             <CardContent className="pt-6">
               <SetupFlow />
             </CardContent>
           ) : auth.challenge ? (
             <>
-              <CardHeader className={isLogin ? "px-0 text-left" : "text-center"}>
+              <CardHeader
+                className={isLogin ? "px-0 text-left" : "text-center"}
+              >
                 <h1
                   data-slot="card-title"
                   className="font-heading text-xl font-medium"
@@ -108,14 +124,18 @@ export function AuthPage({ mode }: { mode: "setup" | "login" }) {
             </>
           ) : (
             <>
-              <CardHeader className={isLogin ? "px-0 text-left" : "text-center"}>
+              <CardHeader
+                className={isLogin ? "px-0 text-left" : "text-center"}
+              >
                 <h1
                   data-slot="card-title"
                   className="font-heading text-xl font-medium"
                 >
                   {t("login.title")}
                 </h1>
-                <CardDescription className={isLogin ? "text-slate-300" : ""}>{t("login.description")}</CardDescription>
+                <CardDescription className={isLogin ? "text-slate-300" : ""}>
+                  {t("login.description")}
+                </CardDescription>
               </CardHeader>
               <CardContent className={isLogin ? "px-0" : ""}>
                 <LoginFormView />
@@ -199,7 +219,11 @@ function LoginFormView() {
           <FieldError errors={[form.formState.errors.password]} />
         </Field>
         <Field>
-          <Button type="submit" disabled={isSubmitting} className="bg-white text-slate-950 hover:bg-slate-100">
+          <Button
+            type="submit"
+            disabled={isSubmitting}
+            className="bg-white text-slate-950 hover:bg-slate-100"
+          >
             {isSubmitting ? t("login.submitting") : t("login.submit")}
           </Button>
         </Field>
@@ -276,7 +300,11 @@ function ChallengeFormView() {
               <FieldError errors={[form.formState.errors.code]} />
             </Field>
             <Field>
-              <Button type="submit" disabled={isSubmitting} className="bg-white text-slate-950 hover:bg-slate-100">
+              <Button
+                type="submit"
+                disabled={isSubmitting}
+                className="bg-white text-slate-950 hover:bg-slate-100"
+              >
                 {isSubmitting
                   ? t("challenge.submitting")
                   : t("challenge.submit")}
@@ -303,7 +331,12 @@ function ChallengeFormView() {
           </Button>
         </div>
       )}
-      <Button variant="ghost" type="button" onClick={cancelChallenge} className="text-white hover:bg-white/10 hover:text-white">
+      <Button
+        variant="ghost"
+        type="button"
+        onClick={cancelChallenge}
+        className="text-white hover:bg-white/10 hover:text-white"
+      >
         {t("challenge.back")}
       </Button>
     </div>

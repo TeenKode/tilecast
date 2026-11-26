@@ -95,7 +95,7 @@ async function openSaved(
   renderEditorRoute("/widgets/widget-1");
   return screen.findByRole(
     "button",
-    { name: /Save changes/ },
+    { name: /^Save(?: changes)?$/ },
     { timeout: 4000 },
   );
 }
@@ -242,7 +242,7 @@ describe("Website", () => {
     renderEditorRoute("/widgets/new/website");
     const save = await screen.findByRole(
       "button",
-      { name: /Save Widget/ },
+      { name: /^Save(?: Widget)?$/ },
       { timeout: 4000 },
     );
     await userEvent.click(save);

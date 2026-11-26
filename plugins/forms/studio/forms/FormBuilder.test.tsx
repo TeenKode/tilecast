@@ -34,15 +34,10 @@ function mockDesktop() {
       disconnect() {}
     };
   }
-  window.matchMedia = () => ({
-    matches: true,
-    media: "(min-width: 1024px)",
-    onchange: null,
-    addListener: () => undefined,
-    removeListener: () => undefined,
-    addEventListener: () => undefined,
-    removeEventListener: () => undefined,
-    dispatchEvent: () => true,
+  window.matchMedia = (query) => ({
+    ...defaultMatchMedia(query),
+    matches:
+      query === "(min-width: 1024px)" || defaultMatchMedia(query).matches,
   });
 }
 
@@ -144,7 +139,9 @@ describe("FormBuilder field list", () => {
     fireEvent.click(
       await screen.findByRole("menuitem", { name: /Move to top/ }),
     );
-    expect(fieldOrder()).toEqual(["Edit Gamma", "Edit Alpha", "Edit Beta"]);
+    await waitFor(() =>
+      expect(fieldOrder()).toEqual(["Edit Gamma", "Edit Alpha", "Edit Beta"]),
+    );
   });
 
   it("opens the inspector in a Sheet on narrow screens", async () => {

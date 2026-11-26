@@ -325,6 +325,14 @@
       "outside_active_hours_wake_animation": {
         "title": "Jouer l'animation de démarrage lorsque les heures d'activité commencent",
         "description": "Lorsque le lecteur revient de l'écran en dehors des heures d'ouverture, lisez l'animation de démarrage Tilecast avant d'afficher le contenu. S'applique au logo rebondissant, au texte personnalisé et à l'écran noir."
+      },
+      "android_sleep_method": {
+        "title": "Méthode de mise en veille Android",
+        "description": "Choisissez comment Android se met en veille. Le mode automatique conserve le comportement actuel. La veille simulée CVTE nécessite un micrologiciel compatible et ADB local."
+      },
+      "android_wake_method": {
+        "title": "Méthode de sortie de veille Android",
+        "description": "Choisissez comment Android sort de veille. Pour la veille simulée CVTE, sélectionnez CVTE pour la mise en veille et le réveil. Le réveil programmé dépend des alarmes du micrologiciel."
       }
     },
     "managed_kiosk": {
@@ -638,7 +646,14 @@
     "stable": "Stable",
     "digest": "Résumé",
     "immediate": "Immédiat",
-    "crossfade": "Fondu enchaîné"
+    "crossfade": "Fondu enchaîné",
+    "auto": "Automatique (comportement Android par défaut)",
+    "device_policy": "Stratégie d’appareil (propriétaire de l’appareil)",
+    "accessibility": "Verrouillage par le service d’accessibilité",
+    "black_screen": "Écran noir (la dalle reste alimentée)",
+    "activity": "Lancer l’activité Tilecast",
+    "wake_lock": "Wake Lock (selon le micrologiciel)",
+    "cvte": "Veille simulée CVTE (ADB local)"
   },
   "nav": {
     "groups": {

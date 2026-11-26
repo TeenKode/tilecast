@@ -325,6 +325,14 @@
       "outside_active_hours_wake_animation": {
         "title": "Speel de opstartanimatie af wanneer de actieve uren beginnen",
         "description": "Wanneer de speler terugkeert van het scherm buiten kantooruren, speel dan de Tilecast-opstartanimatie af voordat de inhoud wordt weergegeven. Geldt voor het stuiterende logo, aangepaste tekst en zwart scherm."
+      },
+      "android_sleep_method": {
+        "title": "Android-slaapmethode",
+        "description": "Kies hoe Android in de slaapstand gaat. Automatisch behoudt het huidige gedrag. Voor gesimuleerde CVTE-stand-by zijn compatibele firmware en lokale ADB vereist."
+      },
+      "android_wake_method": {
+        "title": "Android-ontwaakmethode",
+        "description": "Kies hoe Android ontwaakt. Selecteer CVTE voor zowel slapen als ontwaken als je gesimuleerde CVTE-stand-by gebruikt. Gepland ontwaken is afhankelijk van de firmwarealarmen."
       }
     },
     "managed_kiosk": {
@@ -638,7 +646,14 @@
     "stable": "Stabiel",
     "digest": "Verteren",
     "immediate": "Onmiddellijk",
-    "crossfade": "Crossfaden"
+    "crossfade": "Crossfaden",
+    "auto": "Automatisch (standaardgedrag van Android)",
+    "device_policy": "Apparaatbeleid (apparaateigenaar)",
+    "accessibility": "Scherm vergrendelen via toegankelijkheid",
+    "black_screen": "Zwart scherm (het paneel blijft ingeschakeld)",
+    "activity": "Tilecast-activiteit starten",
+    "wake_lock": "Wake Lock (afhankelijk van firmware)",
+    "cvte": "Gesimuleerde CVTE-stand-by (lokale ADB)"
   },
   "nav": {
     "groups": {

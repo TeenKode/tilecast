@@ -165,6 +165,7 @@ describe("remote web spec", () => {
         name: "Schedule",
         provider: "website",
         configVersion: 1,
+        configuration: {},
         presentation: {
           schemaVersion: 1,
           kind: "web",

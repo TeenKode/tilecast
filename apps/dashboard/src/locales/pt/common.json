@@ -60,5 +60,6 @@
     "title": "Modo de demonstração",
     "description": "Esta instalação contém dados de exemplo e pode ser redefinida automaticamente.",
     "badge": "Demonstração"
-  }
+  },
+  "testEnvironment": "TESTE"
 }

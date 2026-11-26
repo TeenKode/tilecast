@@ -225,6 +225,10 @@
       "customUserAgent": {
         "label": "Aangepaste gebruikersagent",
         "description": "Laat dit veld leeg voor de standaard user-agent van de Player. Overschrijvingen kunnen sites kapot maken."
+      },
+      "retryIntervalSeconds": {
+        "label": "Opnieuw proberen na een fout (seconden)",
+        "description": "Wach na een laadfout deze tijd voordat de site opnieuw opent. Voer 0 in om nieuwe pogingen uit te schakelen. Met Overslaan gaat de afspeellijst meteen door."
       }
     }
   },

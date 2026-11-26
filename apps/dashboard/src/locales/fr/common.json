@@ -60,5 +60,6 @@
     "title": "Mode démo",
     "description": "Cette installation contient des données d’exemple et peut être réinitialisée automatiquement.",
     "badge": "Démo"
-  }
+  },
+  "testEnvironment": "TEST"
 }

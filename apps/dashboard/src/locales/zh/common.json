@@ -58,5 +58,6 @@
     "title": "演示模式",
     "description": "此安装包含示例数据，可能会自动重置。",
     "badge": "演示"
-  }
+  },
+  "testEnvironment": "测试"
 }

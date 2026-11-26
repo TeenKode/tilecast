@@ -59,5 +59,6 @@
     "title": "Demomodus",
     "description": "Deze installatie bevat voorbeeldgegevens en kan automatisch worden gereset.",
     "badge": "Demo"
-  }
+  },
+  "testEnvironment": "TEST"
 }

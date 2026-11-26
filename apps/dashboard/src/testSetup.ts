@@ -41,7 +41,7 @@ if (typeof window !== "undefined") {
 
 if (typeof window !== "undefined" && !window.matchMedia) {
   window.matchMedia = (query: string) => ({
-    matches: false,
+    matches: query === "(any-hover: hover) and (any-pointer: fine)",
     media: query,
     onchange: null,
     addListener: () => undefined,

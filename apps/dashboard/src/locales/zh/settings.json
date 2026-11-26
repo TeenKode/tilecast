@@ -325,6 +325,14 @@
       "outside_active_hours_wake_animation": {
         "title": "活动时间开始时播放启动动画",
         "description": "当播放器从非营业时间屏幕返回时，在显示内容之前播放 Tilecast 启动动画。适用于弹跳徽标、自定义文本和黑屏。"
+      },
+      "android_sleep_method": {
+        "title": "Android 休眠方式",
+        "description": "选择 Android 的休眠方式。“自动”保留当前行为。CVTE 模拟待机需要兼容的固件和本地 ADB。"
+      },
+      "android_wake_method": {
+        "title": "Android 唤醒方式",
+        "description": "选择 Android 的唤醒方式。使用 CVTE 模拟待机时，休眠和唤醒均应选择 CVTE。定时唤醒取决于固件的闹钟功能。"
       }
     },
     "managed_kiosk": {
@@ -638,7 +646,14 @@
     "stable": "稳定",
     "digest": "摘要",
     "immediate": "立即",
-    "crossfade": "交叉淡入淡出"
+    "crossfade": "交叉淡入淡出",
+    "auto": "自动（Android 默认行为）",
+    "device_policy": "设备策略（设备所有者）",
+    "accessibility": "通过无障碍服务锁屏",
+    "black_screen": "黑屏（面板仍通电）",
+    "activity": "启动 Tilecast Activity",
+    "wake_lock": "Wake Lock（取决于固件）",
+    "cvte": "CVTE 模拟待机（本地 ADB）"
   },
   "nav": {
     "groups": {

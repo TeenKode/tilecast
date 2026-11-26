@@ -225,6 +225,10 @@
       "urlTemplatesEnabled": {
         "label": "启用 URL 变量",
         "description": "替换屏幕、日期、时间和数据源变量。需要兼容的播放器。"
+      },
+      "retryIntervalSeconds": {
+        "label": "出错后重试（秒）",
+        "description": "网页加载出错后，等待指定时间再打开。输入 0 可关闭重试。选择“跳过”会立即播放列表中的下一项。"
       }
     }
   },

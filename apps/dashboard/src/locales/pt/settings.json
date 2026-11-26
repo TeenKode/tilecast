@@ -325,6 +325,14 @@
       "outside_active_hours_wake_animation": {
         "title": "Reproduza a animação de inicialização quando o horário ativo começar",
         "description": "Quando o player retornar da tela fora do horário comercial, reproduza a animação de inicialização Tilecast antes de mostrar o conteúdo. Aplica-se ao logotipo saltitante, texto personalizado e tela preta."
+      },
+      "android_sleep_method": {
+        "title": "Método de suspensão do Android",
+        "description": "Escolha como suspender o Android. A opção Automático mantém o comportamento atual. O modo de espera simulado CVTE requer firmware compatível e ADB local."
+      },
+      "android_wake_method": {
+        "title": "Método de ativação do Android",
+        "description": "Escolha como ativar o Android. Para o modo de espera simulado CVTE, selecione CVTE para suspender e ativar. A ativação programada depende dos alarmes do firmware."
       }
     },
     "managed_kiosk": {
@@ -638,7 +646,14 @@
     "stable": "Estável",
     "digest": "Resumo",
     "immediate": "Imediato",
-    "crossfade": "Crossfade"
+    "crossfade": "Crossfade",
+    "auto": "Automático (comportamento padrão do Android)",
+    "device_policy": "Política do dispositivo (proprietário do dispositivo)",
+    "accessibility": "Bloqueio de tela por acessibilidade",
+    "black_screen": "Tela preta (o painel permanece ligado)",
+    "activity": "Iniciar a atividade do Tilecast",
+    "wake_lock": "Wake Lock (depende do firmware)",
+    "cvte": "Modo de espera simulado CVTE (ADB local)"
   },
   "nav": {
     "groups": {
