@@ -90,7 +90,7 @@ describe("Widget preview", () => {
     expect(api.compileWidgetPreview).not.toHaveBeenCalled();
   });
 
-  it("changes frame, size, zoom, and fullscreen without touching the draft", async () => {
+  it("changes the preview frame and custom size without touching the draft", async () => {
     await open();
     const bar = toolbar();
     await userEvent.click(
@@ -112,6 +112,14 @@ describe("Widget preview", () => {
       }),
     ).toBeTruthy();
     await userEvent.keyboard("{Escape}");
+    expect(screen.getByText("Saved")).toBeTruthy();
+    expect(screen.getByRole("button", { name: saveLabel })).toBeDisabled();
+  });
+
+  it("changes desktop zoom and fullscreen without touching the draft", async () => {
+    useViewport("desktop");
+    await open();
+    const bar = toolbar();
     const fit = within(bar).getByRole("button", { name: /Fit to window/ });
     expect(fit).toHaveAttribute("aria-pressed", "true");
     await userEvent.click(within(bar).getByRole("button", { name: "Zoom in" }));
@@ -157,6 +165,7 @@ describe("Widget preview", () => {
   });
 
   it("names the preview region and its controls", async () => {
+    useViewport("desktop");
     await open();
     expect(screen.getByRole("region", { name: "Preview" })).toBeTruthy();
     expect(
