@@ -167,6 +167,8 @@ type PresentationCondition struct {
 type WebSandboxPresentation struct {
 	Mode                  string     `json:"mode"`
 	URL                   string     `json:"url,omitempty"`
+	DataSourceID          string     `json:"dataSourceId,omitempty"`
+	URLTemplatesEnabled   bool       `json:"urlTemplatesEnabled,omitempty"`
 	BundleID              string     `json:"bundleId,omitempty"`
 	EntryPoint            string     `json:"entryPoint,omitempty"`
 	IntegritySHA256       string     `json:"integritySha256,omitempty"`
@@ -177,6 +179,7 @@ type WebSandboxPresentation struct {
 	OnlineOnly            bool       `json:"onlineOnly"`
 	FallbackBehavior      string     `json:"fallbackBehavior"`
 	LoadTimeoutSeconds    int        `json:"loadTimeoutSeconds"`
+	RetryIntervalSeconds  *int       `json:"retryIntervalSeconds,omitempty"`
 	Lifecycle             string     `json:"lifecycle"`
 	WarmSeconds           int        `json:"warmSeconds"`
 	Reload                *WebReload `json:"reload,omitempty"`
@@ -535,9 +538,13 @@ func compileDefinitionWebPresentation(definition contentdefs.WidgetDefinition, c
 			descriptor.Reload = &WebReload{Mode: "periodic", IntervalSeconds: interval}
 		}
 	}
+	capabilities := make(map[string]int, len(definition.RequiredCapabilities))
+	for name, version := range definition.RequiredCapabilities {
+		capabilities[name] = version
+	}
 	return &WidgetPresentation{
 		SchemaVersion: definition.PresentationSchemaVersion, Kind: "web",
-		RequiredCapabilities: definition.RequiredCapabilities, Web: descriptor,
+		RequiredCapabilities: capabilities, Web: descriptor,
 	}, nil
 }
 
@@ -705,12 +712,23 @@ func compileWebPresentation(provider string, c map[string]any, allowPrivateHTTP 
 	if lifecycle != "keep_warm" {
 		lifecycle = "destroy_on_hide"
 	}
+	templatesEnabled := provider == "website" && c["urlTemplatesEnabled"] == true
+	requiredVersion := 1
+	if templatesEnabled {
+		requiredVersion = 3
+	}
+	var retryInterval *int
+	if provider == "website" {
+		if seconds := intValue(c["retryIntervalSeconds"], -1); seconds >= 0 && seconds <= 3600 {
+			retryInterval = &seconds
+		}
+	}
 	return &WidgetPresentation{
 		SchemaVersion: PresentationSchemaVersion, Kind: "web",
-		RequiredCapabilities: map[string]int{"web.remote": 1},
+		RequiredCapabilities: map[string]int{"web.remote": requiredVersion},
 		Web: &WebSandboxPresentation{
-			Mode: "remote", URL: rawURL, AllowedHosts: hosts, ExternalNetworkAccess: true, OnlineOnly: true,
-			FallbackBehavior: stringValue(c, "failureBehavior", "placeholder"), LoadTimeoutSeconds: timeout,
+			Mode: "remote", URL: rawURL, DataSourceID: stringValue(c, "dataSourceId", ""), URLTemplatesEnabled: templatesEnabled, AllowedHosts: hosts, ExternalNetworkAccess: true, OnlineOnly: true,
+			FallbackBehavior: stringValue(c, "failureBehavior", "placeholder"), LoadTimeoutSeconds: timeout, RetryIntervalSeconds: retryInterval,
 			Lifecycle: lifecycle, WarmSeconds: min(intValue(c["warmSeconds"], 0), 300),
 		},
 	}, nil

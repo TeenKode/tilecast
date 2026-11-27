@@ -65,7 +65,9 @@ const clock = savedWidget("clock", {
   foregroundColor: "#f5f7fa",
 });
 
-async function open(asset = text, save: RegExp = /Save changes/) {
+const saveLabel = /^Save(?: changes)?$/;
+
+async function open(asset = text, save = saveLabel) {
   mockEditorApi({ asset });
   const view = renderEditorRoute("/widgets/widget-1");
   await screen.findByRole("button", { name: save }, { timeout: 4000 });
@@ -88,7 +90,7 @@ describe("Widget preview", () => {
     expect(api.compileWidgetPreview).not.toHaveBeenCalled();
   });
 
-  it("changes frame, size, zoom, and fullscreen without touching the draft", async () => {
+  it("changes the preview frame and custom size without touching the draft", async () => {
     await open();
     const bar = toolbar();
     await userEvent.click(
@@ -110,6 +112,14 @@ describe("Widget preview", () => {
       }),
     ).toBeTruthy();
     await userEvent.keyboard("{Escape}");
+    expect(screen.getByText("Saved")).toBeTruthy();
+    expect(screen.getByRole("button", { name: saveLabel })).toBeDisabled();
+  });
+
+  it("changes desktop zoom and fullscreen without touching the draft", async () => {
+    useViewport("desktop");
+    await open();
+    const bar = toolbar();
     const fit = within(bar).getByRole("button", { name: /Fit to window/ });
     expect(fit).toHaveAttribute("aria-pressed", "true");
     await userEvent.click(within(bar).getByRole("button", { name: "Zoom in" }));
@@ -125,7 +135,7 @@ describe("Widget preview", () => {
     ).toHaveAttribute("aria-pressed", "true");
     await userEvent.keyboard("{Escape}");
     expect(screen.getByText("Saved")).toBeTruthy();
-    expect(screen.getByRole("button", { name: /Save changes/ })).toBeDisabled();
+    expect(screen.getByRole("button", { name: saveLabel })).toBeDisabled();
   });
 
   it("offers preview time only for Widgets that depend on it", async () => {
@@ -155,6 +165,7 @@ describe("Widget preview", () => {
   });
 
   it("names the preview region and its controls", async () => {
+    useViewport("desktop");
     await open();
     expect(screen.getByRole("region", { name: "Preview" })).toBeTruthy();
     expect(
@@ -205,7 +216,7 @@ describe("Widget thumbnails", () => {
     fireEvent.change(screen.getByRole("textbox", { name: /Message/ }), {
       target: { value: "Tacos today" },
     });
-    await userEvent.click(screen.getByRole("button", { name: /Save changes/ }));
+    await userEvent.click(screen.getByRole("button", { name: saveLabel }));
     await waitFor(() => expect(screen.getByText("Saved")).toBeTruthy());
     await waitFor(() => expect(upload).toHaveBeenCalledTimes(1), {
       timeout: 4000,
@@ -248,7 +259,7 @@ describe("Widget thumbnails", () => {
     fireEvent.change(screen.getByRole("textbox", { name: /Empty message/ }), {
       target: { value: "All clear" },
     });
-    await userEvent.click(screen.getByRole("button", { name: /Save changes/ }));
+    await userEvent.click(screen.getByRole("button", { name: saveLabel }));
     await waitFor(() => expect(upload).toHaveBeenCalledTimes(1), {
       timeout: 4000,
     });
@@ -266,7 +277,7 @@ describe("Widget thumbnails", () => {
     fireEvent.change(screen.getByRole("textbox", { name: /Message/ }), {
       target: { value: "Tacos today" },
     });
-    await userEvent.click(screen.getByRole("button", { name: /Save changes/ }));
+    await userEvent.click(screen.getByRole("button", { name: saveLabel }));
     await waitFor(
       () =>
         expect(warn).toHaveBeenCalledWith(
@@ -372,14 +383,14 @@ describe("Preview geometry", () => {
 
   it("never marks the Widget edited when the frame changes", async () => {
     await open(ticker);
-    expect(screen.getByRole("button", { name: /Save changes/ })).toBeDisabled();
+    expect(screen.getByRole("button", { name: saveLabel })).toBeDisabled();
     await userEvent.click(frameSelect());
     await userEvent.click(
       await screen.findByRole("option", { name: "Portrait · 9:16" }),
     );
     expect(screen.getByText("Saved")).toBeTruthy();
     expect(screen.queryByText("Unsaved changes")).toBeNull();
-    expect(screen.getByRole("button", { name: /Save changes/ })).toBeDisabled();
+    expect(screen.getByRole("button", { name: saveLabel })).toBeDisabled();
   });
 
   it("keeps the geometry out of the saved configuration", async () => {
@@ -389,7 +400,7 @@ describe("Preview geometry", () => {
     fireEvent.change(screen.getByRole("textbox", { name: /Leading label/ }), {
       target: { value: "Headlines" },
     });
-    await userEvent.click(screen.getByRole("button", { name: /Save changes/ }));
+    await userEvent.click(screen.getByRole("button", { name: saveLabel }));
     await waitFor(() => expect(update).toHaveBeenCalledTimes(1));
     const saved = JSON.stringify(update.mock.calls[0]![1]);
     expect(saved).toContain("Headlines");
@@ -404,7 +415,7 @@ describe("Preview geometry", () => {
     fireEvent.change(screen.getByRole("textbox", { name: /Leading label/ }), {
       target: { value: "Headlines" },
     });
-    await userEvent.click(screen.getByRole("button", { name: /Save changes/ }));
+    await userEvent.click(screen.getByRole("button", { name: saveLabel }));
     await waitFor(() => expect(captureWidgetPreview).toHaveBeenCalled(), {
       timeout: 4000,
     });

@@ -6,8 +6,8 @@
  * recompiled from provider configuration, except the YouTube player settings
  * that the descriptor does not carry (start and end, loop, captions,
  * controls, mute, volume, completion). Those come from the server's
- * normalized YouTube configuration. Website retry settings come from the
- * corresponding normalized Website configuration.
+ * normalized YouTube configuration. Older Website descriptors can still
+ * take their retry setting from the authored configuration.
  */
 import type { RuntimeRemoteWebSpecV1 } from "../../host/contract";
 import {
@@ -63,17 +63,30 @@ export function remoteWebForWidget(
     const interval = widget.configuration?.["retryIntervalSeconds"];
     const web = {
       ...descriptor,
-      retryIntervalSeconds: typeof interval === "number" ? interval : undefined,
+      retryIntervalSeconds:
+        descriptor.retryIntervalSeconds ??
+        (typeof interval === "number" ? interval : undefined),
     };
-    if (!context) return specFromWebDescriptor(web);
-    const dataSourceId = widget.configuration?.["dataSourceId"];
+    if (!web.urlTemplatesEnabled) return specFromWebDescriptor(web);
+    if (!context) return null;
+    const dataSourceId =
+      web.dataSourceId ?? widget.configuration?.["dataSourceId"];
     const url = resolveWebsiteUrl(descriptor.url, {
       screenId: context.screenId,
       at,
       dataSourceId: typeof dataSourceId === "string" ? dataSourceId : undefined,
       dataSources: context.dataSources,
+      deferClock: true,
     });
-    return url ? specFromWebDescriptor({ ...web, url }) : null;
+    if (!url) return null;
+    const spec = specFromWebDescriptor({ ...web, url });
+    if (
+      spec?.content.kind === "page" &&
+      /\{(?:date|time|datetime)\}/.test(descriptor.url)
+    ) {
+      spec.content.clockTemplate = true;
+    }
+    return spec;
   }
   return null;
 }

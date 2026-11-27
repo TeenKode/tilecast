@@ -30,7 +30,7 @@ A Website Widget may send values to the target site's URL query parameters.
 One Website Widget can be assigned to many screens and use each screen's ID
 without duplicating the Widget.
 
-In **Content → Widgets → Website**, enter a URL such as:
+In **Content → Widgets → Website**, enable **URL variables** explicitly, then enter a URL such as:
 
 ```text
 https://example.org/display?screen={screen.id}&date={date}&room={data.room}&rooms={data.json}
@@ -58,9 +58,13 @@ Source is unavailable, or the resolved URL would exceed 2,048 characters,
 Tilecast refuses to load that address rather than exposing an unresolved
 template. Static Website URLs remain unchanged.
 
-Dynamic values are evaluated when content is projected or activated; a page
-that stays active across a date change may need to be reactivated to get a new
-date parameter. The site must be able to parse the query values it receives.
+Studio refuses to save a URL that contains a variable while **Enable URL variables** is off. Upgrading the TeenKode fork enables the option for saved Websites that already use query variables.
+
+Android Players refuse `{data.*}` variables for a Data Source that limits records by date. The other Players apply that limit first, so Android would show different records. Use a Data Source without a date limit for Websites that run on Android.
+
+URL variables require an updated Player reporting `web.remote@3`. Older Players that report `web.remote@1` or `web.remote@2` are rejected during compatibility checks for variable-enabled Websites; ordinary static Websites continue to work. Upgrade Android, Edge, Windows and Linux Players before assigning URL variables.
+
+Date and time values are resolved when the Website starts playing, not when the Playlist is first projected. This keeps a changing clock token from restarting a preceding Playlist item. A page already open retains its URL until the next activation. The site must be able to parse the query values it receives.
 Do not transmit credentials or confidential data through URL parameters,
 which may be recorded by web servers and proxies.
 
@@ -105,11 +109,11 @@ Private HTTP permission applies to the Website address itself; it does not turn 
 
 ## Plan for interruptions
 
-If an Android Player shows only a Website's background, update the Player before changing the page's CSS. The Player's Website view must fill its Layout zone so that percentage-based page heights can use the available space.
+If an Android Player shows only a Website's background, update the Player before editing the page's CSS. The Website view fills its Layout zone so that percentage-based page heights can use the available space.
 
 Website playback needs a network connection from the Player. If the site cannot load, choose what **If the page cannot load** does: keep the last page that loaded, show a fallback image, show the Tilecast placeholder, or skip the item. Set the **Load timeout (seconds)** and **Reload** to match the site. The Playlist item duration controls how long the website plays.
 
-On Players that use an isolated website view, set **Behavior** > **Retry after an error (seconds)** to choose how long the Player waits after a network error, HTTP error, or load timeout. The default is 30 seconds. Enter 0 to turn retries off. The fallback stays on screen while the Player retries. **Skip** advances the playlist immediately. The periodic **Reload** setting also refreshes pages that are working.
+On Players that use an isolated website view, set **Behavior** → **Retry after an error (seconds)** to choose the delay after a network error, HTTP error, or load timeout. The default is 30 seconds. Enter 0 to turn retries off. The fallback stays on screen during retries. **Skip** advances the Playlist immediately.
 
 Check that the exact display can reach the site. A page can work in your browser but fail on a TV or Linux Player because of DNS, network filtering, unsupported site behavior, or a site that blocks embedded browsers.
 

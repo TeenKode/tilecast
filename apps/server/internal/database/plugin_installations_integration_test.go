@@ -1,18 +1,13 @@
 package database
 
 import (
-	"context"
 	"database/sql"
-	"fmt"
-	"net/url"
-	"os"
 	"sort"
 	"strings"
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
-	"github.com/pressly/goose/v3"
+	"github.com/tilecast/tilecast/apps/server/internal/testdb"
 )
 
 const pluginInstallationsMigration = 102
@@ -22,12 +17,8 @@ const pluginInstallationsMigration = 102
 // database so it can stop at the preceding schema version, and steps the one
 // migration down and up again for each scenario.
 func TestPluginInstallationBackfill(t *testing.T) {
-	baseURL := os.Getenv("TEST_DATABASE_URL")
-	if baseURL == "" {
-		t.Skip("TEST_DATABASE_URL is not set")
-	}
-	ctx := context.Background()
-	databaseURL := createScratchDatabase(t, ctx, baseURL)
+	ctx := t.Context()
+	databaseURL := testdb.New(t)
 	if err := MigrateTo(ctx, databaseURL, pluginInstallationsMigration-1); err != nil {
 		t.Fatal(err)
 	}
@@ -36,6 +27,10 @@ func TestPluginInstallationBackfill(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer db.Close()
+	provider, err := migrationProvider(db)
+	if err != nil {
+		t.Fatal(err)
+	}
 	exec := func(query string, args ...any) {
 		t.Helper()
 		if _, err := db.ExecContext(ctx, query, args...); err != nil {
@@ -44,17 +39,14 @@ func TestPluginInstallationBackfill(t *testing.T) {
 	}
 	rerun := func() []string {
 		t.Helper()
-		if err := useCatalog(); err != nil {
-			t.Fatal(err)
-		}
-		if current, err := goose.GetDBVersionContext(ctx, db); err != nil {
+		if current, err := provider.GetDBVersion(ctx); err != nil {
 			t.Fatal(err)
 		} else if current == pluginInstallationsMigration {
-			if err = goose.DownContext(ctx, db, migrationDir); err != nil {
+			if _, err = provider.Down(ctx); err != nil {
 				t.Fatal(err)
 			}
 		}
-		if err := goose.UpToContext(ctx, db, migrationDir, pluginInstallationsMigration); err != nil {
+		if _, err := provider.UpTo(ctx, pluginInstallationsMigration); err != nil {
 			t.Fatal(err)
 		}
 		rows, err := db.QueryContext(ctx, `SELECT plugin_id FROM plugin_installations`)
@@ -122,29 +114,4 @@ func TestPluginInstallationBackfill(t *testing.T) {
 	if err := Migrate(ctx, databaseURL); err != nil {
 		t.Fatal(err)
 	}
-}
-
-// createScratchDatabase creates a uniquely named database on the same server
-// as the shared test database and drops it when the test ends.
-func createScratchDatabase(t *testing.T, ctx context.Context, baseURL string) string {
-	t.Helper()
-	parsed, err := url.Parse(baseURL)
-	if err != nil {
-		t.Fatal(err)
-	}
-	name := "tilecast_scratch_" + strings.ReplaceAll(uuid.NewString(), "-", "")
-	admin, err := pgx.Connect(ctx, baseURL)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err = admin.Exec(ctx, fmt.Sprintf(`CREATE DATABASE %s`, name)); err != nil {
-		admin.Close(ctx)
-		t.Skipf("cannot create a scratch database: %v", err)
-	}
-	t.Cleanup(func() {
-		_, _ = admin.Exec(context.Background(), fmt.Sprintf(`DROP DATABASE IF EXISTS %s WITH (FORCE)`, name))
-		admin.Close(context.Background())
-	})
-	parsed.Path = "/" + name
-	return parsed.String()
 }

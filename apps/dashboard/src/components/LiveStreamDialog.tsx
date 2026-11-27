@@ -397,8 +397,8 @@ export function LiveStreamViewer({
       <div
         className="relative mx-auto grid max-w-full place-items-center overflow-hidden rounded-lg border border-border bg-[#080b0f]"
         style={livePreviewFrameStyle(
-          frameSize?.width ?? initialWidth,
-          frameSize?.height ?? initialHeight,
+          frameSize?.width ?? initialWidth ?? session?.maxWidth,
+          frameSize?.height ?? initialHeight ?? session?.maxHeight,
         )}
       >
         {session && view === "h264" ? (

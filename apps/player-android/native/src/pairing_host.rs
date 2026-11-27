@@ -221,6 +221,8 @@ pub struct AndroidPairingHost {
     wake: Arc<tokio::sync::Notify>,
     server_wake: Arc<tokio::sync::Notify>,
     manifest_wake: Arc<tokio::sync::Notify>,
+    state: player_state::StateDb,
+    resume: Arc<std::sync::Mutex<crate::resume::ResumeState>>,
 }
 
 impl AndroidPairingHost {
@@ -229,8 +231,10 @@ impl AndroidPairingHost {
         wake: Arc<tokio::sync::Notify>,
         server_wake: Arc<tokio::sync::Notify>,
         manifest_wake: Arc<tokio::sync::Notify>,
+        state: player_state::StateDb,
+        resume: Arc<std::sync::Mutex<crate::resume::ResumeState>>,
     ) -> Self {
-        Self { meta, wake, server_wake, manifest_wake }
+        Self { meta, wake, server_wake, manifest_wake, state, resume }
     }
 }
 
@@ -262,6 +266,7 @@ impl CorePairingHost for AndroidPairingHost {
         // and wake the server link so it verifies and reports at once
         // instead of sleeping through its idle interval.
         if matches!(status, PairingStatus::Enrolled) {
+            crate::resume::refresh_binding(&self.state, &self.resume).await;
             self.wake.notify_one();
             self.server_wake.notify_one();
             self.manifest_wake.notify_one();
@@ -275,6 +280,10 @@ mod tests {
 
     fn player() -> PlayerId {
         PlayerId::from_uuid(uuid::Uuid::from_u128(0x1234))
+    }
+
+    fn state(dir: &tempfile::TempDir) -> player_state::StateDb {
+        player_state::StateDb::open(dir.path().join("state.db"), player_state::OpenOptions::default()).expect("state")
     }
 
     #[test]
@@ -343,7 +352,8 @@ mod tests {
         let meta = Arc::new(MemMetadataSource::with_facts(r#"{"model":"Stick"}"#));
         let wake = Arc::new(tokio::sync::Notify::new());
         let link = Arc::new(tokio::sync::Notify::new());
-        let host = AndroidPairingHost::new(meta.clone(), wake, link.clone(), link);
+        let dir = tempfile::tempdir().expect("state directory");
+        let host = AndroidPairingHost::new(meta.clone(), wake, link.clone(), link, state(&dir), Arc::default());
         let facts = host.metadata(player()).await;
         assert_eq!(facts.model, "Stick");
         host.show_pairing(PairingStatus::Setup { phone: None }).await;
@@ -359,7 +369,15 @@ mod tests {
         let wake = Arc::new(tokio::sync::Notify::new());
         let server_wake = Arc::new(tokio::sync::Notify::new());
         let manifest_wake = Arc::new(tokio::sync::Notify::new());
-        let host = AndroidPairingHost::new(meta, wake.clone(), server_wake.clone(), manifest_wake.clone());
+        let dir = tempfile::tempdir().expect("state directory");
+        let host = AndroidPairingHost::new(
+            meta,
+            wake.clone(),
+            server_wake.clone(),
+            manifest_wake.clone(),
+            state(&dir),
+            Arc::default(),
+        );
         let notified = wake.notified();
         tokio::pin!(notified);
         notified.as_mut().enable();

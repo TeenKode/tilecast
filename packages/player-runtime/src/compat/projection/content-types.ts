@@ -209,6 +209,8 @@ export interface NativePresentation {
 export interface WebSandboxPresentation {
   mode: string; // remote|bundle
   url?: string;
+  dataSourceId?: string;
+  urlTemplatesEnabled?: boolean;
   integritySha256?: string;
   packageSize?: number;
   downloadPath?: string;
@@ -216,6 +218,7 @@ export interface WebSandboxPresentation {
   onlineOnly?: boolean;
   fallbackBehavior?: string;
   loadTimeoutSeconds?: number;
+  retryIntervalSeconds?: number | null;
   readonly reload?: {
     mode: "periodic";
     intervalSeconds: number;

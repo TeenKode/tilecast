@@ -19,6 +19,27 @@ import (
 
 var databaseNamePart = regexp.MustCompile(`[^a-z0-9_]+`)
 
+// New creates an empty database for tests that build a historical schema.
+func New(t *testing.T) string {
+	t.Helper()
+	baseURL := os.Getenv("TEST_DATABASE_URL")
+	if baseURL == "" {
+		t.Skip("TEST_DATABASE_URL not set")
+	}
+	testURL, cleanup, err := createDatabase(t.Context(), baseURL, packageName())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+		defer cancel()
+		if err := cleanup(ctx); err != nil {
+			t.Errorf("remove test database: %v", err)
+		}
+	})
+	return testURL
+}
+
 // Run gives one Go test package a temporary PostgreSQL database. PostgreSQL
 // advisory locks are scoped to a database, so existing fixture locks remain
 // effective inside a package without serializing other packages.

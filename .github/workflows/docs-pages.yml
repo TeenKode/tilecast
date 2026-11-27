@@ -20,6 +20,9 @@ concurrency:
 
 jobs:
   build:
+    # Upstream owns the public docs. A fork can dispatch its own deployment
+    # after setting up Pages. The docs validation workflow also runs on forks.
+    if: github.repository == 'gbyo/tilecast' || github.event_name == 'workflow_dispatch'
     name: Build docs
     runs-on: ubuntu-latest
     permissions:

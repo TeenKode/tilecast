@@ -95,7 +95,7 @@ async function openSaved(
   renderEditorRoute("/widgets/widget-1");
   return screen.findByRole(
     "button",
-    { name: /Save changes/ },
+    { name: /^Save(?: changes)?$/ },
     { timeout: 4000 },
   );
 }
@@ -215,6 +215,7 @@ describe("Website", () => {
       configuration: {
         url: "https://example.com/menu",
         dataSourceId: "",
+        urlTemplatesEnabled: false,
         allowedHosts: ["cdn.example.com", "example.com"],
         javascriptEnabled: false,
         domStorageEnabled: true,
@@ -241,7 +242,7 @@ describe("Website", () => {
     renderEditorRoute("/widgets/new/website");
     const save = await screen.findByRole(
       "button",
-      { name: /Save Widget/ },
+      { name: /^Save(?: Widget)?$/ },
       { timeout: 4000 },
     );
     await userEvent.click(save);
@@ -254,6 +255,7 @@ describe("Website", () => {
     expect(create.mock.calls[0]![0].configuration).toEqual({
       url: "https://example.com",
       dataSourceId: "",
+      urlTemplatesEnabled: false,
       allowedHosts: [],
       javascriptEnabled: true,
       domStorageEnabled: true,

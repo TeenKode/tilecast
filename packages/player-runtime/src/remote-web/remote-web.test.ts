@@ -158,6 +158,37 @@ describe("remote web spec", () => {
     expect(spec?.presentation.retryIntervalSeconds).toBe(0);
   });
 
+  it("keeps URL variables and disabled retries in a compiled Website without authored configuration", () => {
+    const spec = remoteWebForWidget(
+      {
+        assetId: "website",
+        name: "Schedule",
+        provider: "website",
+        configVersion: 1,
+        configuration: {},
+        presentation: {
+          schemaVersion: 1,
+          kind: "web",
+          web: {
+            mode: "remote",
+            url: "https://example.org/schedule?screen={screen.id}&t={time}",
+            urlTemplatesEnabled: true,
+            retryIntervalSeconds: 0,
+          },
+        },
+      },
+      [],
+      new Date(0),
+      { screenId: "Hall & 1", dataSources: new Map() },
+    );
+    expect(spec?.content).toMatchObject({
+      kind: "page",
+      url: "https://example.org/schedule?screen=Hall%20%26%201&t={time}",
+      clockTemplate: true,
+    });
+    expect(spec?.presentation.retryIntervalSeconds).toBe(0);
+  });
+
   it("carries the documented YouTube settings and completion", () => {
     const spec = specFromYouTube(
       {

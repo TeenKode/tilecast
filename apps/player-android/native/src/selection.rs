@@ -1023,6 +1023,7 @@ pub(crate) struct SelectionHost {
     config: Arc<AndroidConfigHost>,
     manifest_wake: Arc<Notify>,
     gate: crate::server_link::GateObservation,
+    resume: Arc<std::sync::Mutex<crate::resume::ResumeState>>,
 }
 
 impl SelectionHost {
@@ -1031,8 +1032,9 @@ impl SelectionHost {
         config: Arc<AndroidConfigHost>,
         manifest_wake: Arc<Notify>,
         gate: crate::server_link::GateObservation,
+        resume: Arc<std::sync::Mutex<crate::resume::ResumeState>>,
     ) -> Self {
-        Self { engine, config, manifest_wake, gate }
+        Self { engine, config, manifest_wake, gate, resume }
     }
 
     fn effective(&self) -> Arc<AndroidPlayerConfig> {
@@ -1060,8 +1062,15 @@ impl OfflineActivationHost for SelectionHost {
         configuration: &Self::Configuration,
         time: ActivationTime,
     ) -> Result<OfflineProjection<Self::Projection, Self::Key>, &'static str> {
-        let resolved =
+        let mut resolved =
             presentation_with(candidate, time.presentation_ms(), configuration).map_err(|error| error.reason_code())?;
+        crate::resume::maybe_rotate(
+            &mut self.resume.lock().unwrap_or_else(|error| error.into_inner()),
+            &mut resolved,
+            candidate,
+            configuration.runtime.playback.resume_after_restart,
+            time.presentation_ms(),
+        );
         // Content projects again: any gate the driver showed has lifted.
         *self.gate.lock().unwrap_or_else(|error| error.into_inner()) = None;
         let metadata = crate::renderer::projection_metadata(&resolved.document, resolved.projection.as_ref())

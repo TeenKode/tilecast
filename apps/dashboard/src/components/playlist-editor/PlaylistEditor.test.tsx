@@ -130,15 +130,10 @@ function mockDesktop() {
       disconnect() {}
     };
   }
-  window.matchMedia = () => ({
-    matches: true,
-    media: "(min-width: 1024px)",
-    onchange: null,
-    addListener: () => undefined,
-    removeListener: () => undefined,
-    addEventListener: () => undefined,
-    removeEventListener: () => undefined,
-    dispatchEvent: () => true,
+  window.matchMedia = (query) => ({
+    ...defaultMatchMedia(query),
+    matches:
+      query === "(min-width: 1024px)" || defaultMatchMedia(query).matches,
   });
 }
 
