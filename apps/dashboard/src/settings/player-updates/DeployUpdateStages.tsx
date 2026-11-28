@@ -503,6 +503,7 @@ function RolloutModeFields({
           </FieldLabel>
           <DateTimeInput
             id="update-window"
+            includeSeconds
             value={windowStart}
             onChange={onWindowStartChange}
           />

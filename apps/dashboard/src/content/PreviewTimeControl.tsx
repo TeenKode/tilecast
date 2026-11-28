@@ -58,6 +58,7 @@ export function PreviewTimeControl({
             </FieldLabel>
             <DateTimeInput
               id={inputId}
+              includeSeconds
               aria-label={t("widgets.preview.time.dateTimeLabel")}
               timeLabel={t("datePicker.previewTime", { ns: "schedules" })}
               value={value.value}
