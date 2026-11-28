@@ -7,7 +7,7 @@ export type PreviewTimeMode = "live" | "fixed";
 
 export type PreviewTime = {
   mode: PreviewTimeMode;
-  // A `datetime-local` value ("YYYY-MM-DDTHH:mm"), read in the author's own time zone.
+  // A `datetime-local` value with optional seconds, read in the author's own time zone.
   value: string;
 };
 
@@ -15,7 +15,8 @@ export type PreviewTime = {
 export function previewTimeInputValue(date: Date): string {
   if (!Number.isFinite(date.getTime())) return "";
   const pad = (part: number) => String(part).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  const seconds = date.getSeconds() === 0 ? "" : `:${pad(date.getSeconds())}`;
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}${seconds}`;
 }
 
 /**

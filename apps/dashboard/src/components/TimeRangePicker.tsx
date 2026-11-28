@@ -169,6 +169,7 @@ export function TimeRangePicker({
             </FieldLabel>
             <DateTimeInput
               id="time-range-from"
+              includeSeconds
               aria-label={t("range.from")}
               timeLabel={t("datePicker.fromTime")}
               value={customFrom}
@@ -182,6 +183,7 @@ export function TimeRangePicker({
             </FieldLabel>
             <DateTimeInput
               id="time-range-to"
+              includeSeconds
               aria-label={t("range.to")}
               timeLabel={t("datePicker.toTime")}
               value={customTo}

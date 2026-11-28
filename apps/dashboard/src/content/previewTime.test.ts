@@ -15,6 +15,14 @@ describe("preview time override", () => {
     expect(parsePreviewTimeInput(value)?.getTime()).toBe(local.getTime());
   });
 
+  it("round-trips a local instant with nonzero seconds", () => {
+    const local = new Date(2026, 7, 24, 13, 30, 45);
+    const value = previewTimeInputValue(local);
+    expect(value).toBe("2026-08-24T13:30:45");
+    expect(parsePreviewTimeInput(value)?.getTime()).toBe(local.getTime());
+    expect(initialPreviewTime(local).value).toBe(value);
+  });
+
   it("reads a seconds-bearing value and rejects malformed input", () => {
     expect(parsePreviewTimeInput("2026-08-24T13:30:45")?.getSeconds()).toBe(45);
     expect(parsePreviewTimeInput("")).toBeNull();
