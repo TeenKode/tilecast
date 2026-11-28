@@ -369,6 +369,8 @@ type ManifestSchedule struct {
 	EndDate       *string                `json:"endDate,omitempty"`
 	OneTimeStart  *time.Time             `json:"oneTimeStart,omitempty"`
 	OneTimeEnd    *time.Time             `json:"oneTimeEnd,omitempty"`
+	CampaignStart *time.Time             `json:"campaignStart,omitempty"`
+	CampaignEnd   *time.Time             `json:"campaignEnd,omitempty"`
 	DailyStart    *string                `json:"dailyStart,omitempty"`
 	DailyEnd      *string                `json:"dailyEnd,omitempty"`
 	DaysOfWeek    []int                  `json:"daysOfWeek,omitempty"`

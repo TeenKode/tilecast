@@ -608,9 +608,11 @@ func (s *Service) Preflight(ctx context.Context, id uuid.UUID) (Preflight, error
 		now := time.Now().UTC()
 		for _, screen := range previewScreens {
 			for _, block := range snapshot.Blocks {
+				startDate, endDate := campaignDateBounds(block, snapshot)
 				input := scheduling.Input{
 					Name: block.Name, Description: snapshot.Description, PlaylistID: playlistID(block), LayoutID: layoutID(block), Type: scheduling.Kind(block.Type), Timezone: block.Timezone,
-					Priority: block.Priority, Enabled: block.Enabled, StartDate: block.StartDate, EndDate: block.EndDate, OneTimeStart: block.OneTimeStart, OneTimeEnd: block.OneTimeEnd,
+					Priority: block.Priority, Enabled: block.Enabled, StartDate: startDate, EndDate: endDate, OneTimeStart: block.OneTimeStart, OneTimeEnd: block.OneTimeEnd,
+					CampaignStart: snapshot.CampaignStart, CampaignEnd: snapshot.CampaignEnd,
 					DailyStart: block.DailyStart, DailyEnd: block.DailyEnd, DaysOfWeek: block.DaysOfWeek,
 				}
 				for _, destination := range snapshot.Destinations {
@@ -779,8 +781,8 @@ func validateCampaignMetadata(snapshot Snapshot) error {
 // start and end instants bound it, as calendar dates in the block's time zone,
 // which is the zone the schedule engine evaluates date bounds in. The end is
 // exclusive: a Campaign that ends at local midnight does not run that day.
-// Schedules bound dates, not instants, so a block may still begin earlier on
-// the Campaign's first day than the Campaign start time.
+// The scheduling engine separately intersects each occurrence with the
+// published Campaign's absolute start and end instants.
 func campaignDateBounds(block Block, snapshot Snapshot) (start, end *string) {
 	start, end = block.StartDate, block.EndDate
 	location, err := time.LoadLocation(block.Timezone)

@@ -78,6 +78,8 @@ struct Schedule {
     end_date: Option<String>,
     one_time_start: Option<String>,
     one_time_end: Option<String>,
+    campaign_start: Option<String>,
+    campaign_end: Option<String>,
     daily_start: Option<String>,
     daily_end: Option<String>,
     days_of_week: Option<Vec<u8>>,
@@ -178,6 +180,8 @@ fn windows(schedule: &Schedule, now: Timestamp) -> Result<Vec<Window<'_>>, Sched
     if days.len() > 7 || days.iter().any(|day| *day > 6) || start_bound.zip(end_bound).is_some_and(|(a, b)| a > b) {
         return Err(ScheduleError::Invalid);
     }
+    let lower = schedule.campaign_start.as_deref().map(timestamp).transpose()?.unwrap_or(i64::MIN);
+    let upper = schedule.campaign_end.as_deref().map(timestamp).transpose()?.unwrap_or(i64::MAX);
     let overnight = end_clock <= start_clock;
     let mut result = Vec::new();
     for offset in -1..=8 {
@@ -193,8 +197,8 @@ fn windows(schedule: &Schedule, now: Timestamp) -> Result<Vec<Window<'_>>, Sched
         } else {
             origin
         };
-        let start = local_instant(origin, start_clock, &zone, false)?;
-        let end = local_instant(end_day, end_clock, &zone, true)?;
+        let start = local_instant(origin, start_clock, &zone, false)?.max(lower);
+        let end = local_instant(end_day, end_clock, &zone, true)?.min(upper);
         if end > start {
             result.push(Window { schedule, start, end });
         }
@@ -361,6 +365,24 @@ mod tests {
 
     fn at(value: &str) -> i64 {
         timestamp(value).unwrap()
+    }
+
+    #[test]
+    fn campaign_bounds_clip_recurring_windows() {
+        let mut manifest = base();
+        let mut schedule = weekly();
+        schedule["campaignStart"] = json!("2026-07-17T15:00:10Z");
+        schedule["campaignEnd"] = json!("2026-07-17T15:00:25Z");
+        manifest["schedules"] = json!([schedule]);
+        let before = resolve(&manifest, at("2026-07-17T15:00:09Z")).unwrap();
+        assert_eq!(before.source, Source::Direct);
+        assert_eq!(before.next_transition_ms, Some(at("2026-07-17T15:00:10Z")));
+        let active = resolve(&manifest, at("2026-07-17T15:00:10Z")).unwrap();
+        assert_eq!(active.source, Source::Schedule);
+        assert_eq!(active.playback_anchor_ms, Some(at("2026-07-17T15:00:10Z")));
+        assert_eq!(active.next_transition_ms, Some(at("2026-07-17T15:00:25Z")));
+        let ended = resolve(&manifest, at("2026-07-17T15:00:25Z")).unwrap();
+        assert_eq!(ended.source, Source::Direct);
     }
 
     #[test]

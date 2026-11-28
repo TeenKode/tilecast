@@ -9318,6 +9318,9 @@ type ManifestResponse struct {
 
 // ManifestSchedule defines model for ManifestSchedule.
 type ManifestSchedule struct {
+	CampaignEnd   *time.Time `json:"campaignEnd,omitempty"`
+	CampaignStart *time.Time `json:"campaignStart,omitempty"`
+
 	// DailyEnd Weekly end in HH:MM or HH:MM:SS.
 	DailyEnd *string `json:"dailyEnd,omitempty"`
 
@@ -14048,6 +14051,9 @@ type GetPlayerManifestParams struct {
 
 	// XTilecastSchedulePrecision Accept recurring wall-clock times in HH:MM:SS as well as HH:MM.
 	XTilecastSchedulePrecision *GetPlayerManifestParamsXTilecastSchedulePrecision `json:"X-Tilecast-Schedule-Precision,omitempty"`
+
+	// XTilecastCampaignBounds Send 1 to accept absolute campaign bounds on recurring schedules.
+	XTilecastCampaignBounds *string `json:"X-Tilecast-Campaign-Bounds,omitempty"`
 }
 
 // GetPlayerManifestParamsXTilecastSchedulePrecision defines parameters for GetPlayerManifest.
@@ -40765,6 +40771,17 @@ func NewGetPlayerManifestRequest(server string, params *GetPlayerManifestParams)
 			}
 
 			req.Header.Set("X-Tilecast-Schedule-Precision", headerParam1)
+		}
+
+		if params.XTilecastCampaignBounds != nil {
+			var headerParam2 string
+
+			headerParam2, err = runtime.StyleParamWithOptions("simple", false, "X-Tilecast-Campaign-Bounds", *params.XTilecastCampaignBounds, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("X-Tilecast-Campaign-Bounds", headerParam2)
 		}
 
 	}

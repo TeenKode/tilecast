@@ -412,3 +412,24 @@ describe("resolveSelection", () => {
     });
   });
 });
+
+describe("campaign bounds", () => {
+  it("clips a recurring window to absolute second-precision bounds", () => {
+    const schedule = weekly({
+      campaignStart: "2026-07-17T15:00:10Z",
+      campaignEnd: "2026-07-17T15:00:25Z",
+    });
+    expect(scheduleApplies(schedule, new Date("2026-07-17T15:00:09Z"))).toBe(
+      false,
+    );
+    expect(scheduleApplies(schedule, new Date("2026-07-17T15:00:10Z"))).toBe(
+      true,
+    );
+    expect(scheduleApplies(schedule, new Date("2026-07-17T15:00:24Z"))).toBe(
+      true,
+    );
+    expect(scheduleApplies(schedule, new Date("2026-07-17T15:00:25Z"))).toBe(
+      false,
+    );
+  });
+});

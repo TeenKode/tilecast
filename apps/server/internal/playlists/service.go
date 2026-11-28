@@ -1632,12 +1632,13 @@ func (s *Service) projectSpanVideo(ctx context.Context, screenID, assetID, sourc
 }
 
 func (s *Service) BuildManifest(ctx context.Context, screenID uuid.UUID) (Manifest, string, error) {
-	return s.BuildPlayerManifest(ctx, screenID, true)
+	return s.BuildPlayerManifest(ctx, screenID, true, true)
 }
 
 // BuildPlayerManifest projects second-precision weekly schedules onto the
 // next absolute window for players whose weekly clock parser requires HH:MM.
-func (s *Service) BuildPlayerManifest(ctx context.Context, screenID uuid.UUID, weeklySeconds bool) (Manifest, string, error) {
+func (s *Service) BuildPlayerManifest(ctx context.Context, screenID uuid.UUID, weeklySeconds bool, campaignBounds ...bool) (Manifest, string, error) {
+	acceptCampaignBounds := len(campaignBounds) > 0 && campaignBounds[0]
 	if err := s.reconcilePresentationCatalog(ctx); err != nil {
 		return Manifest{}, "", err
 	}
@@ -1807,9 +1808,11 @@ func (s *Service) BuildPlayerManifest(ctx context.Context, screenID uuid.UUID, w
 			if !scheduling.CanActivate(record.Schedule) {
 				continue
 			}
-			if !weeklySeconds && record.Type == scheduling.Weekly &&
-				(len(*record.DailyStart) > len("15:04") || len(*record.DailyEnd) > len("15:04")) {
-				window, ok := scheduling.NextInterval(record.Schedule, now)
+			bounded := record.CampaignStart != nil || record.CampaignEnd != nil
+			if record.Type == scheduling.Weekly &&
+				((!weeklySeconds && (len(*record.DailyStart) > len("15:04") || len(*record.DailyEnd) > len("15:04"))) ||
+					(bounded && !acceptCampaignBounds)) {
+				window, ok := scheduling.CurrentOrNextInterval(record.Schedule, now)
 				if !ok {
 					continue
 				}
@@ -1817,8 +1820,15 @@ func (s *Service) BuildPlayerManifest(ctx context.Context, screenID uuid.UUID, w
 				record.OneTimeStart, record.OneTimeEnd = &window.Start, &window.End
 				record.DailyStart, record.DailyEnd, record.DaysOfWeek = nil, nil, nil
 				record.StartDate, record.EndDate = nil, nil
+				record.CampaignStart, record.CampaignEnd = nil, nil
 			}
 			if record.Type == scheduling.OneTime {
+				window, ok := scheduling.NextInterval(record.Schedule, now)
+				if !ok {
+					continue
+				}
+				record.OneTimeStart, record.OneTimeEnd = &window.Start, &window.End
+				record.CampaignStart, record.CampaignEnd = nil, nil
 				if record.OneTimeEnd != nil && !record.OneTimeEnd.After(now) {
 					continue
 				}
@@ -1831,7 +1841,7 @@ func (s *Service) BuildPlayerManifest(ctx context.Context, screenID uuid.UUID, w
 				value := record.PlaylistID
 				schedulePlaylistID = &value
 			}
-			manifest.Schedules = append(manifest.Schedules, ManifestSchedule{ID: record.ID, PlaylistID: schedulePlaylistID, LayoutID: record.LayoutID, DisplayAction: record.DisplayAction, Type: string(record.Type), Timezone: record.Timezone, Priority: record.Priority, Specificity: record.Specificity, StartDate: record.StartDate, EndDate: record.EndDate, OneTimeStart: record.OneTimeStart, OneTimeEnd: record.OneTimeEnd, DailyStart: record.DailyStart, DailyEnd: record.DailyEnd, DaysOfWeek: record.DaysOfWeek})
+			manifest.Schedules = append(manifest.Schedules, ManifestSchedule{ID: record.ID, PlaylistID: schedulePlaylistID, LayoutID: record.LayoutID, DisplayAction: record.DisplayAction, Type: string(record.Type), Timezone: record.Timezone, Priority: record.Priority, Specificity: record.Specificity, StartDate: record.StartDate, EndDate: record.EndDate, OneTimeStart: record.OneTimeStart, OneTimeEnd: record.OneTimeEnd, CampaignStart: record.CampaignStart, CampaignEnd: record.CampaignEnd, DailyStart: record.DailyStart, DailyEnd: record.DailyEnd, DaysOfWeek: record.DaysOfWeek})
 			if record.LayoutID != nil {
 				layoutIDs = append(layoutIDs, *record.LayoutID)
 			} else if record.DisplayAction == nil && record.PlaylistID != uuid.Nil {

@@ -274,3 +274,7 @@ schedule to the group, all group members must be Linux Players.
 A Display Control schedule uses the normal manifest
 schedule entry with `displayAction`; it has no playlist or Layout and is
 evaluated by the same timezone, priority, and offline transition resolver.
+
+### Exact campaign bounds
+
+Players that support absolute bounds on recurring schedules send `X-Tilecast-Campaign-Bounds: 1` together with the existing seconds precision header. The optional `campaignStart` and `campaignEnd` instants intersect each recurring occurrence with the published campaign's interval. Start is inclusive and end is exclusive. For older players, the Server projects the current or next clipped occurrence as an absolute one-time window; continued recurring playback on these players requires a manifest refresh.
