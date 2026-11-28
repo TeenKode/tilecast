@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { formatDateTime } from "./dateTime";
+import {
+  formatDateTime,
+  localDateTimeToRfc3339,
+  rfc3339ToLocalDateTime,
+} from "./dateTime";
 
 describe("Studio timestamp display", () => {
   it.each([
@@ -20,4 +24,15 @@ describe("Studio timestamp display", () => {
       expect(formatDateTime(value, "es-ES", "Desconocido")).toBe("Desconocido");
     },
   );
+});
+
+describe("datetime input precision", () => {
+  it("round-trips seconds when requested and keeps minute-only callers compatible", () => {
+    const instant = "2026-01-18T12:34:25.000Z";
+    const local = rfc3339ToLocalDateTime(instant, true);
+    expect(local).toMatch(/:25$/);
+    expect(localDateTimeToRfc3339(local)).toBe(instant);
+    expect(rfc3339ToLocalDateTime(instant)).toBe(local.slice(0, 16));
+    expect(rfc3339ToLocalDateTime("invalid", true)).toBe("");
+  });
 });

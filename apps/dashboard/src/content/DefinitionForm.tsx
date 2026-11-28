@@ -561,10 +561,11 @@ function DefinitionControl({
       <Field>
         <FieldLabel htmlFor={`definition-${field.key}`}>{labelText}</FieldLabel>
         <DateTimeInput
+          includeSeconds
           id={`definition-${field.key}`}
           {...common}
           aria-label={labelText}
-          value={rfc3339ToLocalDateTime(fieldText(value))}
+          value={rfc3339ToLocalDateTime(fieldText(value), true)}
           onChange={(next) => setValue(localDateTimeToRfc3339(next))}
         />
         {field.description && (
@@ -581,10 +582,11 @@ function DefinitionControl({
       <Field>
         <FieldLabel htmlFor={`definition-${field.key}`}>{labelText}</FieldLabel>
         <DateTimeInput
+          includeSeconds
           id={`definition-${field.key}`}
           {...common}
           aria-label={labelText}
-          value={fieldText(value).slice(0, 16)}
+          value={fieldText(value).slice(0, 19)}
           onChange={setValue}
         />
         {field.description && (
