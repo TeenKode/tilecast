@@ -35,8 +35,8 @@ type Schedule struct {
 	DailyStart    *string                `json:"dailyStart,omitempty"`
 	DailyEnd      *string                `json:"dailyEnd,omitempty"`
 	DaysOfWeek    []int                  `json:"daysOfWeek,omitempty"`
-	CampaignStart *time.Time            `json:"-"`
-	CampaignEnd   *time.Time            `json:"-"`
+	CampaignStart *time.Time             `json:"-"`
+	CampaignEnd   *time.Time             `json:"-"`
 }
 type Active struct {
 	Schedule Schedule

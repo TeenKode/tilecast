@@ -209,8 +209,12 @@ function windows(schedule: ManifestSchedule, at: Date): Window[] {
     schedule.campaignStart ?? "",
     schedule.campaignEnd ?? "",
   ].join("|");
-  const lower = schedule.campaignStart ? Date.parse(schedule.campaignStart) : -Infinity;
-  const upper = schedule.campaignEnd ? Date.parse(schedule.campaignEnd) : Infinity;
+  const lower = schedule.campaignStart
+    ? Date.parse(schedule.campaignStart)
+    : -Infinity;
+  const upper = schedule.campaignEnd
+    ? Date.parse(schedule.campaignEnd)
+    : Infinity;
   if (Number.isNaN(lower) || Number.isNaN(upper) || upper <= lower) return [];
   const cached = weeklyWindowCache.get(cacheKey);
   if (cached) return cached.map((window) => ({ schedule, ...window }));

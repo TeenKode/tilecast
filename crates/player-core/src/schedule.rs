@@ -368,6 +368,24 @@ mod tests {
     }
 
     #[test]
+    fn campaign_bounds_clip_recurring_windows() {
+        let mut manifest = base();
+        let mut schedule = weekly();
+        schedule["campaignStart"] = json!("2026-07-17T15:00:10Z");
+        schedule["campaignEnd"] = json!("2026-07-17T15:00:25Z");
+        manifest["schedules"] = json!([schedule]);
+        let before = resolve(&manifest, at("2026-07-17T15:00:09Z")).unwrap();
+        assert_eq!(before.source, Source::Direct);
+        assert_eq!(before.next_transition_ms, Some(at("2026-07-17T15:00:10Z")));
+        let active = resolve(&manifest, at("2026-07-17T15:00:10Z")).unwrap();
+        assert_eq!(active.source, Source::Schedule);
+        assert_eq!(active.playback_anchor_ms, Some(at("2026-07-17T15:00:10Z")));
+        assert_eq!(active.next_transition_ms, Some(at("2026-07-17T15:00:25Z")));
+        let ended = resolve(&manifest, at("2026-07-17T15:00:25Z")).unwrap();
+        assert_eq!(ended.source, Source::Direct);
+    }
+
+    #[test]
     fn direct_and_weekly_precedence_with_exact_boundary() {
         let mut manifest = base();
         manifest["schedules"] = json!([weekly()]);

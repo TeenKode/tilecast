@@ -6435,6 +6435,10 @@ paths:
           name: X-Tilecast-Schedule-Precision
           schema: { type: string, enum: [seconds] }
           description: Accept recurring wall-clock times in HH:MM:SS as well as HH:MM.
+        - in: header
+          name: X-Tilecast-Campaign-Bounds
+          schema: { type: string }
+          description: Send 1 to accept absolute campaign bounds on recurring schedules.
       responses:
         "200":
           description: Stable screen-specific manifest or no-assignment manifest
@@ -16608,6 +16612,8 @@ components:
         endDate: { type: [string, "null"], format: date }
         oneTimeStart: { type: [string, "null"], format: date-time }
         oneTimeEnd: { type: [string, "null"], format: date-time }
+        campaignStart: { type: [string, "null"], format: date-time }
+        campaignEnd: { type: [string, "null"], format: date-time }
         dailyStart:
           {
             type: [string, "null"],

@@ -328,6 +328,7 @@ func (s *Service) preflightAt(ctx context.Context, now time.Time, editing *uuid.
 		Type: in.Type, Timezone: in.Timezone, Priority: in.Priority, Enabled: true,
 		StartDate: in.StartDate, EndDate: in.EndDate, OneTimeStart: in.OneTimeStart, OneTimeEnd: in.OneTimeEnd,
 		DailyStart: in.DailyStart, DailyEnd: in.DailyEnd, DaysOfWeek: in.DaysOfWeek,
+		CampaignStart: in.CampaignStart, CampaignEnd: in.CampaignEnd,
 	}
 	return evaluatePreflight(now, draft, in.Enabled, screens, competitors), nil
 }

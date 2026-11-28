@@ -10639,6 +10639,10 @@ export interface components {
       oneTimeStart?: string | null;
       /** Format: date-time */
       oneTimeEnd?: string | null;
+      /** Format: date-time */
+      campaignStart?: string | null;
+      /** Format: date-time */
+      campaignEnd?: string | null;
       /** @description Weekly start in HH:MM or HH:MM:SS. */
       dailyStart?: string | null;
       /** @description Weekly end in HH:MM or HH:MM:SS. */
@@ -23529,6 +23533,8 @@ export interface operations {
         "If-None-Match"?: string;
         /** @description Accept recurring wall-clock times in HH:MM:SS as well as HH:MM. */
         "X-Tilecast-Schedule-Precision"?: "seconds";
+        /** @description Send 1 to accept absolute campaign bounds on recurring schedules. */
+        "X-Tilecast-Campaign-Bounds"?: string;
       };
       path?: never;
       cookie?: never;
