@@ -10434,7 +10434,9 @@ export interface components {
       oneTimeStart?: string | null;
       /** Format: date-time */
       oneTimeEnd?: string | null;
+      /** @description Weekly start in HH:MM or HH:MM:SS. */
       dailyStart?: string | null;
+      /** @description Weekly end in HH:MM or HH:MM:SS. */
       dailyEnd?: string | null;
       daysOfWeek?: number[];
       targets: {
@@ -10637,7 +10639,9 @@ export interface components {
       oneTimeStart?: string | null;
       /** Format: date-time */
       oneTimeEnd?: string | null;
+      /** @description Weekly start in HH:MM or HH:MM:SS. */
       dailyStart?: string | null;
+      /** @description Weekly end in HH:MM or HH:MM:SS. */
       dailyEnd?: string | null;
       daysOfWeek?: number[];
     };
@@ -23523,6 +23527,8 @@ export interface operations {
       query?: never;
       header?: {
         "If-None-Match"?: string;
+        /** @description Accept recurring wall-clock times in HH:MM:SS as well as HH:MM. */
+        "X-Tilecast-Schedule-Precision"?: "seconds";
       };
       path?: never;
       cookie?: never;
