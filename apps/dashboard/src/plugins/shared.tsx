@@ -110,11 +110,12 @@ export function canManage(status?: AuthStatus) {
  * instant the same way keeps the round trip stable instead of shifting the
  * target by the browser's UTC offset on every edit.
  */
-export function toLocalInputValue(iso: string) {
+export function toLocalInputValue(iso: string, includeSeconds = false) {
   const at = new Date(iso);
   if (Number.isNaN(at.getTime())) return "";
   const pad = (value: number) => String(value).padStart(2, "0");
-  return `${at.getFullYear()}-${pad(at.getMonth() + 1)}-${pad(at.getDate())}T${pad(at.getHours())}:${pad(at.getMinutes())}`;
+  const seconds = includeSeconds ? `:${pad(at.getSeconds())}` : "";
+  return `${at.getFullYear()}-${pad(at.getMonth() + 1)}-${pad(at.getDate())}T${pad(at.getHours())}:${pad(at.getMinutes())}${seconds}`;
 }
 
 /**

@@ -140,3 +140,25 @@ func TestValidateCountdownBarCountsCharactersNotBytes(t *testing.T) {
 		t.Fatalf("expected a 281-character completion text to be rejected, got %v", err)
 	}
 }
+
+func TestCountdownBarSecondPrecision(t *testing.T) {
+	for _, target := range []string{"12:00", "12:00:00", "12:00:45", "23:59:59"} {
+		input := validInput()
+		input.TargetTime = &target
+		if err := Validate(input); err != nil {
+			t.Fatalf("valid target %q rejected: %v", target, err)
+		}
+	}
+	for _, target := range []string{"24:00", "12:60", "12:00:60", "1:00", "12:00:01.5"} {
+		input := validInput()
+		input.TargetTime = &target
+		if err := Validate(input); err == nil {
+			t.Fatalf("invalid target %q accepted", target)
+		}
+	}
+	for raw, want := range map[string]string{"12:00": "12:00", "12:00:00": "12:00", "12:00:45": "12:00:45"} {
+		if got := trimTargetTime(&raw); got == nil || *got != want {
+			t.Fatalf("target %q: want %q, got %v", raw, want, got)
+		}
+	}
+}

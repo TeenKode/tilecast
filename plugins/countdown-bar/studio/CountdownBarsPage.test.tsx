@@ -378,10 +378,14 @@ describe("Countdown Bar editor", () => {
     // A weekday toggle re-renders the form; a select whose value was dropped
     // here would silently fall back to its first option.
     fireEvent.click(screen.getByRole("button", { name: "Sat" }));
-    expect(screen.getByLabelText("Target time")).toBeVisible();
+    const targetTime = screen.getByLabelText("Target time");
+    expect(targetTime).toBeVisible();
+    expect(targetTime).toHaveAttribute("step", "1");
+    fireEvent.change(targetTime, { target: { value: "12:00:45" } });
     fireEvent.click(screen.getByRole("button", { name: "Create instance" }));
     await waitFor(() => expect(submitted).toHaveLength(1));
     expect(submitted[0]?.scheduleType).toBe("weekly");
+    expect(submitted[0]?.targetTime).toBe("12:00:45");
     expect(submitted[0]?.displayMode).toBe("push");
   }, 10_000);
 

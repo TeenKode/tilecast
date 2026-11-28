@@ -142,7 +142,7 @@ export function makeCountdownSchema(ct: CountdownT) {
     .superRefine((value, context) => {
       if (
         value.scheduleType === "weekly" &&
-        (!/^\d{2}:\d{2}$/.test(value.targetTime) ||
+        (!/^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/.test(value.targetTime) ||
           value.daysOfWeek.length === 0)
       ) {
         context.addIssue({
@@ -476,7 +476,7 @@ export function CountdownBarEditorPage() {
       scheduleType: value.scheduleType,
       targetTime: value.targetTime ?? "",
       daysOfWeek: value.daysOfWeek,
-      oneTimeAt: value.oneTimeAt ? toLocalInputValue(value.oneTimeAt) : "",
+      oneTimeAt: value.oneTimeAt ? toLocalInputValue(value.oneTimeAt, true) : "",
       timezone: value.timezone,
       leadMinutes,
       completionText: value.completionText,
@@ -703,6 +703,7 @@ export function CountdownBarEditorPage() {
                   id="countdown-target-time"
                   label={ct("editor.targetTimeLabel")}
                   type="time"
+                  step={1}
                   error={errors.targetTime?.message}
                   {...register("targetTime")}
                 />
@@ -758,6 +759,7 @@ export function CountdownBarEditorPage() {
                     </FieldLabel>
                     <DateTimeInput
                       id="countdown-one-time"
+                      includeSeconds
                       aria-label={ct("editor.oneTimeLabel")}
                       timeLabel={ct("editor.targetTimeLabel")}
                       value={field.value}
