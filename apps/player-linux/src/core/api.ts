@@ -289,6 +289,7 @@ export class ApiClient {
   async manifest(etag: string | null): Promise<ConditionalResult<Manifest>> {
     const headers: Record<string, string> = {
       "X-Tilecast-Schedule-Precision": "seconds",
+      "X-Tilecast-Campaign-Bounds": "1",
     };
     if (etag) {
       headers["If-None-Match"] = etag;

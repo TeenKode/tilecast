@@ -206,7 +206,12 @@ function windows(schedule: ManifestSchedule, at: Date): Window[] {
     [...days].sort((a, b) => a - b).join(","),
     schedule.startDate ?? "",
     schedule.endDate ?? "",
+    schedule.campaignStart ?? "",
+    schedule.campaignEnd ?? "",
   ].join("|");
+  const lower = schedule.campaignStart ? Date.parse(schedule.campaignStart) : -Infinity;
+  const upper = schedule.campaignEnd ? Date.parse(schedule.campaignEnd) : Infinity;
+  if (Number.isNaN(lower) || Number.isNaN(upper) || upper <= lower) return [];
   const cached = weeklyWindowCache.get(cacheKey);
   if (cached) return cached.map((window) => ({ schedule, ...window }));
   const seconds = ([hour, minute, second]: Clock) =>
@@ -231,8 +236,12 @@ function windows(schedule: ManifestSchedule, at: Date): Window[] {
       schedule.timezone,
       true,
     );
-    if (start !== null && end !== null && end > start) {
-      result.push({ schedule, start, end });
+    if (start !== null && end !== null) {
+      const clippedStart = Math.max(start, lower);
+      const clippedEnd = Math.min(end, upper);
+      if (clippedEnd > clippedStart) {
+        result.push({ schedule, start: clippedStart, end: clippedEnd });
+      }
     }
   }
   if (weeklyWindowCache.size >= 20_000) weeklyWindowCache.clear();

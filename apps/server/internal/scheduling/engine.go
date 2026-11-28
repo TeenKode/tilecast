@@ -35,6 +35,8 @@ type Schedule struct {
 	DailyStart    *string                `json:"dailyStart,omitempty"`
 	DailyEnd      *string                `json:"dailyEnd,omitempty"`
 	DaysOfWeek    []int                  `json:"daysOfWeek,omitempty"`
+	CampaignStart *time.Time            `json:"-"`
+	CampaignEnd   *time.Time            `json:"-"`
 }
 type Active struct {
 	Schedule Schedule
@@ -156,7 +158,8 @@ func NextInterval(s Schedule, from time.Time) (Active, bool) {
 		if !oneTimeAllowed(s, *s.OneTimeStart, *s.OneTimeEnd) {
 			return Active{}, false
 		}
-		return Active{s, *s.OneTimeStart, *s.OneTimeEnd}, true
+		window := clipCampaignWindow(Active{s, *s.OneTimeStart, *s.OneTimeEnd})
+		return window, window.End.After(window.Start) && window.End.After(from)
 	}
 	startClock, endClock, ok := weeklyClocks(s)
 	if !ok {
@@ -166,8 +169,16 @@ func NextInterval(s Schedule, from time.Time) (Active, bool) {
 	if err != nil {
 		return Active{}, false
 	}
+	// Search from the campaign start when its first occurrence is far ahead.
+	searchFrom := from
+	if s.CampaignStart != nil && searchFrom.Before(*s.CampaignStart) {
+		searchFrom = *s.CampaignStart
+	}
+	if s.CampaignEnd != nil && !searchFrom.Before(*s.CampaignEnd) {
+		return Active{}, false
+	}
 	// Noon keeps date arithmetic away from daylight-saving gaps at midnight.
-	y, m, d := from.In(loc).Date()
+	y, m, d := searchFrom.In(loc).Date()
 	date := time.Date(y, m, d-1, 12, 0, 0, 0, loc)
 	if s.StartDate != nil {
 		if first, parseErr := time.Parse("2006-01-02", *s.StartDate); parseErr == nil {
@@ -186,6 +197,9 @@ func NextInterval(s Schedule, from time.Time) (Active, bool) {
 			continue
 		}
 		window := weeklyInterval(s, day, startClock, endClock)
+		if s.CampaignEnd != nil && !window.Start.Before(*s.CampaignEnd) {
+			break
+		}
 		if window.End.After(window.Start) && window.End.After(from) {
 			return window, true
 		}
@@ -195,12 +209,18 @@ func NextInterval(s Schedule, from time.Time) (Active, bool) {
 
 func intervalAt(s Schedule, at time.Time) (*Active, []time.Time) {
 	if s.Type == OneTime {
-		start, end := *s.OneTimeStart, *s.OneTimeEnd
-		var a *Active
-		if !at.Before(start) && at.Before(end) && oneTimeAllowed(s, start, end) {
-			a = &Active{s, start, end}
+		if s.OneTimeStart == nil || s.OneTimeEnd == nil || !oneTimeAllowed(s, *s.OneTimeStart, *s.OneTimeEnd) {
+			return nil, nil
 		}
-		return a, []time.Time{start, end}
+		window := clipCampaignWindow(Active{s, *s.OneTimeStart, *s.OneTimeEnd})
+		if !window.End.After(window.Start) {
+			return nil, nil
+		}
+		var a *Active
+		if !at.Before(window.Start) && at.Before(window.End) {
+			a = &window
+		}
+		return a, []time.Time{window.Start, window.End}
 	}
 	startClock, endClock, ok := weeklyClocks(s)
 	loc, err := time.LoadLocation(s.Timezone)
@@ -245,7 +265,19 @@ func weeklyInterval(s Schedule, date, startClock, endClock time.Time) Active {
 	if !endClock.After(startClock) {
 		endDate = date.AddDate(0, 0, 1)
 	}
-	return Active{s, resolveLocal(date, startClock, false), resolveLocal(endDate, endClock, true)}
+	return clipCampaignWindow(Active{s, resolveLocal(date, startClock, false), resolveLocal(endDate, endClock, true)})
+}
+
+// clipCampaignWindow intersects an occurrence with the published campaign's
+// absolute bounds. Empty intersections do not activate.
+func clipCampaignWindow(window Active) Active {
+	if bound := window.Schedule.CampaignStart; bound != nil && window.Start.Before(*bound) {
+		window.Start = *bound
+	}
+	if bound := window.Schedule.CampaignEnd; bound != nil && window.End.After(*bound) {
+		window.End = *bound
+	}
+	return window
 }
 
 // CanActivate reports whether a schedule's definition allows any occurrence at
@@ -256,7 +288,11 @@ func CanActivate(s Schedule) bool {
 	if s.Type != OneTime {
 		return true
 	}
-	return s.OneTimeStart != nil && s.OneTimeEnd != nil && oneTimeAllowed(s, *s.OneTimeStart, *s.OneTimeEnd)
+	if s.OneTimeStart == nil || s.OneTimeEnd == nil || !oneTimeAllowed(s, *s.OneTimeStart, *s.OneTimeEnd) {
+		return false
+	}
+	window := clipCampaignWindow(Active{s, *s.OneTimeStart, *s.OneTimeEnd})
+	return window.End.After(window.Start)
 }
 
 // oneTimeAllowed applies a Campaign's date bounds to a fixed window. The

@@ -119,6 +119,8 @@ type Input struct {
 	EndDate       *string                `json:"endDate"`
 	OneTimeStart  *time.Time             `json:"oneTimeStart"`
 	OneTimeEnd    *time.Time             `json:"oneTimeEnd"`
+	CampaignStart *time.Time             `json:"-"`
+	CampaignEnd   *time.Time             `json:"-"`
 	DailyStart    *string                `json:"dailyStart"`
 	DailyEnd      *string                `json:"dailyEnd"`
 	DaysOfWeek    []int                  `json:"daysOfWeek"`
@@ -985,12 +987,12 @@ func (s *Service) SetEnabled(ctx context.Context, id, user uuid.UUID, enabled bo
 }
 
 // Preserve the existing HH:MM response for whole-minute times.
-const recordSelect = `SELECT s.id,s.name,s.description,COALESCE(s.playlist_id,'00000000-0000-0000-0000-000000000000'::uuid),COALESCE(p.name,l.name,''),s.layout_id,l.name,` + presentationTypeExpr + `,s.display_action,s.type,s.timezone,s.priority,s.enabled,to_char(s.start_date,'YYYY-MM-DD'),to_char(s.end_date,'YYYY-MM-DD'),s.one_time_start,s.one_time_end,regexp_replace(to_char(s.daily_start,'HH24:MI:SS'),':00$',''),regexp_replace(to_char(s.daily_end,'HH24:MI:SS'),':00$',''),s.days_of_week,s.created_at,s.updated_at FROM schedules s LEFT JOIN playlists p ON p.id=s.playlist_id LEFT JOIN layouts l ON l.id=s.layout_id`
+const recordSelect = `SELECT s.id,s.name,s.description,COALESCE(s.playlist_id,'00000000-0000-0000-0000-000000000000'::uuid),COALESCE(p.name,l.name,''),s.layout_id,l.name,` + presentationTypeExpr + `,s.display_action,s.type,s.timezone,s.priority,s.enabled,to_char(s.start_date,'YYYY-MM-DD'),to_char(s.end_date,'YYYY-MM-DD'),s.one_time_start,s.one_time_end,regexp_replace(to_char(s.daily_start,'HH24:MI:SS'),':00$',''),regexp_replace(to_char(s.daily_end,'HH24:MI:SS'),':00$',''),s.days_of_week,s.created_at,s.updated_at,(campaign_release.snapshot->>'campaignStart')::timestamptz,(campaign_release.snapshot->>'campaignEnd')::timestamptz FROM schedules s LEFT JOIN playlists p ON p.id=s.playlist_id LEFT JOIN layouts l ON l.id=s.layout_id LEFT JOIN campaign_releases campaign_release ON campaign_release.id=s.campaign_release_id`
 
 func scanRecord(row pgx.Row) (Record, error) {
 	var r Record
 	var actionJSON []byte
-	err := row.Scan(&r.ID, &r.Name, &r.Description, &r.PlaylistID, &r.PlaylistName, &r.LayoutID, &r.LayoutName, &r.PresentationType, &actionJSON, &r.Type, &r.Timezone, &r.Priority, &r.Enabled, &r.StartDate, &r.EndDate, &r.OneTimeStart, &r.OneTimeEnd, &r.DailyStart, &r.DailyEnd, &r.DaysOfWeek, &r.CreatedAt, &r.UpdatedAt)
+	err := row.Scan(&r.ID, &r.Name, &r.Description, &r.PlaylistID, &r.PlaylistName, &r.LayoutID, &r.LayoutName, &r.PresentationType, &actionJSON, &r.Type, &r.Timezone, &r.Priority, &r.Enabled, &r.StartDate, &r.EndDate, &r.OneTimeStart, &r.OneTimeEnd, &r.DailyStart, &r.DailyEnd, &r.DaysOfWeek, &r.CreatedAt, &r.UpdatedAt, &r.CampaignStart, &r.CampaignEnd)
 	if err == nil && len(actionJSON) > 0 {
 		var action displaycontrol.Action
 		if e := json.Unmarshal(actionJSON, &action); e != nil {
@@ -1252,7 +1254,7 @@ func (s *Service) Preview(ctx context.Context, screen uuid.UUID, at time.Time, p
 			}
 		}
 		if specificity >= 0 {
-			records = append(records, Record{Schedule: Schedule{ID: uuid.Nil, PlaylistID: proposed.PlaylistID, LayoutID: proposed.LayoutID, DisplayAction: proposed.DisplayAction, Type: proposed.Type, Timezone: proposed.Timezone, Priority: proposed.Priority, Specificity: specificity, Enabled: proposed.Enabled, StartDate: proposed.StartDate, EndDate: proposed.EndDate, OneTimeStart: proposed.OneTimeStart, OneTimeEnd: proposed.OneTimeEnd, DailyStart: proposed.DailyStart, DailyEnd: proposed.DailyEnd, DaysOfWeek: proposed.DaysOfWeek}, Name: proposed.Name})
+			records = append(records, Record{Schedule: Schedule{ID: uuid.Nil, PlaylistID: proposed.PlaylistID, LayoutID: proposed.LayoutID, DisplayAction: proposed.DisplayAction, Type: proposed.Type, Timezone: proposed.Timezone, Priority: proposed.Priority, Specificity: specificity, Enabled: proposed.Enabled, StartDate: proposed.StartDate, EndDate: proposed.EndDate, OneTimeStart: proposed.OneTimeStart, OneTimeEnd: proposed.OneTimeEnd, CampaignStart: proposed.CampaignStart, CampaignEnd: proposed.CampaignEnd, DailyStart: proposed.DailyStart, DailyEnd: proposed.DailyEnd, DaysOfWeek: proposed.DaysOfWeek}, Name: proposed.Name})
 		}
 	}
 	base := make([]Schedule, len(records))

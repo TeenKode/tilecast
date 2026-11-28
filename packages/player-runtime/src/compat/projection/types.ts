@@ -258,6 +258,8 @@ export interface ManifestSchedule {
   endDate?: string | null;
   oneTimeStart?: string | null;
   oneTimeEnd?: string | null;
+  campaignStart?: string | null;
+  campaignEnd?: string | null;
   dailyStart?: string | null;
   dailyEnd?: string | null;
   daysOfWeek?: number[] | null;

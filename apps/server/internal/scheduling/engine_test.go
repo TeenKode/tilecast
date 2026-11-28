@@ -186,3 +186,27 @@ func TestCanActivateRejectsOneTimeWindowsOutsideTheirDateBounds(t *testing.T) {
 		t.Fatal("weekly schedules are always eligible")
 	}
 }
+
+func TestCampaignBoundsClipOccurrencesToSeconds(t *testing.T) {
+	start := time.Date(2026, 7, 17, 9, 0, 10, 0, time.UTC)
+	end := start.Add(15 * time.Second)
+	for _, s := range []Schedule{
+		{Type: Weekly, Timezone: "UTC", Enabled: true, DailyStart: p("09:00"), DailyEnd: p("10:00"), DaysOfWeek: []int{5}, CampaignStart: &start, CampaignEnd: &end},
+		{Type: OneTime, Timezone: "UTC", Enabled: true, OneTimeStart: p(start.Add(-time.Minute)), OneTimeEnd: p(end.Add(time.Minute)), CampaignStart: &start, CampaignEnd: &end},
+	} {
+		before := start.Add(-time.Second)
+		if r := Resolve(before, []Schedule{s}); r.Winner != nil || r.NextTransition == nil || !r.NextTransition.Equal(start) {
+			t.Fatalf("before start: %#v", r)
+		}
+		window, ok := NextInterval(s, before)
+		if !ok || !window.Start.Equal(start) || !window.End.Equal(end) {
+			t.Fatalf("wrong clipped window: %#v", window)
+		}
+		if r := Resolve(start, []Schedule{s}); r.Winner == nil || r.NextTransition == nil || !r.NextTransition.Equal(end) {
+			t.Fatalf("at start: %#v", r)
+		}
+		if r := Resolve(end, []Schedule{s}); r.Winner != nil {
+			t.Fatal("campaign end is exclusive")
+		}
+	}
+}
