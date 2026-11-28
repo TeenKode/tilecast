@@ -324,6 +324,7 @@ export function formatWhen(value: string) {
     day: "numeric",
     hour: "numeric",
     minute: "2-digit",
+    second: "2-digit",
   });
 }
 /** A whole day, spelled out for a group heading in the reader's locale. */

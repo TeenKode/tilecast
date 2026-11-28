@@ -2,7 +2,7 @@
 import "@testing-library/jest-dom/vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
-import { TechnicalDetails } from "./ActivityShared";
+import { formatWhen, TechnicalDetails } from "./ActivityShared";
 
 afterEach(() => {
   cleanup();
@@ -23,5 +23,15 @@ describe("TechnicalDetails", () => {
 
     expect(screen.getByText("—")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "View" })).toBeNull();
+  });
+});
+
+describe("activity timestamps", () => {
+  it("distinguishes events within the same minute", () => {
+    const first = formatWhen("2026-07-21T14:30:15Z");
+    const second = formatWhen("2026-07-21T14:30:45Z");
+    expect(first).not.toBe(second);
+    expect(first).toMatch(/:15\b/);
+    expect(second).toMatch(/:45\b/);
   });
 });
