@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/tilecast/tilecast/apps/server/internal/database"
+	"github.com/tilecast/tilecast/apps/server/internal/scheduling"
 	"github.com/tilecast/tilecast/apps/server/internal/testdb"
 )
 
@@ -57,6 +58,8 @@ func TestPublishRetainedTimingAndReadRelease(t *testing.T) {
 			end := start.Add(4 * time.Minute)
 			dailyStart, dailyEnd := "08:00", "08:04"
 			draft := campaign.Draft
+			campaignStart, campaignEnd := start.Add(10*time.Second), start.Add(25*time.Second)
+			draft.CampaignStart, draft.CampaignEnd = &campaignStart, &campaignEnd
 			draft.Destinations = []Destination{{Type: "group", ID: group}}
 			draft.Blocks = []Block{{ID: uuid.New(), Name: "Flag", ContentType: "playlist", ContentID: playlist, ContentRevision: 1,
 				Type: kind, Timezone: draft.Timezone, Enabled: true, OneTimeStart: &start, OneTimeEnd: &end,
@@ -84,6 +87,25 @@ func TestPublishRetainedTimingAndReadRelease(t *testing.T) {
 			}
 			if err = tx.Commit(ctx); err != nil {
 				t.Fatal(err)
+			}
+			var scheduleID uuid.UUID
+			if err = pool.QueryRow(ctx, `SELECT id FROM schedules WHERE campaign_id=$1 AND deleted_at IS NULL`, campaign.ID).Scan(&scheduleID); err != nil {
+				t.Fatal(err)
+			}
+			scheduler := scheduling.NewService(pool, nil, scheduling.Limits{})
+			record, err := scheduler.Get(ctx, scheduleID)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if record.CampaignStart == nil || record.CampaignEnd == nil || !record.CampaignStart.Equal(campaignStart) || !record.CampaignEnd.Equal(campaignEnd) {
+				t.Fatalf("published campaign bounds lost: %#v", record.Schedule)
+			}
+			window, ok := scheduling.NextInterval(record.Schedule, start)
+			if !ok || !window.Start.Equal(campaignStart) || !window.End.Equal(campaignEnd) {
+				t.Fatalf("clipped occurrence: %#v", window)
+			}
+			if _, ok = scheduling.ActiveAt(record.Schedule, campaignEnd); ok {
+				t.Fatal("published schedule remains active after the campaign ends")
 			}
 			releases, err := service.Releases(ctx, campaign.ID)
 			if err != nil || len(releases) != 1 {
