@@ -4,6 +4,7 @@ import type { PluginT } from "@tilecast/studio";
 import { i18n } from "@tilecast/studio/testing";
 import type en from "../locales/en.json";
 import {
+  applyDefaults,
   formValuesToPayload,
   localDateTimeToRfc3339,
   recordValuesToForm,
@@ -51,6 +52,11 @@ describe("datetime round-trip", () => {
     const payload = formValuesToPayload(datetimeSchema, { startAt: local });
     expect(payload.startAt).toBe(instant);
     expect(recordValuesToForm(datetimeSchema, payload).startAt).toBe(local);
+    expect(
+      applyDefaults({
+        fields: [{ ...datetimeSchema.fields[0]!, default: instant }],
+      }).startAt,
+    ).toBe(local);
   });
 
   it("treats empty and invalid datetimes as empty", () => {

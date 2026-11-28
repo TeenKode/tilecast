@@ -6,6 +6,12 @@ import {
 } from "./dateTime";
 
 describe("Studio timestamp display", () => {
+  it("can show exact seconds without changing minute-only callers", () => {
+    const instant = "2026-01-18T12:34:25Z";
+    expect(formatDateTime(instant, "en-US", "—", true)).toMatch(/:25\b/);
+    expect(formatDateTime(instant, "en-US")).not.toMatch(/:25\b/);
+  });
+
   it.each([
     ["en-US", /Jan/],
     ["es-ES", /ene/],

@@ -3,13 +3,14 @@ export function formatDateTime(
   value: string | null | undefined,
   locale: string,
   missing = "—",
+  includeSeconds = false,
 ): string {
   if (!value) return missing;
   const date = new Date(value);
   if (!Number.isFinite(date.getTime())) return missing;
   return new Intl.DateTimeFormat(locale, {
     dateStyle: "medium",
-    timeStyle: "short",
+    timeStyle: includeSeconds ? "medium" : "short",
   }).format(date);
 }
 
