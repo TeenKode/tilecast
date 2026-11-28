@@ -146,6 +146,17 @@ func ActiveAt(s Schedule, at time.Time) (Active, bool) {
 // occurrence, so a date range that opens far ahead is still found.
 const nextIntervalHorizonDays = 400
 
+// CurrentOrNextInterval prefers the latest active occurrence, as Resolve does.
+// This matters when overnight weekly intervals overlap at a DST fall-back.
+func CurrentOrNextInterval(s Schedule, from time.Time) (Active, bool) {
+	if s.Type == Weekly {
+		if active, ok := ActiveAt(s, from); ok {
+			return active, true
+		}
+	}
+	return NextInterval(s, from)
+}
+
 // NextInterval returns the first interval of s that has not ended by from,
 // using the same wall-clock and daylight-saving rules as Resolve. It does not
 // consider Enabled. It reports false for a one-time schedule already over and
@@ -155,11 +166,8 @@ func NextInterval(s Schedule, from time.Time) (Active, bool) {
 		if s.OneTimeStart == nil || s.OneTimeEnd == nil || !s.OneTimeEnd.After(from) {
 			return Active{}, false
 		}
-		if !oneTimeAllowed(s, *s.OneTimeStart, *s.OneTimeEnd) {
-			return Active{}, false
-		}
 		window := clipCampaignWindow(Active{s, *s.OneTimeStart, *s.OneTimeEnd})
-		return window, window.End.After(window.Start) && window.End.After(from)
+		return window, window.End.After(window.Start) && window.End.After(from) && oneTimeAllowed(s, window.Start, window.End)
 	}
 	startClock, endClock, ok := weeklyClocks(s)
 	if !ok {
@@ -209,11 +217,11 @@ func NextInterval(s Schedule, from time.Time) (Active, bool) {
 
 func intervalAt(s Schedule, at time.Time) (*Active, []time.Time) {
 	if s.Type == OneTime {
-		if s.OneTimeStart == nil || s.OneTimeEnd == nil || !oneTimeAllowed(s, *s.OneTimeStart, *s.OneTimeEnd) {
+		if s.OneTimeStart == nil || s.OneTimeEnd == nil {
 			return nil, nil
 		}
 		window := clipCampaignWindow(Active{s, *s.OneTimeStart, *s.OneTimeEnd})
-		if !window.End.After(window.Start) {
+		if !window.End.After(window.Start) || !oneTimeAllowed(s, window.Start, window.End) {
 			return nil, nil
 		}
 		var a *Active
@@ -288,11 +296,11 @@ func CanActivate(s Schedule) bool {
 	if s.Type != OneTime {
 		return true
 	}
-	if s.OneTimeStart == nil || s.OneTimeEnd == nil || !oneTimeAllowed(s, *s.OneTimeStart, *s.OneTimeEnd) {
+	if s.OneTimeStart == nil || s.OneTimeEnd == nil {
 		return false
 	}
 	window := clipCampaignWindow(Active{s, *s.OneTimeStart, *s.OneTimeEnd})
-	return window.End.After(window.Start)
+	return window.End.After(window.Start) && oneTimeAllowed(s, window.Start, window.End)
 }
 
 // oneTimeAllowed applies a Campaign's date bounds to a fixed window. The
