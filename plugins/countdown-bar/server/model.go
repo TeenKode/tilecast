@@ -151,8 +151,13 @@ func Validate(input Input) error {
 		if input.TargetTime == nil || input.OneTimeAt != nil || len(input.DaysOfWeek) == 0 {
 			return plugin.Invalidf("weekly schedules require a target time and at least one day")
 		}
-		if _, err := time.Parse("15:04", *input.TargetTime); err != nil {
-			return plugin.Invalidf("targetTime must use HH:MM")
+		layout := "15:04"
+		if len(*input.TargetTime) == 8 {
+			layout = "15:04:05"
+		}
+		parsed, err := time.Parse(layout, *input.TargetTime)
+		if err != nil || parsed.Format(layout) != *input.TargetTime {
+			return plugin.Invalidf("targetTime must use HH:MM or HH:MM:SS")
 		}
 		seen := map[int]bool{}
 		for _, day := range input.DaysOfWeek {
@@ -171,12 +176,15 @@ func Validate(input Input) error {
 	return plugin.Target{Scope: input.TargetScope, IDs: input.TargetIDs}.Validate()
 }
 
-// trimTargetTime turns PostgreSQL's HH:MM:SS `time` rendering into the HH:MM
-// shape the API, the manifest, and the validator use.
+// trimTargetTime keeps nonzero seconds and preserves the legacy HH:MM form
+// for whole-minute targets returned by PostgreSQL.
 func trimTargetTime(value *string) *string {
 	if value == nil || *value == "" {
 		return value
 	}
-	trimmed := strings.TrimSuffix(strings.TrimSuffix(*value, "00"), ":")
+	trimmed := *value
+	if len(trimmed) == 8 {
+		trimmed = strings.TrimSuffix(trimmed, ":00")
+	}
 	return &trimmed
 }

@@ -179,6 +179,25 @@ describe("Countdown Bar editor", () => {
     expect(submitted[0]?.startingSoonSeconds).toBe(300);
   }, 10_000);
 
+  it("preserves seconds when saving an existing one-time target", async () => {
+    const oneTimeAt = "2026-12-01T12:00:45.000Z";
+    stored = {
+      ...storedInstance,
+      scheduleType: "one_time",
+      targetTime: null,
+      daysOfWeek: [],
+      oneTimeAt,
+    };
+    renderEditor("/plugins/countdown-bar/bar-1");
+    await waitFor(() =>
+      expect(screen.getByLabelText("Name")).toHaveValue("Lunch"),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+    await waitFor(() => expect(submitted).toHaveLength(1));
+    expect(submitted[0]?.scheduleType).toBe("one_time");
+    expect(submitted[0]?.oneTimeAt).toBe(oneTimeAt);
+  }, 10_000);
+
   it("submits the checkbox groups it renders", async () => {
     renderEditor("/plugins/countdown-bar/new");
     await waitFor(() => expect(screen.getByLabelText("Name")).toBeEnabled());
@@ -378,10 +397,14 @@ describe("Countdown Bar editor", () => {
     // A weekday toggle re-renders the form; a select whose value was dropped
     // here would silently fall back to its first option.
     fireEvent.click(screen.getByRole("button", { name: "Sat" }));
-    expect(screen.getByLabelText("Target time")).toBeVisible();
+    const targetTime = screen.getByLabelText("Target time");
+    expect(targetTime).toBeVisible();
+    expect(targetTime).toHaveAttribute("step", "1");
+    fireEvent.change(targetTime, { target: { value: "12:00:45" } });
     fireEvent.click(screen.getByRole("button", { name: "Create instance" }));
     await waitFor(() => expect(submitted).toHaveLength(1));
     expect(submitted[0]?.scheduleType).toBe("weekly");
+    expect(submitted[0]?.targetTime).toBe("12:00:45");
     expect(submitted[0]?.displayMode).toBe("push");
   }, 10_000);
 

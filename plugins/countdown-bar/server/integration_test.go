@@ -157,7 +157,7 @@ func TestLifecycleTargetingAndManifest(t *testing.T) {
 // The HTTP contract is the one in api/openapi.yaml and the one Studio uses.
 func TestRoutes(t *testing.T) {
 	h := pluginharness.New(t, countdownbar.New())
-	body := `{"name":"Lunch","message":"Lunch ends in","scheduleType":"weekly","targetTime":"12:00","daysOfWeek":[1],
+	body := `{"name":"Lunch","message":"Lunch ends in","scheduleType":"weekly","targetTime":"12:00:45","daysOfWeek":[1],
 		"timezone":"UTC","leadTimeSeconds":900,"completionText":"","showConfetti":false,"displayMode":"overlay","heightPx":72,
 		"urgencyEnabled":false,"startingSoonSeconds":300,"urgentSeconds":60,"pulseSeconds":10,"enabled":true,"priority":0,
 		"targetScope":"all","targetIds":[]}`
@@ -176,7 +176,7 @@ func TestRoutes(t *testing.T) {
 	if r := h.Serve("viewer", http.MethodGet, "/plugins/countdown-bar/instances", ""); r.Status != http.StatusOK || r.Data()["total"] != float64(1) {
 		t.Fatalf("list = %+v", r)
 	}
-	if r := h.Serve("viewer", http.MethodGet, "/plugins/countdown-bar/instances/"+id, ""); r.Status != http.StatusOK || r.Data()["targetTime"] != "12:00" {
+	if r := h.Serve("viewer", http.MethodGet, "/plugins/countdown-bar/instances/"+id, ""); r.Status != http.StatusOK || r.Data()["targetTime"] != "12:00:45" {
 		t.Fatalf("get = %+v", r)
 	}
 	if r := h.Serve("owner", http.MethodPut, "/plugins/countdown-bar/instances/"+id, `{"name":""}`); r.Status != http.StatusBadRequest || r.ErrorCode() != "invalid_plugin_configuration" {
