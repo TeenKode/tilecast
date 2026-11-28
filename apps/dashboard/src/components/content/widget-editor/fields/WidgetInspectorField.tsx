@@ -286,11 +286,12 @@ function StandardControl({
     case "datetime":
       return (
         <DateTimeInput
+          includeSeconds
           {...aria}
           disabled={readOnly}
           required={field.required}
           timeLabel={t("datePicker.time", { ns: "schedules" })}
-          value={rfc3339ToLocalDateTime(fieldText(value))}
+          value={rfc3339ToLocalDateTime(fieldText(value), true)}
           onChange={(next) => onChange(localDateTimeToRfc3339(next))}
         />
       );
@@ -299,11 +300,12 @@ function StandardControl({
       // saved as entered, never converted to an instant.
       return (
         <DateTimeInput
+          includeSeconds
           {...aria}
           disabled={readOnly}
           required={field.required}
           timeLabel={t("datePicker.time", { ns: "schedules" })}
-          value={fieldText(value).slice(0, 16)}
+          value={fieldText(value).slice(0, 19)}
           onChange={onChange}
         />
       );

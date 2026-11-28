@@ -3,24 +3,30 @@ export function formatDateTime(
   value: string | null | undefined,
   locale: string,
   missing = "—",
+  includeSeconds = false,
 ): string {
   if (!value) return missing;
   const date = new Date(value);
   if (!Number.isFinite(date.getTime())) return missing;
   return new Intl.DateTimeFormat(locale, {
     dateStyle: "medium",
-    timeStyle: "short",
+    timeStyle: includeSeconds ? "medium" : "short",
   }).format(date);
 }
 
 // Convert a stored RFC 3339 instant into the local wall-clock value accepted by
-// DateTimeInput (`YYYY-MM-DDTHH:mm`).
-export function rfc3339ToLocalDateTime(value?: string): string {
+// DateTimeInput, with optional second precision.
+export function rfc3339ToLocalDateTime(
+  value?: string,
+  includeSeconds = false,
+): string {
   if (!value) return "";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "";
   const offsetMs = date.getTimezoneOffset() * 60_000;
-  return new Date(date.getTime() - offsetMs).toISOString().slice(0, 16);
+  return new Date(date.getTime() - offsetMs)
+    .toISOString()
+    .slice(0, includeSeconds && date.getSeconds() !== 0 ? 19 : 16);
 }
 
 // Return the local calendar date accepted by a date input (`YYYY-MM-DD`).

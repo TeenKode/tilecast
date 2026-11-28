@@ -36,7 +36,7 @@ export function recordValuesToForm(
         ? raw.map((item) => String(item))
         : [];
     } else if (field.control === "datetime") {
-      result[field.key] = rfc3339ToLocalDateTime(coerceScalar(raw));
+      result[field.key] = rfc3339ToLocalDateTime(coerceScalar(raw), true);
     } else {
       result[field.key] = coerceScalar(raw);
     }
@@ -56,7 +56,7 @@ export function applyDefaults(schema: FormSchema): FormValues {
         ? field.default.split(",").map((v) => v.trim())
         : [];
     } else if (field.control === "datetime") {
-      result[field.key] = rfc3339ToLocalDateTime(field.default ?? "");
+      result[field.key] = rfc3339ToLocalDateTime(field.default ?? "", true);
     } else {
       result[field.key] = field.default ?? "";
     }

@@ -4,6 +4,7 @@ import type { PluginT } from "@tilecast/studio";
 import { i18n } from "@tilecast/studio/testing";
 import type en from "../locales/en.json";
 import {
+  applyDefaults,
   formValuesToPayload,
   localDateTimeToRfc3339,
   recordValuesToForm,
@@ -43,6 +44,19 @@ describe("datetime round-trip", () => {
       startAt: payload.startAt as string,
     });
     expect(form.startAt).toBe(local);
+  });
+
+  it("preserves seconds in stored datetime values", () => {
+    const local = "2026-12-31T23:59:45";
+    const instant = localDateTimeToRfc3339(local);
+    const payload = formValuesToPayload(datetimeSchema, { startAt: local });
+    expect(payload.startAt).toBe(instant);
+    expect(recordValuesToForm(datetimeSchema, payload).startAt).toBe(local);
+    expect(
+      applyDefaults({
+        fields: [{ ...datetimeSchema.fields[0]!, default: instant }],
+      }).startAt,
+    ).toBe(local);
   });
 
   it("treats empty and invalid datetimes as empty", () => {

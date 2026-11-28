@@ -176,19 +176,20 @@ describe("DefinitionForm date controls", () => {
   });
 
   it("shows stored instants in local time and saves datetime edits as RFC 3339", () => {
-    const stored = "2026-09-23T16:30:00.000Z";
-    const local = rfc3339ToLocalDateTime(stored);
+    const stored = "2026-09-23T16:30:25.000Z";
+    const local = rfc3339ToLocalDateTime(stored, true);
     const { onChange } = form(
       [{ key: "startsAt", label: "Starts at", control: "datetime" }],
       { startsAt: stored },
     );
     const time = screen.getByLabelText("Starts at time");
 
-    expect(time).toHaveValue(local.slice(11, 16));
-    fireEvent.change(time, { target: { value: "09:45" } });
+    expect(time).toHaveAttribute("step", "1");
+    expect(time).toHaveValue(local.slice(11));
+    fireEvent.change(time, { target: { value: "09:45:35" } });
 
     expect(onChange).toHaveBeenLastCalledWith({
-      startsAt: localDateTimeToRfc3339(`${local.slice(0, 11)}09:45`),
+      startsAt: localDateTimeToRfc3339(`${local.slice(0, 11)}09:45:35`),
     });
     expect(document.querySelector('input[type="datetime-local"]')).toBeNull();
   });
