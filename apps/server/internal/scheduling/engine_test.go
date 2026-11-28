@@ -210,3 +210,32 @@ func TestCampaignBoundsClipOccurrencesToSeconds(t *testing.T) {
 		}
 	}
 }
+
+func TestCampaignOneTimeClipsBeforeCheckingCalendarDates(t *testing.T) {
+	start := time.Date(2026, 7, 17, 0, 0, 10, 0, time.UTC)
+	end := start.Add(15 * time.Second)
+	date := "2026-07-17"
+	s := Schedule{
+		Type: OneTime, Timezone: "UTC", Enabled: true,
+		StartDate: &date, EndDate: &date,
+		OneTimeStart: p(start.Add(-time.Minute)), OneTimeEnd: p(end.Add(time.Minute)),
+		CampaignStart: &start, CampaignEnd: &end,
+	}
+	if !CanActivate(s) {
+		t.Fatal("the clipped interval is inside the campaign date bounds")
+	}
+	window, ok := NextInterval(s, start.Add(-time.Second))
+	if !ok || !window.Start.Equal(start) || !window.End.Equal(end) {
+		t.Fatalf("clipped window = %+v", window)
+	}
+	if active, ok := ActiveAt(s, start); !ok || !active.End.Equal(end) {
+		t.Fatalf("active window = %+v", active)
+	}
+	if _, ok := ActiveAt(s, end); ok {
+		t.Fatal("campaign end must be exclusive")
+	}
+	s.CampaignStart, s.CampaignEnd = nil, nil
+	if CanActivate(s) {
+		t.Fatal("without campaign clipping, the original date restriction still applies")
+	}
+}
