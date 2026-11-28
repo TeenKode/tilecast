@@ -770,9 +770,10 @@ function CampaignEditor({ campaignId }: { campaignId: string }) {
               </FieldLabel>
               <DateTimeInput
                 id="campaign-start"
+                includeSeconds
                 aria-label={t("campaigns.editor.startLabel")}
                 timeLabel={t("campaigns.editor.startTimeLabel")}
-                value={dateTimeInput(draft.campaignStart)}
+                value={dateTimeInput(draft.campaignStart, true)}
                 disabled={!canEdit}
                 onChange={(value) =>
                   setDraft({
@@ -788,9 +789,10 @@ function CampaignEditor({ campaignId }: { campaignId: string }) {
               </FieldLabel>
               <DateTimeInput
                 id="campaign-end"
+                includeSeconds
                 aria-label={t("campaigns.editor.endLabel")}
                 timeLabel={t("campaigns.editor.endTimeLabel")}
-                value={dateTimeInput(draft.campaignEnd)}
+                value={dateTimeInput(draft.campaignEnd, true)}
                 disabled={!canEdit}
                 onChange={(value) =>
                   setDraft({
