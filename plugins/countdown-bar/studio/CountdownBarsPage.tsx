@@ -476,7 +476,9 @@ export function CountdownBarEditorPage() {
       scheduleType: value.scheduleType,
       targetTime: value.targetTime ?? "",
       daysOfWeek: value.daysOfWeek,
-      oneTimeAt: value.oneTimeAt ? toLocalInputValue(value.oneTimeAt, true) : "",
+      oneTimeAt: value.oneTimeAt
+        ? toLocalInputValue(value.oneTimeAt, true)
+        : "",
       timezone: value.timezone,
       leadMinutes,
       completionText: value.completionText,
