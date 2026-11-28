@@ -520,6 +520,7 @@ function FieldControl({
     case "datetime":
       return (
         <DateTimeInput
+          includeSeconds
           {...common}
           aria-label={field.label}
           value={stringValue}

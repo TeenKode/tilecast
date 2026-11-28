@@ -45,6 +45,14 @@ describe("datetime round-trip", () => {
     expect(form.startAt).toBe(local);
   });
 
+  it("preserves seconds in stored datetime values", () => {
+    const local = "2026-12-31T23:59:45";
+    const instant = localDateTimeToRfc3339(local);
+    const payload = formValuesToPayload(datetimeSchema, { startAt: local });
+    expect(payload.startAt).toBe(instant);
+    expect(recordValuesToForm(datetimeSchema, payload).startAt).toBe(local);
+  });
+
   it("treats empty and invalid datetimes as empty", () => {
     expect(localDateTimeToRfc3339("")).toBe("");
     expect(rfc3339ToLocalDateTime("")).toBe("");
